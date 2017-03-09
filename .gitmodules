@@ -1,0 +1,6 @@
+[submodule "src/tracker/3rdparty/OpenTLD"]
+	path = src/tracker/3rdparty/OpenTLD
+	url = https://github.com/gnebehay/OpenTLD.git
+[submodule "src/robo_gui/3rdparty/qt-android-cmake"]
+	path = src/robo_gui/3rdparty/qt-android-cmake
+	url = https://github.com/LaurentGomila/qt-android-cmake.git
