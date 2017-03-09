@@ -1,0 +1,18 @@
+<RCC>
+    <qresource prefix="/">
+        <file alias="icons/settings.svg">resources/settings.svg</file>
+        <file alias="icons/ok.svg">resources/ok.svg</file>
+        <file alias="icons/cancel.svg">resources/cancel.svg</file>
+        <file alias="icons/charging.svg">resources/charging.svg</file>
+        <file alias="icons/pitch.svg">resources/pitch.svg</file>
+        <file alias="icons/roll.svg">resources/roll.svg</file>
+        <file alias="icons/gamepad.svg">resources/gamepad.svg</file>
+        <file alias="icons/phone.svg">resources/phone.svg</file>
+        <file alias="icons/azimuth.svg">resources/azimuth.svg</file>
+        <file alias="icons/angle.svg">resources/angle.svg</file>
+        <file alias="icons/chassis.svg">resources/chassis.svg</file>
+        <file alias="icons/tower.svg">resources/tower.svg</file>
+        <file alias="icons/plus.svg">resources/plus.svg</file>
+        <file alias="icons/minus.svg">resources/minus.svg</file>
+    </qresource>
+</RCC>

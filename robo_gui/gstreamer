@@ -1,0 +1,2 @@
+gst-launch-1.0 -v v4l2src ! x264enc threads=3 ! mpegtsmux ! udpsink host=localhost port=5000
+gst-launch-1.0 -v v4l2src ! x264enc threads=3 ! h264parse ! mpegtsmux ! udpsink host=localhost port=5000
