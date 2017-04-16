@@ -8,7 +8,7 @@ struct ImageSettings;
 class VideoSource : public ITask
 {
 public:
-    VideoSource();
+    VideoSource(int& argc, char** argv);
     ~VideoSource();
 
     void start() override;

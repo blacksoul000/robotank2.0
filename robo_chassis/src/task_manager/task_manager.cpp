@@ -19,12 +19,17 @@
 class TaskManager::Impl
 {
 public:
+    int& argc;
+    char** argv;
+
     QMap< quint64, ThreadControllerPtr > threads;
     QList < ITaskPtr > untreaded;
+
+    Impl(int& argc, char** argv) : argc(argc), argv(argv) {}
 };
 
-TaskManager::TaskManager() :
-    d(new Impl)
+TaskManager::TaskManager(int& argc, char** argv) :
+    d(new Impl(argc, argv))
 {
 }
 
@@ -40,8 +45,8 @@ bool TaskManager::createTasks()
     this->addTask(ITaskPtr(new TrackerTask), 10);
     this->addTask(ITaskPtr(new GamepadController), 20);
 //    this->addTask(ITaskPtr(new GuiExchanger), 25);
-    this->addTask(ITaskPtr(new VideoSource), 25);
-    this->addTask(ITaskPtr(new GpioController), 100);
+    this->addTask(ITaskPtr(new VideoSource(d->argc, d->argv)), 25);
+//    this->addTask(ITaskPtr(new GpioController), 100);
     this->addTask(ITaskPtr(new ConfigHandler), 0); // last one
 }
 

@@ -6,7 +6,7 @@ int main(int argc, char *argv[])
 {
     QCoreApplication app(argc, argv);
     app.setApplicationName("RoboChassis");
-    TaskManager manager;
+    TaskManager manager(argc, argv);
     manager.createTasks();
     manager.start();
     return app.exec();

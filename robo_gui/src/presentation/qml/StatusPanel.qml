@@ -11,7 +11,7 @@ Item {
         anchors.fill: parent
 
         Row {
-            spacing: 20
+            spacing: 10
 
             anchors.fill: parent
             anchors.margins: 2

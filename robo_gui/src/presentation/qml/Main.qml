@@ -1,9 +1,11 @@
 import QtQuick 2.0
 import QtQuick.Controls 1.4
+import QtQuick.Window 2.0
 
 Item {
     visible: true
-    anchors.fill: parent
+    width: Screen.width
+    height: Screen.height
 
     Rectangle {
         color: roboPalette.backgroudColor
@@ -21,6 +23,8 @@ Item {
 
     StackView {
         id: stackView
+        width: 60
+        height: 60
         anchors.fill: parent
         // Implements back key navigation
         focus: true
@@ -35,8 +39,8 @@ Item {
                 }
             }
         }
-        delegate: StackViewDelegate {
 
+        delegate: StackViewDelegate {
             function transitionFinished(properties)
             {
                 properties.exitItem.opacity = 1

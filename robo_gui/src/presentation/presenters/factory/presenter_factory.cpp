@@ -1,7 +1,6 @@
 #include "presenter_factory.h"
 #include "robo_model.h"
 
-#include "frame_presenter.h"
 #include "track_presenter.h"
 #include "settings_presenter.h"
 #include "status_presenter.h"
@@ -9,7 +8,6 @@
 #include <QtQml>
 
 using presentation::PresenterFactory;
-using presentation::FramePresenter;
 using presentation::SettingsPresenter;
 using presentation::StatusPresenter;
 
@@ -29,11 +27,6 @@ PresenterFactory::PresenterFactory(domain::RoboModel* model, QObject* parent) :
 PresenterFactory::~PresenterFactory()
 {
     delete d;
-}
-
-QObject* PresenterFactory::framePresenter()
-{
-    return new FramePresenter(d->model, this);
 }
 
 QObject* PresenterFactory::trackPresenter()

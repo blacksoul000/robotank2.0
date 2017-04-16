@@ -3,6 +3,7 @@ project(robo_chassis)
 
 add_definitions(-std=c++11)
 option(PICAM "Enables RaspberryPi Camera" OFF)
+set (CMAKE_BUILD_TYPE Debug)
 
 set (OpenTLD_DIR ${CMAKE_SOURCE_DIR}/3rdparty/OpenTLD)
 
@@ -23,6 +24,9 @@ find_package(Qt5Core)
 find_package(Qt5Network)
 find_package(Qt5SerialPort)
 
+include(FindPkgConfig)
+pkg_check_modules(GSTRTSP gstreamer-rtsp-server-1.0)
+
 set(LIBS
     Qt5::Core
     Qt5::Network
@@ -33,6 +37,9 @@ set(LIBS
     ${CMAKE_BINARY_DIR}/OpenTLD/lib/libcvblobs.a
     gomp
     wiringPi
+    gstrtsp-1.0
+    gstapp-1.0
+    ${GSTRTSP_LIBRARIES}
 )
 
 if(PICAM)
@@ -50,6 +57,7 @@ include_directories(${CMAKE_SOURCE_DIR}/../common)
 include_directories(${DIRS})
 include_directories(${OpenTLD_DIR}/src)
 include_directories(${OpenCV_INCLUDE_DIRS})
+include_directories(${GSTRTSP_INCLUDE_DIRS})
 
 file(GLOB_RECURSE SOURCES src src/*.cpp)
 add_executable(${PROJECT_NAME} ${SOURCES})

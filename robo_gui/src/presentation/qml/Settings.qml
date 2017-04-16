@@ -1,20 +1,14 @@
 import QtQuick 2.0
-import QtQuick.Controls 1.4
+import QtQuick.Controls 2.1
 import QtQuick.Layouts 1.1
-import QtQuick.Controls.Styles 1.4
 import Robotank 1.0
 
 Item {
     id: root
+    width: grid.width + 5
 
-    Text {
-        id: label
-        anchors.horizontalCenter: parent.horizontalCenter
-        text: "Settings"
-        color: roboPalette.textColor
-        font.pixelSize: roboPalette.captionTextSize
-    }
-
+    property int rowSpacing: 10
+    property int columnSpacing: 30
     property QtObject presenter: factory.settingsPresenter()
 
     ListModel {
@@ -49,16 +43,16 @@ Item {
         }
     }
 
-    ExclusiveGroup { id: selectedTracker }
-
     Component {
         id: trackerDelegate
         Item {
-            width: parent.width / 2
+            property int offset: 10;
+            width: label.width + box.width + offset
             height: 20
             Row {
+                id: itemRow
                 anchors.fill: parent
-                spacing: 10
+                spacing: offset
                 Rectangle {
                     id: box
                     width: 20
@@ -94,32 +88,42 @@ Item {
         }
     }
 
-    GroupBox {
-        id: sliders
-        title: "Video"
-        width: parent.width
+    GridLayout {
+        id: grid
+        rowSpacing: root.rowSpacing
+        columnSpacing: root.columnSpacing
+        anchors.top: parent.top
+        anchors.topMargin: 10
+        flow: GridLayout.TopToBottom
 
-        anchors {
-            top: label.bottom
-            left: parent.left
-            right: parent.right
-            leftMargin: 5
-            rightMargin: 5
-            topMargin: 20
-        }
+        GroupBox {
+            Layout.fillHeight: true
+            Layout.fillWidth: true
+            label: Text {
+                color: roboPalette.textColor
+                font.pixelSize: roboPalette.captionTextSize / 2
+                text: qsTr("Video")
+            }
 
-        RowLayout {
-            anchors.fill: parent
+            GridLayout {
+                anchors.fill: parent
+                rowSpacing: 10
+                columnSpacing: 10
+                columns: 2
 
-            spacing: 10
-
-            Column {
-                spacing: 10
                 Text {
                     id: qualityLabel
                     color: roboPalette.textColor
                     font.pixelSize: roboPalette.textSize
                     text: "Quality"
+                }
+                RSpinBox {
+                    height: qualityLabel.height
+                    anchors.right: parent.right
+                    inputValue: presenter.quality
+                    onValueChanged: presenter.quality = value
+
+                    Component.onCompleted: minimumValue = 1; // set value from presenter first
                 }
                 Text {
                     id: brightnessLabel
@@ -127,115 +131,89 @@ Item {
                     font.pixelSize: roboPalette.textSize
                     text: "Brightness"
                 }
+                RSpinBox {
+                    height: brightnessLabel.height
+                    anchors.right: parent.right
+                    inputValue: presenter.brightness
+                    onValueChanged: presenter.brightness = value
+                }
                 Text {
                     id: contrastLabel
                     color: roboPalette.textColor
                     font.pixelSize: roboPalette.textSize
                     text: "Contrast"
                 }
-            }
-            Column {
-                spacing: 10
-                Layout.fillWidth: true
                 RSpinBox {
-                    width: parent.width
-                    height: qualityLabel.height
-                    inputValue: presenter.quality
-                    onValueChanged: presenter.quality = value
-
-                    Component.onCompleted: minimumValue = 1; // set value from presenter first
-                }
-                RSpinBox {
-                    width: parent.width
-                    height: brightnessLabel.height
-                    inputValue: presenter.brightness
-                    onValueChanged: presenter.brightness = value
-                }
-                RSpinBox {
-                    width: parent.width
                     height: contrastLabel.height
+                    anchors.right: parent.right
                     inputValue: presenter.contrast
                     onValueChanged: presenter.contrast = value
                 }
             }
         }
-    }
 
-    GroupBox {
-        title: "Trackers"
-        id: trackers
-        width: parent.width
+        GroupBox {
+            Layout.fillHeight: true
+            Layout.fillWidth: true
+            label: Text {
+                color: roboPalette.textColor
+                font.pixelSize: roboPalette.captionTextSize / 2
+                text: qsTr("Trackers")
+            }
 
-        anchors {
-            top: sliders.bottom
-            left: parent.left
-            right: parent.right
-            leftMargin: 5
-            rightMargin: 5
-            topMargin: 10
-        }
+            GridLayout {
+                rowSpacing: root.rowSpacing
+                columnSpacing: root.columnSpacing
+                anchors.fill: parent
+                columns: 2
 
-        Grid {
-            columns: 2
-            spacing: 10
-            width: parent.width
-            height: trackerDelegate.height * trackersModel.count / columns
-
-            Repeater {
-                model: trackersModel
-                delegate: trackerDelegate
+                Repeater {
+                    anchors.fill: parent
+                    model: trackersModel
+                    delegate: trackerDelegate
+                }
             }
         }
-    }
 
-    GroupBox {
-        id: engines
-        title: "Engine power, %"
-        width: parent.width
+        GroupBox {
+            Layout.fillHeight: true
+            Layout.fillWidth: true
+            label: Text {
+                color: roboPalette.textColor
+                font.pixelSize: roboPalette.captionTextSize / 2
+                text: qsTr("Engine power") + ", %"
+            }
 
-        anchors {
-            top: trackers.bottom
-            left: parent.left
-            right: parent.right
-            leftMargin: 5
-            rightMargin: 5
-            topMargin: 10
-        }
+            GridLayout {
+                rowSpacing: root.rowSpacing
+                columnSpacing: root.columnSpacing
+                anchors.fill: parent
+                columns: 2
 
-        RowLayout {
-            anchors.fill: parent
-
-            spacing: 10
-
-            Column {
-                spacing: 10
                 Text {
                     id: leftEngineLabel
                     color: roboPalette.textColor
                     font.pixelSize: roboPalette.textSize
                     text: "Left"
                 }
+                RSpinBox {
+                    id: leftEngine
+                    height: leftEngineLabel.height
+                    anchors.right: parent.right
+                    onValueChanged: presenter.setEnginePower(Engine.Left, value)
+                    Component.onCompleted: inputValue = presenter.enginePower(Engine.Left)
+                }
+
                 Text {
                     id: rightEngineLabel
                     color: roboPalette.textColor
                     font.pixelSize: roboPalette.textSize
                     text: "Right"
                 }
-            }
-            Column {
-                spacing: 10
-                Layout.fillWidth: true
-                RSpinBox {
-                    id: leftEngine
-                    width: parent.width
-                    height: leftEngineLabel.height
-                    onValueChanged: presenter.setEnginePower(Engine.Left, value)
-                    Component.onCompleted: inputValue = presenter.enginePower(Engine.Left)
-                }
                 RSpinBox {
                     id: rightEngine
-                    width: parent.width
                     height: rightEngineLabel.height
+                    anchors.right: parent.right
                     onValueChanged: presenter.setEnginePower(Engine.Right, value)
                     Component.onCompleted: inputValue = presenter.enginePower(Engine.Right)
                 }
@@ -251,42 +229,38 @@ Item {
                 }
             }
         }
-    }
 
-    GroupBox {
-        title: "Sensors calibration"
-        width: parent.width
-
-        anchors {
-            top: engines.bottom
-            left: parent.left
-            right: parent.right
-            leftMargin: 5
-            rightMargin: 5
-            topMargin: 10
-        }
-
-        Grid {
-            anchors.fill: parent
-
-            spacing: 10
-
-            Button {
-                text: "Gun"
-                onClicked: {
-                    presenter.calibrateGun()
-                }
+        GroupBox {
+            Layout.fillHeight: true
+            Layout.fillWidth: true
+            label: Text {
+                color: roboPalette.textColor
+                font.pixelSize: roboPalette.captionTextSize / 2
+                text: qsTr("Sensors calibration")
             }
-            Button {
-                text: "Camera"
-                onClicked: {
-                    presenter.calibrateCamera()
+
+            GridLayout {
+                rowSpacing: root.rowSpacing
+                columnSpacing: root.columnSpacing
+                anchors.fill: parent
+
+                Button {
+                    text: "Gun"
+                    onClicked: {
+                        presenter.calibrateGun()
+                    }
                 }
-            }
-            Button {
-                text: "Gyro"
-                onClicked: {
-                    presenter.calibrateGyro()
+                Button {
+                    text: "Camera"
+                    onClicked: {
+                        presenter.calibrateCamera()
+                    }
+                }
+                Button {
+                    text: "Gyro"
+                    onClicked: {
+                        presenter.calibrateGyro()
+                    }
                 }
             }
         }

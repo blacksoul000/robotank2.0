@@ -5,18 +5,10 @@ add_definitions(-std=c++11)
 SET(CMAKE_BUILD_TYPE Debug)
 
 if(ANDROID)
-    set (ENV{JAVA_HOME} /usr/lib/jvm/java-7-openjdk-amd64)
+    set (ENV{JAVA_HOME} /usr/lib/jvm/java-8-openjdk-amd64)
     set (QT_ANDROID_ANT /usr/bin/ant)
     set (PYTHON_EXECUTABLE /usr/bin/python)
     set (ANDROID_COMPILER_VERSION 4.9)
-
-    set (QTDIR /opt/Qt/5.5)
-    set (Qt5Core_DIR ${QTDIR}/android_armv7/lib/cmake/Qt5Core)
-    set (Qt5Gui_DIR ${QTDIR}/android_armv7/lib/cmake/Qt5Gui)
-    set (Qt5Quick_DIR ${QTDIR}/android_armv7/lib/cmake/Qt5Quick)
-    set (Qt5Svg_DIR ${QTDIR}/android_armv7/lib/cmake/Qt5Svg)
-    set (Qt5Multimedia_DIR ${QTDIR}/android_armv7/lib/cmake/Qt5Multimedia)
-    set (Qt5AndroidExtras_DIR ${QTDIR}/android_armv7/lib/cmake/Qt5AndroidExtras)
 endif()
 
 include(${CMAKE_SOURCE_DIR}/../cmake/RecurseDirs.cmake)
@@ -39,12 +31,11 @@ set(LIBS
     Qt5::Multimedia
     Qt5::Svg
     Qt5::Network
-    z
 )
 
 if (ANDROID)
     find_package(Qt5AndroidExtras)
-    set (LIBS ${LIBS} Qt5::AndroidExtras log libjpeg libtiff libjasper libpng IlmImf android)
+    set (LIBS ${LIBS} Qt5::AndroidExtras android)
 endif()
 
 file(GLOB_RECURSE SOURCES ${CMAKE_SOURCE_DIR}/src src/*.cpp)
@@ -53,8 +44,8 @@ HEADER_DIRECTORIES(${CMAKE_SOURCE_DIR}/src DIRS)
 include_directories(${DIRS})
 include_directories(${CMAKE_SOURCE_DIR}/../common)
 
-qt5_add_resources(RESOURCES ${CMAKE_SOURCE_DIR}/src/qml.qrc
-                            ${CMAKE_CURRENT_SOURCE_DIR}/src/resources.qrc)
+file(GLOB_RECURSE QRC ${CMAKE_SOURCE_DIR}/src src/*.qrc)
+qt5_add_resources(RESOURCES ${QRC})
 
 if(ANDROID)
     include_directories(${ANDROID_SYSROOT}/usr/include)

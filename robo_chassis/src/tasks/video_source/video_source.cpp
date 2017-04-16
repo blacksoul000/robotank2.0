@@ -1,4 +1,5 @@
 #include "video_source.h"
+#include "rtsp_server.h"
 
 //msgs
 #include "image_settings.h"
@@ -6,8 +7,10 @@
 #include "pub_sub.h"
 
 #include <QPointF>
+#include <QSize>
 
 #include <opencv2/highgui/highgui.hpp>
+#include "opencv2/imgproc/imgproc.hpp"
 
 #ifdef PICAM
 #include <raspicam/raspicam_cv.h>
@@ -40,19 +43,27 @@ public:
     cv::VideoCapture capturer;
 #endif //PICAM
 
-    cv::VideoWriter writer;
+    int& argc;
+    char** argv;
+
+//    cv::VideoWriter writer;
+    rtsp_server::RtspServer* rtsp = nullptr;
 
     Publisher< cv::Mat >* imageP = nullptr;
     Publisher< QPointF >* dotsPerDegreeP = nullptr;
-    bool openCamera();
 
+    void initRtspServer();
+    bool openCamera();
     void setQuality(int quality);
     void setBrightness(int brightness);
     void setContrast(int contrast);
+    bool writeImage(const cv::Mat& mat);
+
+    Impl(int& argc, char** argv) : argc(argc), argv(argv) {}
 };
 
-VideoSource::VideoSource() :
-    d(new Impl)
+VideoSource::VideoSource(int& argc, char** argv) :
+    d(new Impl(argc, argv))
 {
     d->imageP = PubSub::instance()->advertise< cv::Mat >("camera/image");
     d->dotsPerDegreeP = PubSub::instance()->advertise< QPointF >("camera/dotsPerDegree");
@@ -63,12 +74,14 @@ VideoSource::VideoSource() :
 VideoSource::~VideoSource()
 {
     d->capturer.release();
-    d->writer.release();
+    delete d->rtsp;
+//    d->writer.release();
     delete d;
 }
 
 void VideoSource::start()
 {
+    d->initRtspServer();
     d->openCamera();
 }
 
@@ -87,7 +100,12 @@ void VideoSource::execute()
     if(frame.empty()) return;
 
     d->imageP->publish(frame);
-    d->writer << frame;
+    if (!d->writeImage(frame))
+    {
+        // TODO - stop video source
+        d->rtsp->stop();
+    }
+//    d->writer << frame;
 }
 
 void VideoSource::onImageSettingsChanged(const ImageSettings& settings)
@@ -120,8 +138,25 @@ void VideoSource::Impl::setContrast(int contrast)
     capturer.set(CV_CAP_PROP_CONTRAST, contrast);
 }
 
+void VideoSource::Impl::initRtspServer()
+{
+    qDebug() << Q_FUNC_INFO ;
+    rtsp = new rtsp_server::RtspServer(argc, argv,
+                                       "videoconvert ! x264enc ! rtph264pay name=pay0 pt=96 sync=true",
+//                                       "videoconvert ! x264enc noise-reduction=10000 "
+//                                       "tune=zerolatency byte-stream=true threads=1 !"
+//                                       "rtph264pay name=pay0 pt=96",
+                                       ::width, ::height, 25, "GRAY8");
+    rtsp->setHost("127.0.0.1");
+    rtsp->setPort(8554);
+    rtsp->setStreamName("live");
+
+    rtsp->start();
+}
+
 bool VideoSource::Impl::openCamera()
 {
+    qDebug() << Q_FUNC_INFO ;
 #ifdef PICAM
     // set camera params
     // 2592x1944 - native resolution
@@ -131,34 +166,26 @@ bool VideoSource::Impl::openCamera()
 
     if(!capturer.open())
 #else
+    capturer.set(CV_CAP_PROP_FORMAT, CV_8UC3);
     capturer.set(CV_CAP_PROP_FRAME_WIDTH, ::width);
     capturer.set(CV_CAP_PROP_FRAME_HEIGHT, ::height);
 
-    if(!capturer.open(0))
+//    if(!capturer.open(0))
+    if(!capturer.open("/tmp/test.avi"))
 #endif //PICAM
     {
         qDebug() << Q_FUNC_INFO << "Failed to open camera";
         return false;
     }
-//    libv4l-dev
 
-    // http://answers.opencv.org/question/96178/gstreamer-output-with-videowriter/
-//!!    writer.open("appsrc ! videoconvert ! filesink location=/tmp/video.mkv", 0, 25, cv::Size(width, height), true);
-    writer.open("appsrc ! videoconvert ! x264enc noise-reduction=10000 tune=zerolatency byte-stream=true threads=4 ! udpsink host=localhost port=5000", 0, 25, cv::Size(width, height), true);
-//    writer.open("appsrc ! videoconvert ! theoraenc bitrate=150 ! filesink location=/tmp/video.mkv", 0, 25, cv::Size(width, height), true);
-//!!    writer.open("appsrc ! filesink location=/tmp/video.mkv sync=false", 0, 25, cv::Size(640, 480), true);
-//    writer.open("appsrc ! video/x-raw-rgb,width=640,height=480 !filesink location=/tmp/video", 0, 30, cv::Size(640, 480), true);
-//    writer.open("appsrc ! video/x-raw-rgb,width=640,height=480 ! ffmpegcolorspace ! videoscale method=1 ! theoraenc bitrate=150 ! tcpserversink host=127.0.0.1 port=5000", 0, 30, cv::Size(640, 480), true);
-//--    writer.open("appsrc ! autovideoconvert ! v4l2video1h264enc extra-controls=\"encode,h264_level=10,h264_profile=4,frame_level_rate_control_enable=1,video_bitrate=2000000\" ! h264parse ! rtph264pay config-interval=1 pt=96 ! udpsink host=127.0.0.1 port=54000 sync=false", 0, 30, cv::Size(640, 480), true);
-//--    writer.open("appsrc ! videoconvert ! x264enc noise-reduction=10000 tune=zerolatency byte-stream=true threads=4 ! mpegtsmux ! udpsink host=localhost port=9999", 0 , (double)30, cv::Size(640, 480), true);
-//    writer.open("appsrc ! autovideosink", cv::VideoWriter::fourcc('Y', 'U', 'Y', 'V'), 30.0, cv::Size(640, 480), true);
-//--    writer.open("appsrc ! videoconvert ! x264enc ! mpegtsmux ! udpsink host=localhost port=5000", 0, 25, cv::Size(width, height), true);
-//    writer.open("appsrc ! identity silent=false ! x264enc ! mpegtsmux ! udpsink -v host=localhost port=5000", 0, 25, cv::Size(width, height), true);
-    if (!writer.isOpened()) {
-        qDebug() << "Can't create video writer";
-        return false;
-    }
-
+////    libv4l-dev
+//    writer.open("appsrc ! udpsink host=localhost port=5000", 0, 25, cv::Size(640, 480), true);
+//    writer.open("appsrc ! videoconvert ! x264enc noise-reduction=10000 tune=zerolatency byte-stream=true threads=4 ! rstpclientsink  name=sink location=rtsp://127.0.0.1:8554/live", 0, 25, cv::Size(width, height), true);
+//    if (!writer.isOpened()) {
+//        qDebug() << "Can't create video writer";
+//        return false;
+//    }
+//---------------------------
 //    TODO - from settings
 //    int brightness = 0;
 //    ros::param::param< int >("/camera/image/brightness", brightness, ::defaultBrightness);
@@ -175,4 +202,21 @@ bool VideoSource::Impl::openCamera()
 
     this->dotsPerDegreeP->publish(QPointF(::width / ::fieldOfViewH, ::height / ::fieldOfViewV));
     return true;
+}
+
+bool VideoSource::Impl::writeImage(const cv::Mat& mat)
+{
+    const bool color = false;
+    cv::Mat result;
+
+    if (color)
+    {
+        // TODO - convert to RGB16
+    }
+    else
+    {
+        cv::cvtColor(mat, result, CV_BGR2GRAY);
+    }
+    constexpr int size = ::width * ::height * (color ? 2 : 1);
+    return rtsp->write((char*)result.data, size);
 }

@@ -20,16 +20,8 @@ namespace robo
         MainWindow();
         ~MainWindow();
 
-    signals:
-        void frameReceived();
-
     private slots:
         void onButtonsUpdated(quint16 buttons);
-
-        void onImageTimeout();
-
-//        void onNewFrame(const sensor_msgs::ImageConstPtr& msg);
-        void onFrameReceived();
 
     private:
         class Impl;

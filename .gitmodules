@@ -1,6 +1,9 @@
 [submodule "robo_chassis/3rdparty/OpenTLD"]
 	path = robo_chassis/3rdparty/OpenTLD
 	url = https://github.com/gnebehay/OpenTLD.git
+[submodule "robo_chassis/3rdparty/gst-rtsp-server"]
+	path = robo_chassis/3rdparty/gst-rtsp-server
+	url = https://github.com/GStreamer/gst-rtsp-server.git
 [submodule "robo_gui/3rdparty/qt-android-cmake"]
 	path = robo_gui/3rdparty/qt-android-cmake
 	url = https://github.com/LaurentGomila/qt-android-cmake.git

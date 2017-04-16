@@ -7,13 +7,13 @@ Item {
     property int yaw: 0
     property int azimuth: 0
 
-    height: 150
-    width: 150
+    height: 80
+    width: height
 
     Image {
         id: chassis
-        width: 70
-        height: 130
+        width: 7 * root.width / 15
+        height: 13 * root.height / 15
         source: "qrc:/icons/chassis.svg"
         anchors.centerIn: parent
 
@@ -25,11 +25,11 @@ Item {
     }
     Image {
         id: tower
-        width: 50
-        height: 100
+        width: root.width / 3
+        height: 2 * root.height / 3
         source: "qrc:/icons/tower.svg"
         anchors.centerIn: parent
-        anchors.verticalCenterOffset: -30
+        anchors.verticalCenterOffset: -root.height / 5
 
         transform: Rotation {
             origin.x: tower.width / 2;

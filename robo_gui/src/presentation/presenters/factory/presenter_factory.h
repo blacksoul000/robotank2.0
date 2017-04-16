@@ -18,7 +18,6 @@ namespace presentation
         ~PresenterFactory();
 
     public slots:
-        QObject* framePresenter();
         QObject* trackPresenter();
         QObject* settingsPresenter();
         QObject* statusPresenter();

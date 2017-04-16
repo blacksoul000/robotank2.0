@@ -2,7 +2,6 @@
 
 //internal
 #include "robo_model.h"
-#include "sight_model.h"
 #include "track_model.h"
 #include "settings_model.h"
 #include "status_model.h"
@@ -27,20 +26,19 @@
 using robo::MainWindow;
 using domain::ChassisExchanger;
 
-namespace
-{
-    const int imageTimeout = 1000; //ms
-}
-
 class MainWindow::Impl
 {
 public:
     domain::RoboModel* model = nullptr;
     QQuickView* viewer = nullptr;
     ChassisExchanger* exchanger = nullptr;
-    QTimer imageTimer;
 
     quint16 buttonsState = 0;
+
+#ifdef ANDROID
+    QAndroidJniObject wakeLock;
+    bool wakeLocked = false;
+#endif
 };
 
 MainWindow::MainWindow() :
@@ -55,9 +53,6 @@ MainWindow::MainWindow() :
     d->viewer->setSource(QUrl("qrc:/qml/Main.qml"));
     d->viewer->showFullScreen();
     d->viewer->requestActivate();
-
-    d->imageTimer.setInterval(::imageTimeout);
-    connect(&d->imageTimer, &QTimer::timeout, this, &MainWindow::onImageTimeout);
 
     connect(d->exchanger, &ChassisExchanger::buttonsUpdated, this, &MainWindow::onButtonsUpdated);
 
@@ -78,12 +73,10 @@ MainWindow::MainWindow() :
 #endif
 
     connect(d->viewer->engine(), &QQmlEngine::quit, qApp, &QCoreApplication::quit);
-    connect(this, &MainWindow::frameReceived, this, &MainWindow::onFrameReceived);
 }
 
 MainWindow::~MainWindow()
 {
-    d->imageTimer.stop();
     delete d->viewer;
     delete d->model;
     delete d;
@@ -109,39 +102,4 @@ void MainWindow::onButtonsUpdated(quint16 buttons)
         }
     }
     d->buttonsState = buttons;
-}
-
-void MainWindow::onImageTimeout()
-{
-    d->imageTimer.stop();
-    d->model->sight()->setFrame(QImage());
-
-#ifdef ANDROID
-    if (d->wakeLocked)
-    {
-        d->wakeLocked = false;
-        d->wakeLock.callMethod<void>("release", "()V");
-    }
-#endif
-}
-
-//void MainWindow::onNewFrame(const sensor_msgs::ImageConstPtr& msg)
-//{
-////    cv::Mat frame =  cv_bridge::toCvShare(msg, "bgr8")->image;
-////    d->model->sight()->setFrame(d->mat2QImage(frame));
-
-//    emit frameReceived();
-//}
-
-void MainWindow::onFrameReceived()
-{
-    d->imageTimer.start();
-
-#ifdef ANDROID
-    if (!d->wakeLocked)
-    {
-        d->wakeLocked = true;
-        d->wakeLock.callMethod<void>("acquire", "()V");
-    }
-#endif
 }

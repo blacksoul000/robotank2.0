@@ -1,36 +1,46 @@
 import QtQuick 2.0
 import QtMultimedia 5.0
 import QtQuick.Controls 1.4
+//import QtSystemInfo 5.0
 
 Item {
     id: page
 
-
-    property QtObject framePresenter: factory.framePresenter()
     property QtObject trackPresenter: factory.trackPresenter()
     property QtObject statusPresenter: factory.statusPresenter()
     property double scaleX: video.sourceRect.width / page.width
     property double scaleY: video.sourceRect.height / page.height
 
+    property bool hasVideo: (video.sourceRect.width > 0 && video.sourceRect.height > 0)
+
+    onHasVideoChanged: console.log("has: ", hasVideo)
+
     MediaPlayer {
         id: player
-        source: "udp://0.0.0.0:5000"
+        source: "rtsp://127.0.0.1:8554/live"
         autoPlay: true
-        onError: console.log(errorString)
+
+        onErrorChanged: {
+            if (error === MediaPlayer.NetworkError || error === MediaPlayer.ResourceError)
+            {
+                player.play();
+            }
+            else
+            {
+                console.log(errorString);
+            }
+        }
     }
 
     VideoOutput {
         id: video
         anchors.fill: parent;
-//        source: framePresenter;
         source: player;
     }
 
-
-
     Crosshair {
         anchors.centerIn: parent
-        visible: !trackPresenter.isTracking
+        visible: !trackPresenter.isTracking && page.hasVideo
         width: 150
         height: 150
     }
@@ -38,7 +48,7 @@ Item {
     CaptureArea {
         id: capture
         anchors.centerIn: parent
-        visible: !trackPresenter.isTracking && framePresenter.hasFrame
+        visible: !trackPresenter.isTracking && page.hasVideo
         presenter: trackPresenter
 
         Connections {
@@ -60,7 +70,7 @@ Item {
 
     SelectArea {
         anchors.fill: parent
-        visible: framePresenter.hasFrame
+        visible: page.hasVideo
         onAccepted: {
             trackPresenter.onTrackRequest(screenToImage(r))
         }
@@ -68,15 +78,14 @@ Item {
 
     Loader {
         property int hidden: parent.x + parent.width
-        property int showed: parent.x + 2 * parent.width / 3
+        property int showed: parent.x + parent.width - width
         property bool isLoaded: false
         property bool isHidden: true
 
         id: settingsLoader
         x: hidden
-        anchors.top: parent.top
+        anchors.top: panel.bottom
         anchors.bottom: parent.bottom
-        width: parent.width / 3
 
         PropertyAnimation {
             id: settingsShow
@@ -103,7 +112,7 @@ Item {
     ChassisScheme {
         id: scheme
         anchors.bottom: parent.bottom
-        anchors.horizontalCenter: parent.horizontalCenter
+        anchors.left: parent.left
         yaw: statusPresenter.yaw
         azimuth: statusPresenter.gunPositionH
     }
@@ -112,6 +121,8 @@ Item {
         anchors.right: parent.right
         anchors.bottom: parent.bottom
         anchors.margins: 5
+        width: 50
+        height: 50
 
         imageSource: "qrc:/icons/settings.svg"
         onClicked: {
@@ -132,7 +143,11 @@ Item {
             }
         }
     }
-
+/*
+    ScreenSaver {
+        screenSaverEnabled: false;
+    }
+*/
     // convert screen coordinates to image
     function screenToImage(rect) {
         rect.x *= page.scaleX
