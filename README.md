@@ -32,6 +32,9 @@ Testing:
 
   gst-launch-1.0 videotestsrc ! videoconvert ! video/x-raw,width=800,height=600 ! jpegenc ! avimux ! udpsink host=localhost port=5000
 
+
+  gst-launch-1.0 rtspsrc location=rtsp://127.0.0.1:8554/live ! rtph264depay ! h264parse ! avdec_h264 ! videoconvert ! xvimagesink
+
   QT_DEBUG_PLUGINS=1 <application>
 
 TODO
