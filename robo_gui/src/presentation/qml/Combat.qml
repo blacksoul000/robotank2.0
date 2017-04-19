@@ -8,22 +8,23 @@ Item {
 
     property QtObject trackPresenter: factory.trackPresenter()
     property QtObject statusPresenter: factory.statusPresenter()
+    property QtObject settingsPresenter: factory.settingsPresenter()
     property double scaleX: video.sourceRect.width / page.width
     property double scaleY: video.sourceRect.height / page.height
 
     property bool hasVideo: (video.sourceRect.width > 0 && video.sourceRect.height > 0)
 
-    onHasVideoChanged: console.log("has: ", hasVideo)
-
     MediaPlayer {
         id: player
-        source: "rtsp://127.0.0.1:8554/live"
+        source: settingsPresenter.streamProtocol + "://" + settingsPresenter.streamHost
+                + ":" + settingsPresenter.streamPort + "/" + settingsPresenter.streamName
+//        source: "rtsp://127.0.0.1:8554/live"
         autoPlay: true
 
         onErrorChanged: {
             if (error === MediaPlayer.NetworkError || error === MediaPlayer.ResourceError)
             {
-                player.play();
+//                player.play();
             }
             else
             {
@@ -76,33 +77,6 @@ Item {
         }
     }
 
-    Loader {
-        property int hidden: parent.x + parent.width
-        property int showed: parent.x + parent.width - width
-        property bool isLoaded: false
-        property bool isHidden: true
-
-        id: settingsLoader
-        x: hidden
-        anchors.top: panel.bottom
-        anchors.bottom: parent.bottom
-
-        PropertyAnimation {
-            id: settingsShow
-            target: settingsLoader
-            property: "x"
-            to: settingsLoader.showed
-            duration: 200
-        }
-        PropertyAnimation {
-            id: settingsHide
-            target: settingsLoader
-            property: "x"
-            to: settingsLoader.hidden
-            duration: 200
-        }
-    }
-
     StatusPanel {
         id: panel
         width: parent.width
@@ -113,6 +87,7 @@ Item {
         id: scheme
         anchors.bottom: parent.bottom
         anchors.left: parent.left
+        anchors.margins: 5
         yaw: statusPresenter.yaw
         azimuth: statusPresenter.gunPositionH
     }
@@ -140,6 +115,40 @@ Item {
             {
                 settingsLoader.isHidden = true
                 settingsHide.start()
+            }
+        }
+    }
+
+    Loader {
+        property int hidden: 0
+        property int showed: 0
+        property bool isLoaded: false
+        property bool isHidden: true
+
+        id: settingsLoader
+        x: hidden
+        anchors.top: panel.bottom
+        anchors.bottom: parent.bottom
+
+        PropertyAnimation {
+            id: settingsShow
+            target: settingsLoader
+            property: "x"
+            to: settingsLoader.showed
+            duration: 200
+        }
+        PropertyAnimation {
+            id: settingsHide
+            target: settingsLoader
+            property: "x"
+            to: settingsLoader.hidden
+            duration: 200
+        }
+
+        onStatusChanged: {
+            if (status === Loader.Ready && item) {
+                item.presenter = settingsPresenter
+                hidden = -item.width;
             }
         }
     }

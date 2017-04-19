@@ -28,10 +28,21 @@ SettingsPresenter::SettingsPresenter(domain::RoboModel *model, QObject *parent) 
             this, &SettingsPresenter::brightnessChanged);
     connect(d->model->settings(), &SettingsModel::contrastChanged,
             this, &SettingsPresenter::contrastChanged);
+
     connect(d->model->settings(), &SettingsModel::trackerChanged,
             this, &SettingsPresenter::trackerCodeChanged);
+
     connect(d->model->settings(), &SettingsModel::enginePowerChanged,
             this, &SettingsPresenter::enginePowerChanged);
+
+    connect(d->model->settings(), &SettingsModel::streamProtocolChanged,
+            this, &SettingsPresenter::streamProtocolChanged);
+    connect(d->model->settings(), &SettingsModel::streamHostChanged,
+            this, &SettingsPresenter::streamHostChanged);
+    connect(d->model->settings(), &SettingsModel::streamPortChanged,
+            this, &SettingsPresenter::streamPortChanged);
+    connect(d->model->settings(), &SettingsModel::streamNameChanged,
+            this, &SettingsPresenter::streamNameChanged);
 }
 
 SettingsPresenter::~SettingsPresenter()
@@ -102,4 +113,44 @@ void SettingsPresenter::setEnginePower(int engine, quint8 percent)
 quint8 SettingsPresenter::enginePower(int engine) const
 {
     return d->model->settings()->enginePower(static_cast<SettingsModel::Engine>(engine));
+}
+
+void SettingsPresenter::setStreamProtocol(const QString& protocol)
+{
+    d->model->settings()->setStreamProtocol(protocol);
+}
+
+QString SettingsPresenter::streamProtocol() const
+{
+    return d->model->settings()->streamProtocol();
+}
+
+void SettingsPresenter::setStreamHost(const QString& host)
+{
+    d->model->settings()->setStreamHost(host);
+}
+
+QString SettingsPresenter::streamHost() const
+{
+    return d->model->settings()->streamHost();
+}
+
+void SettingsPresenter::setStreamPort(const QString& port)
+{
+    d->model->settings()->setStreamPort(port);
+}
+
+QString SettingsPresenter::streamPort() const
+{
+    return d->model->settings()->streamPort();
+}
+
+void SettingsPresenter::setStreamName(const QString& name)
+{
+    d->model->settings()->setStreamName(name);
+}
+
+QString SettingsPresenter::streamName() const
+{
+    return d->model->settings()->streamName();
 }

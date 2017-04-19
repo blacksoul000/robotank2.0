@@ -1,20 +1,19 @@
 <RCC>
     <qresource prefix="/">
-        <file>qml/Main.qml</file>
+        <file>qml/Battery.qml</file>
+        <file>qml/BatteryIndicator.qml</file>
+        <file>qml/CaptureArea.qml</file>
+        <file>qml/ChassisScheme.qml</file>
         <file>qml/Combat.qml</file>
+        <file>qml/Crosshair.qml</file>
+        <file>qml/DigitalClock.qml</file>
+        <file>qml/Main.qml</file>
         <file>qml/Target.qml</file>
         <file>qml/SelectArea.qml</file>
         <file>qml/Settings.qml</file>
         <file>qml/RButton.qml</file>
-        <file>qml/Crosshair.qml</file>
-        <file>qml/CaptureArea.qml</file>
-        <file>qml/StatusPanel.qml</file>
-        <file>qml/StatusIndicator.qml</file>
-        <file>qml/Battery.qml</file>
-        <file>qml/DigitalClock.qml</file>
-        <file>qml/BatteryIndicator.qml</file>
-        <file>qml/ChassisScheme.qml</file>
-        <file>qml/MasterStatus.qml</file>
         <file>qml/RSpinBox.qml</file>
+        <file>qml/StatusIndicator.qml</file>
+        <file>qml/StatusPanel.qml</file>
     </qresource>
 </RCC>

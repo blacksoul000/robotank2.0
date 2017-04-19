@@ -8,14 +8,14 @@ Item {
     height: Screen.height
 
     Rectangle {
-        color: roboPalette.backgroudColor
+        color: roboPalette.backgroundColor
         anchors.fill: parent
     }
 
     Item {
         id: roboPalette
 
-        property color backgroudColor: "#212126"
+        property color backgroundColor: "#212126"
         property color textColor: "white"
         property int captionTextSize: 32
         property int textSize: 24

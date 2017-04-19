@@ -1,15 +1,17 @@
-import QtQuick 2.0
-import QtQuick.Controls 2.1
+import QtQuick 2.2
+import QtQuick.Controls 1.4
 import QtQuick.Layouts 1.1
+import QtQuick.Controls.Styles 1.2
 import Robotank 1.0
 
-Item {
+Rectangle {
     id: root
-    width: grid.width + 5
+    width: flow.width + 5
+    color: roboPalette.backgroundColor
 
     property int rowSpacing: 10
     property int columnSpacing: 30
-    property QtObject presenter: factory.settingsPresenter()
+    property QtObject presenter
 
     ListModel {
         id: trackersModel
@@ -88,181 +90,293 @@ Item {
         }
     }
 
-    GridLayout {
-        id: grid
-        rowSpacing: root.rowSpacing
-        columnSpacing: root.columnSpacing
+    Flickable {
+        id: flow
         anchors.top: parent.top
-        anchors.topMargin: 10
-        flow: GridLayout.TopToBottom
+        anchors.bottom: parent.bottom
+        width: col.width
+        contentHeight: col.height
 
-        GroupBox {
-            Layout.fillHeight: true
-            Layout.fillWidth: true
-            label: Text {
-                color: roboPalette.textColor
-                font.pixelSize: roboPalette.captionTextSize / 2
-                text: qsTr("Video")
-            }
+        Column {
+            id: col
+            spacing: root.rowSpacing
 
-            GridLayout {
-                anchors.fill: parent
-                rowSpacing: 10
-                columnSpacing: 10
-                columns: 2
+            GroupBox {
+                Layout.fillHeight: true
+                Layout.fillWidth: true
+                title: qsTr("Stream")
+    //            label: Text {
+    //                color: roboPalette.textColor
+    //                font.pixelSize: roboPalette.captionTextSize / 2
+    //                text: qsTr("Stream")
+    //            }
 
-                Text {
-                    id: qualityLabel
-                    color: roboPalette.textColor
-                    font.pixelSize: roboPalette.textSize
-                    text: "Quality"
-                }
-                RSpinBox {
-                    height: qualityLabel.height
-                    anchors.right: parent.right
-                    inputValue: presenter.quality
-                    onValueChanged: presenter.quality = value
-
-                    Component.onCompleted: minimumValue = 1; // set value from presenter first
-                }
-                Text {
-                    id: brightnessLabel
-                    color: roboPalette.textColor
-                    font.pixelSize: roboPalette.textSize
-                    text: "Brightness"
-                }
-                RSpinBox {
-                    height: brightnessLabel.height
-                    anchors.right: parent.right
-                    inputValue: presenter.brightness
-                    onValueChanged: presenter.brightness = value
-                }
-                Text {
-                    id: contrastLabel
-                    color: roboPalette.textColor
-                    font.pixelSize: roboPalette.textSize
-                    text: "Contrast"
-                }
-                RSpinBox {
-                    height: contrastLabel.height
-                    anchors.right: parent.right
-                    inputValue: presenter.contrast
-                    onValueChanged: presenter.contrast = value
-                }
-            }
-        }
-
-        GroupBox {
-            Layout.fillHeight: true
-            Layout.fillWidth: true
-            label: Text {
-                color: roboPalette.textColor
-                font.pixelSize: roboPalette.captionTextSize / 2
-                text: qsTr("Trackers")
-            }
-
-            GridLayout {
-                rowSpacing: root.rowSpacing
-                columnSpacing: root.columnSpacing
-                anchors.fill: parent
-                columns: 2
-
-                Repeater {
+                GridLayout {
                     anchors.fill: parent
-                    model: trackersModel
-                    delegate: trackerDelegate
-                }
-            }
-        }
+                    rowSpacing: root.rowSpacing
+                    columnSpacing: root.columnSpacing
+                    columns: 2
 
-        GroupBox {
-            Layout.fillHeight: true
-            Layout.fillWidth: true
-            label: Text {
-                color: roboPalette.textColor
-                font.pixelSize: roboPalette.captionTextSize / 2
-                text: qsTr("Engine power") + ", %"
-            }
-
-            GridLayout {
-                rowSpacing: root.rowSpacing
-                columnSpacing: root.columnSpacing
-                anchors.fill: parent
-                columns: 2
-
-                Text {
-                    id: leftEngineLabel
-                    color: roboPalette.textColor
-                    font.pixelSize: roboPalette.textSize
-                    text: "Left"
-                }
-                RSpinBox {
-                    id: leftEngine
-                    height: leftEngineLabel.height
-                    anchors.right: parent.right
-                    onValueChanged: presenter.setEnginePower(Engine.Left, value)
-                    Component.onCompleted: inputValue = presenter.enginePower(Engine.Left)
-                }
-
-                Text {
-                    id: rightEngineLabel
-                    color: roboPalette.textColor
-                    font.pixelSize: roboPalette.textSize
-                    text: "Right"
-                }
-                RSpinBox {
-                    id: rightEngine
-                    height: rightEngineLabel.height
-                    anchors.right: parent.right
-                    onValueChanged: presenter.setEnginePower(Engine.Right, value)
-                    Component.onCompleted: inputValue = presenter.enginePower(Engine.Right)
-                }
-
-                Component.onCompleted: {
-                    updateEnginePower()
-                    presenter.enginePowerChanged.connect(updateEnginePower)
-                }
-
-                function updateEnginePower() {
-                    leftEngine.value = presenter.enginePower(Engine.Left)
-                    rightEngine.value = presenter.enginePower(Engine.Right)
-                }
-            }
-        }
-
-        GroupBox {
-            Layout.fillHeight: true
-            Layout.fillWidth: true
-            label: Text {
-                color: roboPalette.textColor
-                font.pixelSize: roboPalette.captionTextSize / 2
-                text: qsTr("Sensors calibration")
-            }
-
-            GridLayout {
-                rowSpacing: root.rowSpacing
-                columnSpacing: root.columnSpacing
-                anchors.fill: parent
-
-                Button {
-                    text: "Gun"
-                    onClicked: {
-                        presenter.calibrateGun()
+                    Text {
+                        id: protocolLabel
+                        color: roboPalette.textColor
+                        font.pixelSize: roboPalette.textSize
+                        text: "Protocol"
                     }
-                }
-                Button {
-                    text: "Camera"
-                    onClicked: {
-                        presenter.calibrateCamera()
+                    TextInput {
+                        height: protocolLabel.height
+                        anchors.right: parent.right
+                        color: roboPalette.textColor
+                        font.pixelSize: roboPalette.textSize
+                        text: presenter.streamProtocol
+                        onEditingFinished: presenter.streamProtocol = text
                     }
-                }
-                Button {
-                    text: "Gyro"
-                    onClicked: {
-                        presenter.calibrateGyro()
+                    Text {
+                        id: hostLabel
+                        color: roboPalette.textColor
+                        font.pixelSize: roboPalette.textSize
+                        text: "Host"
+                    }
+                    TextInput {
+                        height: hostLabel.height
+                        anchors.right: parent.right
+                        color: roboPalette.textColor
+                        font.pixelSize: roboPalette.textSize
+                        text: presenter.streamHost
+                        inputMask: "000.000.000.000;_"
+                        onEditingFinished: presenter.streamHost = text
+                    }
+                    Text {
+                        id: portLabel
+                        color: roboPalette.textColor
+                        font.pixelSize: roboPalette.textSize
+                        text: "Port"
+                    }
+                    TextInput {
+                        height: portLabel.height
+                        anchors.right: parent.right
+                        color: roboPalette.textColor
+                        font.pixelSize: roboPalette.textSize
+                        text: presenter.streamPort
+                        validator: IntValidator{bottom: 0; top: 65535;}
+                        onEditingFinished: presenter.streamPort = text
+                    }
+                    Text {
+                        id: streamNameLabel
+                        color: roboPalette.textColor
+                        font.pixelSize: roboPalette.textSize
+                        text: "Name"
+                    }
+                    TextInput {
+                        height: streamNameLabel.height
+                        anchors.right: parent.right
+                        color: roboPalette.textColor
+                        font.pixelSize: roboPalette.textSize
+                        text: presenter.streamName
+                        onEditingFinished: presenter.streamName = text
                     }
                 }
             }
+
+            GroupBox {
+                Layout.fillHeight: true
+                Layout.fillWidth: true
+                title: qsTr("Video")
+    //            label: Text {
+    //                color: roboPalette.textColor
+    //                font.pixelSize: roboPalette.captionTextSize / 2
+    //                text: qsTr("Video")
+    //            }
+
+                GridLayout {
+                    anchors.fill: parent
+                    rowSpacing: root.rowSpacing
+                    columnSpacing: root.columnSpacing
+                    columns: 2
+
+                    Text {
+                        id: qualityLabel
+                        color: roboPalette.textColor
+                        font.pixelSize: roboPalette.textSize
+                        text: "Quality"
+                    }
+                    RSpinBox {
+                        height: qualityLabel.height
+                        anchors.right: parent.right
+                        inputValue: presenter.quality
+                        onValueChanged: presenter.quality = value
+
+                        Component.onCompleted: minimumValue = 1; // set value from presenter first
+                    }
+                    Text {
+                        id: brightnessLabel
+                        color: roboPalette.textColor
+                        font.pixelSize: roboPalette.textSize
+                        text: "Brightness"
+                    }
+                    RSpinBox {
+                        height: brightnessLabel.height
+                        anchors.right: parent.right
+                        inputValue: presenter.brightness
+                        onValueChanged: presenter.brightness = value
+                    }
+                    Text {
+                        id: contrastLabel
+                        color: roboPalette.textColor
+                        font.pixelSize: roboPalette.textSize
+                        text: "Contrast"
+                    }
+                    RSpinBox {
+                        height: contrastLabel.height
+                        anchors.right: parent.right
+                        inputValue: presenter.contrast
+                        onValueChanged: presenter.contrast = value
+                    }
+                }
+            }
+
+            GroupBox {
+                Layout.fillHeight: true
+                Layout.fillWidth: true
+                title: qsTr("Trackers")
+    //            label: Text {
+    //                color: roboPalette.textColor
+    //                font.pixelSize: roboPalette.captionTextSize / 2
+    //                text: qsTr("Trackers")
+    //            }
+
+                GridLayout {
+                    rowSpacing: root.rowSpacing
+                    columnSpacing: root.columnSpacing
+                    anchors.fill: parent
+                    columns: 2
+
+                    Repeater {
+                        anchors.fill: parent
+                        model: trackersModel
+                        delegate: trackerDelegate
+                    }
+                }
+            }
+
+            GroupBox {
+                Layout.fillHeight: true
+                Layout.fillWidth: true
+                title: qsTr("Engine power") + ", %"
+    //            label: Text {
+    //                color: roboPalette.textColor
+    //                font.pixelSize: roboPalette.captionTextSize / 2
+    //                text: qsTr("Engine power") + ", %"
+    //            }
+
+                GridLayout {
+                    rowSpacing: root.rowSpacing
+                    columnSpacing: root.columnSpacing
+                    anchors.fill: parent
+                    columns: 2
+
+                    Text {
+                        id: leftEngineLabel
+                        color: roboPalette.textColor
+                        font.pixelSize: roboPalette.textSize
+                        text: "Left"
+                    }
+                    RSpinBox {
+                        id: leftEngine
+                        height: leftEngineLabel.height
+                        anchors.right: parent.right
+                        onValueChanged: presenter.setEnginePower(Engine.Left, value)
+                    }
+
+                    Text {
+                        id: rightEngineLabel
+                        color: roboPalette.textColor
+                        font.pixelSize: roboPalette.textSize
+                        text: "Right"
+                    }
+                    RSpinBox {
+                        id: rightEngine
+                        height: rightEngineLabel.height
+                        anchors.right: parent.right
+                        onValueChanged: presenter.setEnginePower(Engine.Right, value)
+                    }
+                }
+            }
+
+            GroupBox {
+                Layout.fillHeight: true
+                Layout.fillWidth: true
+                title: qsTr("Sensors calibration")
+    //            label: Text {
+    //                color: roboPalette.textColor
+    //                font.pixelSize: roboPalette.captionTextSize / 2
+    //                text: qsTr("Sensors calibration")
+    //            }
+
+                GridLayout {
+                    rowSpacing: root.rowSpacing
+                    columnSpacing: root.columnSpacing
+                    anchors.fill: parent
+
+                    Button {
+                        style: ButtonStyle {
+                            label: Text {
+                                renderType: Text.NativeRendering
+                                verticalAlignment: Text.AlignVCenter
+                                horizontalAlignment: Text.AlignHCenter
+                                font.pixelSize: roboPalette.textSize
+                                color: roboPalette.backgroundColor
+                                text: qsTr("Gun")
+                            }
+                        }
+                        onClicked: {
+                            presenter.calibrateGun()
+                        }
+                    }
+                    Button {
+                        style: ButtonStyle {
+                            label: Text {
+                                renderType: Text.NativeRendering
+                                verticalAlignment: Text.AlignVCenter
+                                horizontalAlignment: Text.AlignHCenter
+                                font.pixelSize: roboPalette.textSize
+                                color: roboPalette.backgroundColor
+                                text: qsTr("Camera")
+                            }
+                        }
+                        onClicked: {
+                            presenter.calibrateCamera()
+                        }
+                    }
+                    Button {
+                        style: ButtonStyle {
+                            label: Text {
+                                renderType: Text.NativeRendering
+                                verticalAlignment: Text.AlignVCenter
+                                horizontalAlignment: Text.AlignHCenter
+                                font.pixelSize: roboPalette.textSize
+                                color: roboPalette.backgroundColor
+                                text: qsTr("Gyro")
+                            }
+                        }
+                        onClicked: {
+                            presenter.calibrateGyro()
+                        }
+                    }
+                }
+            }
         }
+    }
+
+    onPresenterChanged: {
+        if (presenter) {
+            updateEnginePower()
+            presenter.enginePowerChanged.connect(updateEnginePower)
+        }
+    }
+
+    function updateEnginePower() {
+        leftEngine.inputValue = presenter.enginePower(Engine.Left)
+        rightEngine.inputValue = presenter.enginePower(Engine.Right)
     }
 }

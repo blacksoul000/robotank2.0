@@ -1,11 +1,11 @@
-.catkin_workspace
-src/CMakeLists.txt
-**/**/CMakeLists.txt.user*
+**/CMakeLists.txt.user
 *Makefile
 *android.pro
 *android*.json
 **/android-build
-
+.cproject
+.project
+.settings
 build
 devel
 
