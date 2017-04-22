@@ -13,7 +13,6 @@
 #include <QQmlContext>
 #include <QQuickView>
 #include <QQmlEngine>
-#include <QSettings>
 #include <QTimer>
 #include <QDebug>
 
@@ -28,15 +27,8 @@ using domain::ChassisExchanger;
 
 namespace
 {
-    const QString protocolId = "streamProtocol";
-    const QString hostId = "streamHost";
-    const QString portId = "streamPort";
-    const QString streamNameId = "streamName";
-
-    const QString defaultProtocolValue = "rtsp";
-    const QString defaultHostValue = "127.0.0.1";
-    const QString defaultPortValue = "8554";
-    const QString defaultStreamNameValue = "live";
+    const QString videoSourceId = "streamProtocol";
+    const QString defaultVideoSourceValue = "rtsp://127.0.0.1:8554/live";
 }
 
 class MainWindow::Impl
@@ -86,16 +78,6 @@ MainWindow::MainWindow() :
 #endif
 
     connect(d->viewer->engine(), &QQmlEngine::quit, qApp, &QCoreApplication::quit);
-
-    this->loadSettings();
-    connect(d->model->settings(), &domain::SettingsModel::streamProtocolChanged,
-            this, &MainWindow::saveSettings);
-    connect(d->model->settings(), &domain::SettingsModel::streamHostChanged,
-            this, &MainWindow::saveSettings);
-    connect(d->model->settings(), &domain::SettingsModel::streamPortChanged,
-            this, &MainWindow::saveSettings);
-    connect(d->model->settings(), &domain::SettingsModel::streamNameChanged,
-            this, &MainWindow::saveSettings);
 }
 
 MainWindow::~MainWindow()
@@ -125,26 +107,4 @@ void MainWindow::onButtonsUpdated(quint16 buttons)
         }
     }
     d->buttonsState = buttons;
-}
-
-void MainWindow::loadSettings()
-{
-    QSettings settings;
-    d->model->settings()->setStreamProtocol(
-                settings.value(::protocolId, ::defaultProtocolValue).toString());
-    d->model->settings()->setStreamHost(
-                settings.value(::hostId, ::defaultHostValue).toString());
-    d->model->settings()->setStreamPort(
-                settings.value(::portId, ::defaultPortValue).toString());
-    d->model->settings()->setStreamName(
-                settings.value(::streamNameId, ::defaultStreamNameValue).toString());
-}
-
-void MainWindow::saveSettings()
-{
-    QSettings settings;
-    settings.setValue(::protocolId, d->model->settings()->streamProtocol());
-    settings.setValue(::hostId, d->model->settings()->streamHost());
-    settings.setValue(::portId, d->model->settings()->streamPort());
-    settings.setValue(::streamNameId, d->model->settings()->streamName());
 }

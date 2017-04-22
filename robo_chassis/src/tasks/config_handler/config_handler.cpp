@@ -19,6 +19,7 @@ namespace
     const QString leftEngineId = "leftEngine";
     const QString rightEngineId = "rightEngine";
     const QString trackerId = "tracker";
+    const QString videoSourceId = "videoSource";
 
     const int defaultQualityValue = 40;
     const int defaultBrightnessValue = 65;
@@ -26,6 +27,7 @@ namespace
     const int defaultLeftEngineValue = 100;
     const int defaultRightEngineValue = 100;
     const int defaultTrackerValue = 2; // OpenTLD
+    const QString defaultVideoSourceValue = "rtsp://127.0.0.1:8554/live";
 }
 
 class ConfigHandler::Impl
@@ -34,6 +36,7 @@ public:
     Publisher< ImageSettings >* imageSettingsP = nullptr;
     Publisher< QPoint >* enginePowerP = nullptr;
     Publisher< quint8 >* trackSelectorP = nullptr;
+    Publisher< QString >* videoSourceP = nullptr;
 
     QSettings* settings = nullptr;
 
@@ -49,6 +52,7 @@ ConfigHandler::ConfigHandler() :
     d->imageSettingsP = PubSub::instance()->advertise< ImageSettings >("camera/settings");
     d->enginePowerP = PubSub::instance()->advertise< QPoint >("core/enginePower");
     d->trackSelectorP = PubSub::instance()->advertise< quint8 >("tracker/selector");
+    d->videoSourceP = PubSub::instance()->advertise< QString >("camera/source");
 
     d->settings = new QSettings(QCoreApplication::applicationDirPath() + "/" + ::settingsFileName,
                                 QSettings::NativeFormat, this);
@@ -57,6 +61,7 @@ ConfigHandler::ConfigHandler() :
     PubSub::instance()->subscribe("core/enginePower", &ConfigHandler::onEnginePowerChanged, this);
     PubSub::instance()->subscribe("camera/settings", &ConfigHandler::onImageSettingsChanged, this);
     PubSub::instance()->subscribe("tracker/selector", &ConfigHandler::onSwitchTrackerRequest, this);
+    PubSub::instance()->subscribe("camera/source", &ConfigHandler::onVideoSourceChanged, this);
 }
 
 ConfigHandler::~ConfigHandler()
@@ -86,6 +91,11 @@ void ConfigHandler::onSwitchTrackerRequest(const quint8& code)
     d->settings->setValue(::trackerId, code);
 }
 
+void ConfigHandler::onVideoSourceChanged(const QString& source)
+{
+    d->settings->setValue(::videoSourceId, source);
+}
+
 //------------------------------------------------------------------------------------
 void ConfigHandler::Impl::loadConfig()
 {
@@ -100,4 +110,7 @@ void ConfigHandler::Impl::loadConfig()
 
     quint8 tracker(settings->value(::trackerId, ::defaultTrackerValue).value< quint8 >());
     trackSelectorP->publish(tracker);
+
+    QString source(settings->value(::videoSourceId, ::defaultVideoSourceValue).toString());
+    videoSourceP->publish(source);
 }

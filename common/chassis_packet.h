@@ -39,15 +39,26 @@ struct ChassisConfig
     uint8_t leftEngine = 0;
     uint8_t rightEngine = 0;
     uint8_t selectedTracker = 0;
+    QString videoSource;
 
     QByteArray toByteArray() const
     {
-        return QByteArray(reinterpret_cast< const char* >(this), sizeof(ChassisConfig));
+        QByteArray result;
+        QDataStream out(&result, QIODevice::WriteOnly);
+        out << id << quality << contrast << brightness
+            << leftEngine << rightEngine
+            << selectedTracker << videoSource;
+        return result;
     }
 
     static ChassisConfig fromByteArray(const QByteArray& data)
     {
-        return *reinterpret_cast<const ChassisConfig* >(data.data());
+        ChassisConfig cfg;
+        QDataStream in(data);
+        in >> cfg.id >> cfg.quality >> cfg.contrast >> cfg.brightness
+            >> cfg.leftEngine >> cfg.rightEngine
+            >> cfg.selectedTracker >> cfg.videoSource;
+        return cfg;
     }
 };
 

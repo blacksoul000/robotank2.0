@@ -39,6 +39,11 @@ Item {
                 }
             }
         }
+        onCurrentItemChanged: {
+            if (currentItem) {
+                currentItem.focus = true
+            }
+        }
 
         delegate: StackViewDelegate {
             function transitionFinished(properties)

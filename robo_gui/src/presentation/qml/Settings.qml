@@ -2,10 +2,13 @@ import QtQuick 2.2
 import QtQuick.Controls 1.4
 import QtQuick.Layouts 1.1
 import QtQuick.Controls.Styles 1.2
+
 import Robotank 1.0
 
 Rectangle {
     id: root
+    anchors.top: parent.top
+    anchors.right: parent.right
     width: flow.width + 5
     color: roboPalette.backgroundColor
 
@@ -100,83 +103,7 @@ Rectangle {
         Column {
             id: col
             spacing: root.rowSpacing
-
-            GroupBox {
-                Layout.fillHeight: true
-                Layout.fillWidth: true
-                title: qsTr("Stream")
-    //            label: Text {
-    //                color: roboPalette.textColor
-    //                font.pixelSize: roboPalette.captionTextSize / 2
-    //                text: qsTr("Stream")
-    //            }
-
-                GridLayout {
-                    anchors.fill: parent
-                    rowSpacing: root.rowSpacing
-                    columnSpacing: root.columnSpacing
-                    columns: 2
-
-                    Text {
-                        id: protocolLabel
-                        color: roboPalette.textColor
-                        font.pixelSize: roboPalette.textSize
-                        text: "Protocol"
-                    }
-                    TextInput {
-                        height: protocolLabel.height
-                        anchors.right: parent.right
-                        color: roboPalette.textColor
-                        font.pixelSize: roboPalette.textSize
-                        text: presenter.streamProtocol
-                        onEditingFinished: presenter.streamProtocol = text
-                    }
-                    Text {
-                        id: hostLabel
-                        color: roboPalette.textColor
-                        font.pixelSize: roboPalette.textSize
-                        text: "Host"
-                    }
-                    TextInput {
-                        height: hostLabel.height
-                        anchors.right: parent.right
-                        color: roboPalette.textColor
-                        font.pixelSize: roboPalette.textSize
-                        text: presenter.streamHost
-                        inputMask: "000.000.000.000;_"
-                        onEditingFinished: presenter.streamHost = text
-                    }
-                    Text {
-                        id: portLabel
-                        color: roboPalette.textColor
-                        font.pixelSize: roboPalette.textSize
-                        text: "Port"
-                    }
-                    TextInput {
-                        height: portLabel.height
-                        anchors.right: parent.right
-                        color: roboPalette.textColor
-                        font.pixelSize: roboPalette.textSize
-                        text: presenter.streamPort
-                        validator: IntValidator{bottom: 0; top: 65535;}
-                        onEditingFinished: presenter.streamPort = text
-                    }
-                    Text {
-                        id: streamNameLabel
-                        color: roboPalette.textColor
-                        font.pixelSize: roboPalette.textSize
-                        text: "Name"
-                    }
-                    TextInput {
-                        height: streamNameLabel.height
-                        anchors.right: parent.right
-                        color: roboPalette.textColor
-                        font.pixelSize: roboPalette.textSize
-                        text: presenter.streamName
-                        onEditingFinished: presenter.streamName = text
-                    }
-                }
-            }
+            width: 800
 
             GroupBox {
                 Layout.fillHeight: true
@@ -195,6 +122,21 @@ Rectangle {
                     columns: 2
 
                     Text {
+                        id: videoSourceLabel
+                        color: roboPalette.textColor
+                        font.pixelSize: roboPalette.textSize
+                        text: qsTr("Source")
+                    }
+                    TextInput {
+                        height: videoSourceLabel.height
+                        anchors.right: parent.right
+                        color: roboPalette.textColor
+                        font.pixelSize: roboPalette.textSize
+                        text: presenter.videoSource
+                        onEditingFinished: presenter.videoSource = text
+                    }
+
+                    Text {
                         id: qualityLabel
                         color: roboPalette.textColor
                         font.pixelSize: roboPalette.textSize
@@ -208,6 +150,7 @@ Rectangle {
 
                         Component.onCompleted: minimumValue = 1; // set value from presenter first
                     }
+
                     Text {
                         id: brightnessLabel
                         color: roboPalette.textColor
@@ -220,6 +163,7 @@ Rectangle {
                         inputValue: presenter.brightness
                         onValueChanged: presenter.brightness = value
                     }
+
                     Text {
                         id: contrastLabel
                         color: roboPalette.textColor

@@ -22,6 +22,8 @@ SettingsPresenter::SettingsPresenter(domain::RoboModel *model, QObject *parent) 
 {
     d->model = model;
 
+    connect(d->model->settings(), &SettingsModel::videoSourceChanged,
+            this, &SettingsPresenter::videoSourceChanged);
     connect(d->model->settings(), &SettingsModel::qualityChanged,
             this, &SettingsPresenter::qualityChanged);
     connect(d->model->settings(), &SettingsModel::brightnessChanged,
@@ -35,14 +37,6 @@ SettingsPresenter::SettingsPresenter(domain::RoboModel *model, QObject *parent) 
     connect(d->model->settings(), &SettingsModel::enginePowerChanged,
             this, &SettingsPresenter::enginePowerChanged);
 
-    connect(d->model->settings(), &SettingsModel::streamProtocolChanged,
-            this, &SettingsPresenter::streamProtocolChanged);
-    connect(d->model->settings(), &SettingsModel::streamHostChanged,
-            this, &SettingsPresenter::streamHostChanged);
-    connect(d->model->settings(), &SettingsModel::streamPortChanged,
-            this, &SettingsPresenter::streamPortChanged);
-    connect(d->model->settings(), &SettingsModel::streamNameChanged,
-            this, &SettingsPresenter::streamNameChanged);
 }
 
 SettingsPresenter::~SettingsPresenter()
@@ -115,42 +109,12 @@ quint8 SettingsPresenter::enginePower(int engine) const
     return d->model->settings()->enginePower(static_cast<SettingsModel::Engine>(engine));
 }
 
-void SettingsPresenter::setStreamProtocol(const QString& protocol)
+void SettingsPresenter::setVideoSource(const QString& source)
 {
-    d->model->settings()->setStreamProtocol(protocol);
+    d->model->settings()->setVideoSource(source);
 }
 
-QString SettingsPresenter::streamProtocol() const
+QString SettingsPresenter::videoSource() const
 {
-    return d->model->settings()->streamProtocol();
-}
-
-void SettingsPresenter::setStreamHost(const QString& host)
-{
-    d->model->settings()->setStreamHost(host);
-}
-
-QString SettingsPresenter::streamHost() const
-{
-    return d->model->settings()->streamHost();
-}
-
-void SettingsPresenter::setStreamPort(const QString& port)
-{
-    d->model->settings()->setStreamPort(port);
-}
-
-QString SettingsPresenter::streamPort() const
-{
-    return d->model->settings()->streamPort();
-}
-
-void SettingsPresenter::setStreamName(const QString& name)
-{
-    d->model->settings()->setStreamName(name);
-}
-
-QString SettingsPresenter::streamName() const
-{
-    return d->model->settings()->streamName();
+    return d->model->settings()->videoSource();
 }

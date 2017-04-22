@@ -33,6 +33,7 @@ public:
     Publisher< Empty >* calibrateCameraP = nullptr;
     Publisher< Empty >* calibrateYprP = nullptr;
     Publisher< QPoint >* enginePowerP = nullptr;
+    Publisher< QString >* videoSourceP = nullptr;
 
     QUdpSocket* sender = nullptr;
     QUdpSocket* receiver = nullptr;
@@ -43,6 +44,8 @@ public:
     ImageSettings imageSettings;
     QPoint enginePower;
     quint8 selectedTracker;
+
+    QString videoSource;
 
     void processPacket(const CommandPacket& packet);
 };
@@ -58,6 +61,7 @@ GuiExchanger::GuiExchanger() :
     d->calibrateCameraP = PubSub::instance()->advertise< Empty >("camera/calibrate");
     d->calibrateYprP = PubSub::instance()->advertise< Empty >("ypr/calibrate");
     d->enginePowerP = PubSub::instance()->advertise< QPoint >("core/enginePower");
+    d->videoSourceP = PubSub::instance()->advertise< QString >("camera/source");
 
     PubSub::instance()->subscribe("gun/position", &GuiExchanger::onGunPosition, this);
     PubSub::instance()->subscribe("camera/position", &GuiExchanger::onCameraPosition, this);
@@ -71,6 +75,8 @@ GuiExchanger::GuiExchanger() :
     PubSub::instance()->subscribe("core/enginePower", &GuiExchanger::onEnginePowerChanged, this);
     PubSub::instance()->subscribe("camera/settings", &GuiExchanger::onImageSettingsChanged, this);
     PubSub::instance()->subscribe("tracker/selector", &GuiExchanger::onSwitchTrackerRequest, this);
+
+    PubSub::instance()->subscribe("camera/source", &GuiExchanger::onVideoSourceChanged, this);
 }
 
 GuiExchanger::~GuiExchanger()
@@ -149,7 +155,6 @@ void GuiExchanger::onTrackerStatus(const bool& status)
 
 void GuiExchanger::onImageSettingsChanged(const ImageSettings& settings)
 {
-    qDebug() << Q_FUNC_INFO;
     d->imageSettings = settings;
 }
 
@@ -161,6 +166,11 @@ void GuiExchanger::onEnginePowerChanged(const QPoint& enginePower)
 void GuiExchanger::onSwitchTrackerRequest(const quint8& code)
 {
     d->selectedTracker = code;
+}
+
+void GuiExchanger::onVideoSourceChanged(const QString& source)
+{
+    d->videoSource = source;
 }
 
 //------------------------------------------------------------------------------------
@@ -190,7 +200,12 @@ void GuiExchanger::Impl::processPacket(const CommandPacket& packet)
         quint8 brightness;
         quint8 contrast;
         in >> quality >> brightness >> contrast;
-        imageSettingsP->publish(ImageSettings {quality, brightness, contrast} );
+        if (imageSettings.quality != quality || imageSettings.brightness != brightness
+                || imageSettings.contrast != contrast)
+        {
+            imageSettings = ImageSettings {quality, brightness, contrast};
+            imageSettingsP->publish(imageSettings);
+        }
         break;
     }
     case CommandPacket::CommandId::EnginePower:
@@ -199,7 +214,11 @@ void GuiExchanger::Impl::processPacket(const CommandPacket& packet)
         quint8 left;
         quint8 right;
         in >> left >> right;
-        enginePowerP->publish(QPoint(left, right));
+        if (enginePower.x() != left || enginePower.y() != right)
+        {
+            enginePower = QPoint(left, right);
+            enginePowerP->publish(enginePower);
+        }
         break;
     }
     case CommandPacket::CommandId::TrackerCode:
@@ -207,7 +226,11 @@ void GuiExchanger::Impl::processPacket(const CommandPacket& packet)
         QDataStream in(packet.data);
         quint8 code;
         in >> code;
-        trackSelectorP->publish(code);
+        if (selectedTracker != code)
+        {
+            selectedTracker = code;
+            trackSelectorP->publish(selectedTracker);
+        }
         break;
     }
     case CommandPacket::CommandId::TrackerRect:
@@ -216,6 +239,18 @@ void GuiExchanger::Impl::processPacket(const CommandPacket& packet)
         QRectF rect;
         in >> rect;
         trackRectP->publish(rect);
+        break;
+    }
+    case CommandPacket::CommandId::VideoSource:
+    {
+        QDataStream in(packet.data);
+        QString source;
+        in >> source;
+        if (videoSource != source)
+        {
+            videoSource = source;
+            videoSourceP->publish(videoSource);
+        }
         break;
     }
     case CommandPacket::CommandId::RequestConfig:
@@ -228,6 +263,7 @@ void GuiExchanger::Impl::processPacket(const CommandPacket& packet)
         config.leftEngine = enginePower.x();
         config.rightEngine = enginePower.y();
         config.selectedTracker = selectedTracker;
+        config.videoSource = videoSource;
         sender->writeDatagram(ChassisPacket(config).toByteArray(), ::sendHost, ::sendPort);
         return;
     }

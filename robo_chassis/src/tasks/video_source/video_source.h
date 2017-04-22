@@ -16,6 +16,7 @@ public:
 
 private:
     void onImageSettingsChanged(const ImageSettings& settings);
+    void onVideoSourceChanged(const QString& source);
 
 private:
     class Impl;

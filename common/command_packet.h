@@ -19,6 +19,7 @@ struct CommandPacket
         EnginePower,
         TrackerCode,
         TrackerRect,
+        VideoSource,
         RequestConfig
     };
 

@@ -26,6 +26,7 @@ namespace domain
         void onCalibrateGyro();
         void onEnginePowerChanged();
         void onRequestConfig();
+        void onVideoSourceChanged(const QString& source);
 
     private slots:
         void send();

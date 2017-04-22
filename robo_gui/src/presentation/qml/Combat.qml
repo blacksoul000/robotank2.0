@@ -16,15 +16,13 @@ Item {
 
     MediaPlayer {
         id: player
-        source: settingsPresenter.streamProtocol + "://" + settingsPresenter.streamHost
-                + ":" + settingsPresenter.streamPort + "/" + settingsPresenter.streamName
-//        source: "rtsp://127.0.0.1:8554/live"
+        source: settingsPresenter.videoSource
         autoPlay: true
 
         onErrorChanged: {
             if (error === MediaPlayer.NetworkError || error === MediaPlayer.ResourceError)
             {
-//                player.play();
+                player.play();
             }
             else
             {
@@ -120,7 +118,7 @@ Item {
     }
 
     Loader {
-        property int hidden: 0
+        property int hidden: parent.x + parent.width
         property int showed: 0
         property bool isLoaded: false
         property bool isHidden: true
@@ -145,11 +143,9 @@ Item {
             duration: 200
         }
 
-        onStatusChanged: {
-            if (status === Loader.Ready && item) {
-                item.presenter = settingsPresenter
-                hidden = -item.width;
-            }
+        onLoaded: {
+            item.presenter = settingsPresenter
+            showed = hidden - item.width;
         }
     }
 /*
@@ -164,5 +160,15 @@ Item {
         rect.width *= page.scaleX
         rect.height *= page.scaleY
         return rect
+    }
+
+    Keys.onReleased: {
+        if (settingsLoader.isHidden) return
+        if (event.key === Qt.Key_Back || event.key === Qt.Key_Escape) {
+            settingsLoader.isHidden = true
+            settingsHide.start()
+
+            event.accepted = true;
+        }
     }
 }

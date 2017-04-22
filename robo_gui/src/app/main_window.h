@@ -22,8 +22,6 @@ namespace robo
 
     private slots:
         void onButtonsUpdated(quint16 buttons);
-        void loadSettings();
-        void saveSettings();
 
     private:
         class Impl;

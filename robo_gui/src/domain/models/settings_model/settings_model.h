@@ -15,6 +15,9 @@ namespace domain
         SettingsModel(QObject* parent = nullptr);
         ~SettingsModel();
 
+        void setVideoSource(const QString& source);
+        QString videoSource() const;
+
         void setQuality(quint8 quality);
         quint8 quality() const;
 
@@ -30,19 +33,9 @@ namespace domain
         void setEnginePower(Engine engine, quint8 percent);
         quint8 enginePower(Engine engine) const;
 
-        void setStreamProtocol(const QString& protocol);
-        QString streamProtocol() const;
-
-        void setStreamHost(const QString& host);
-        QString streamHost() const;
-
-        void setStreamPort(const QString& port);
-        QString streamPort() const;
-
-        void setStreamName(const QString& name);
-        QString streamName() const;
 
     signals:
+        void videoSourceChanged(const QString& source);
         void qualityChanged(quint8 quality);
         void brightnessChanged(quint8 brightness);
         void contrastChanged(quint8 contrast);
@@ -54,10 +47,6 @@ namespace domain
 
         void enginePowerChanged();
 
-        void streamProtocolChanged(const QString& protocol);
-        void streamHostChanged(const QString& host);
-        void streamPortChanged(const QString& port);
-        void streamNameChanged(const QString& name);
 
     private:
         class Impl;

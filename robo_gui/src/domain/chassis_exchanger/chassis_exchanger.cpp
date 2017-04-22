@@ -58,7 +58,7 @@ ChassisExchanger::ChassisExchanger(domain::RoboModel* model, QObject *parent) :
     d->timer->setInterval(::sendInterval);
     connect(d->timer, &QTimer::timeout, this, &ChassisExchanger::send);
 
-    connect(d->model->track(), &domain::TrackModel::trackRequest, 
+    connect(d->model->track(), &domain::TrackModel::trackRequest,
             this, &ChassisExchanger::onTrackToggle);
     connect(d->model->settings(), &domain::SettingsModel::qualityChanged,
             this, &ChassisExchanger::onImageSettingsChanged);
@@ -76,6 +76,8 @@ ChassisExchanger::ChassisExchanger(domain::RoboModel* model, QObject *parent) :
             this, &ChassisExchanger::onCalibrateGyro);
     connect(d->model->settings(), &domain::SettingsModel::enginePowerChanged,
             this, &ChassisExchanger::onEnginePowerChanged);
+    connect(d->model->settings(), &domain::SettingsModel::videoSourceChanged,
+            this, &ChassisExchanger::onVideoSourceChanged);
 
     d->timer->start();
 
@@ -167,6 +169,15 @@ void ChassisExchanger::onCalibrateGyro()
     ++d->nextId;
 }
 
+void ChassisExchanger::onVideoSourceChanged(const QString& source)
+{
+    CommandPacket packet(d->nextId, CommandPacket::VideoSource);
+    QDataStream out(&packet.data, QIODevice::WriteOnly);
+    out << source;
+    d->queue.insert(QDateTime::currentMSecsSinceEpoch(), packet);
+    ++d->nextId;
+}
+
 void ChassisExchanger::onEnginePowerChanged()
 {
     const auto& s = d->model->settings();
@@ -226,6 +237,7 @@ void ChassisExchanger::processPacket(const QByteArray& data)
         d->model->settings()->setEnginePower(SettingsModel::Engine::Left, config.leftEngine);
         d->model->settings()->setEnginePower(SettingsModel::Engine::Right, config.rightEngine);
         d->model->settings()->setTracker(config.selectedTracker);
+        d->model->settings()->setVideoSource(config.videoSource);
 
         d->removeQueueId(config.id);
 

@@ -6,6 +6,7 @@
 
 #include "pub_sub.h"
 
+#include <QHostAddress>
 #include <QPointF>
 #include <QSize>
 
@@ -46,11 +47,14 @@ public:
     int& argc;
     char** argv;
 
-//    cv::VideoWriter writer;
     rtsp_server::RtspServer* rtsp = nullptr;
 
     Publisher< cv::Mat >* imageP = nullptr;
     Publisher< QPointF >* dotsPerDegreeP = nullptr;
+
+    QHostAddress streamHost;
+    quint16 streamPort;
+    QString streamName;
 
     void initRtspServer();
     bool openCamera();
@@ -58,6 +62,7 @@ public:
     void setBrightness(int brightness);
     void setContrast(int contrast);
     bool writeImage(const cv::Mat& mat);
+    bool parseVideoSource(const QString& source);
 
     Impl(int& argc, char** argv) : argc(argc), argv(argv) {}
 };
@@ -69,19 +74,18 @@ VideoSource::VideoSource(int& argc, char** argv) :
     d->dotsPerDegreeP = PubSub::instance()->advertise< QPointF >("camera/dotsPerDegree");
 
     PubSub::instance()->subscribe("camera/settings", &VideoSource::onImageSettingsChanged, this);
+    PubSub::instance()->subscribe("camera/source", &VideoSource::onVideoSourceChanged, this);
 }
 
 VideoSource::~VideoSource()
 {
     d->capturer.release();
     delete d->rtsp;
-//    d->writer.release();
     delete d;
 }
 
 void VideoSource::start()
 {
-    d->initRtspServer();
     d->openCamera();
 }
 
@@ -105,29 +109,30 @@ void VideoSource::execute()
         // TODO - stop video source
         d->rtsp->stop();
     }
-//    d->writer << frame;
 }
 
 void VideoSource::onImageSettingsChanged(const ImageSettings& settings)
 {
     qDebug() << Q_FUNC_INFO << settings.quality << settings.brightness << settings.contrast;
-    d->setQuality(settings.quality);
     d->setBrightness(settings.brightness);
     d->setContrast(settings.contrast);
 }
 
-//----------------------------------------------------------------------------
-void VideoSource::Impl::setQuality(int quality)
+void VideoSource::onVideoSourceChanged(const QString& source)
 {
-////    rosrun dynamic_reconfigure dynparam set -t1 /camera/image/compressed jpeg_quality 15
-//    std::string s = "rosrun dynamic_reconfigure dynparam set -t1 "
-//                    "/camera/image/compressed jpeg_quality "
-//            + std::to_string(quality);
-//    popen(s.c_str(), "r");
-////    FILE* f = popen(s.c_str(), "r");
-////    pclose(f);
+    if (d->rtsp) delete d->rtsp;
+
+    if (!d->parseVideoSource(source))
+    {
+        qWarning() << "Invalid video source requested. "
+            "Try something like 'rtsp://127.0.0.1:8554/live'";
+        return;
+    }
+
+    d->initRtspServer();
 }
 
+//----------------------------------------------------------------------------
 void VideoSource::Impl::setBrightness(int brightness)
 {
     capturer.set(CV_CAP_PROP_BRIGHTNESS, brightness);
@@ -140,23 +145,21 @@ void VideoSource::Impl::setContrast(int contrast)
 
 void VideoSource::Impl::initRtspServer()
 {
-    qDebug() << Q_FUNC_INFO ;
     rtsp = new rtsp_server::RtspServer(argc, argv,
                                        "videoconvert ! x264enc ! rtph264pay name=pay0 pt=96 sync=true",
 //                                       "videoconvert ! x264enc noise-reduction=10000 "
 //                                       "tune=zerolatency byte-stream=true threads=1 !"
-//                                       "rtph264pay name=pay0 pt=96",
-                                       ::width, ::height, 25, "GRAY8");
-    rtsp->setHost("127.0.0.1");
-    rtsp->setPort(8554);
-    rtsp->setStreamName("live");
+//                                       "rtph264pay name=pay0 pt=96 sync=true",
+                                       ::width, ::height, 25, "BGR");
+    rtsp->setHost(streamHost.toString().toStdString());
+    rtsp->setPort(streamPort);
+    rtsp->setStreamName(streamName.toStdString());
 
     rtsp->start();
 }
 
 bool VideoSource::Impl::openCamera()
 {
-    qDebug() << Q_FUNC_INFO ;
 #ifdef PICAM
     // set camera params
     // 2592x1944 - native resolution
@@ -178,45 +181,29 @@ bool VideoSource::Impl::openCamera()
         return false;
     }
 
-////    libv4l-dev
-//    writer.open("appsrc ! udpsink host=localhost port=5000", 0, 25, cv::Size(640, 480), true);
-//    writer.open("appsrc ! videoconvert ! x264enc noise-reduction=10000 tune=zerolatency byte-stream=true threads=4 ! rstpclientsink  name=sink location=rtsp://127.0.0.1:8554/live", 0, 25, cv::Size(width, height), true);
-//    if (!writer.isOpened()) {
-//        qDebug() << "Can't create video writer";
-//        return false;
-//    }
-//---------------------------
-//    TODO - from settings
-//    int brightness = 0;
-//    ros::param::param< int >("/camera/image/brightness", brightness, ::defaultBrightness);
-//    d->setBrightness(brightness);
-
-//    int contrast = 0;
-//    ros::param::param< int >("/camera/image/contrast", contrast, ::defaultContrast);
-//    d->setContrast(contrast);
-
-//    int quality = 0;
-//    ros::param::param< int >("/camera/image/quality", quality, ::defaultQuality;
-//    d->setQuality(quality);
-
-
     this->dotsPerDegreeP->publish(QPointF(::width / ::fieldOfViewH, ::height / ::fieldOfViewV));
     return true;
 }
 
 bool VideoSource::Impl::writeImage(const cv::Mat& mat)
 {
-    const bool color = false;
-    cv::Mat result;
+    const int size = ::width * ::height * mat.channels();
+    return rtsp->write((char*)mat.data, size);
+}
 
-    if (color)
-    {
-        // TODO - convert to RGB16
-    }
-    else
-    {
-        cv::cvtColor(mat, result, CV_BGR2GRAY);
-    }
-    constexpr int size = ::width * ::height * (color ? 2 : 1);
-    return rtsp->write((char*)result.data, size);
+bool VideoSource::Impl::parseVideoSource(const QString& source)
+{
+    if (!source.startsWith("rtsp://")) return false;
+    QStringList splitted = source.split("/");
+    if (splitted.count() != 4) return false;
+
+    QStringList address = splitted.at(2).split(":"); // host:port
+    if (address.count() != 2) return false;
+    streamHost = QHostAddress(address.at(0));
+    if (streamHost.isNull()) return false;
+    bool ok;
+    streamPort = address.at(1).toInt(&ok);
+    if (!ok) return false;
+    streamName = splitted.last();
+    return true;
 }
