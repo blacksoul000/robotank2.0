@@ -24,9 +24,9 @@ Item {
             {
                 player.play();
             }
-            else
+            else if (error !== MediaPlayer.NoError)
             {
-                console.log(errorString);
+                console.log("Video error: ", errorString);
             }
         }
     }
@@ -84,14 +84,14 @@ Item {
     ChassisScheme {
         id: scheme
         anchors.bottom: parent.bottom
-        anchors.left: parent.left
+        anchors.right: parent.right
         anchors.margins: 5
         yaw: statusPresenter.yaw
         azimuth: statusPresenter.gunPositionH
     }
 
     RButton {
-        anchors.right: parent.right
+        anchors.left: parent.left
         anchors.bottom: parent.bottom
         anchors.margins: 5
         width: 50
@@ -118,7 +118,7 @@ Item {
     }
 
     Loader {
-        property int hidden: parent.x + parent.width
+        property int hidden: 0
         property int showed: 0
         property bool isLoaded: false
         property bool isHidden: true
@@ -145,7 +145,12 @@ Item {
 
         onLoaded: {
             item.presenter = settingsPresenter
-            showed = hidden - item.width;
+            item.widthChanged.connect(updateHidden)
+            updateHidden()
+        }
+
+        function updateHidden() {
+            hidden = -item.width;
         }
     }
 /*

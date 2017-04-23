@@ -9,7 +9,6 @@ using rtsp_server::RtspServer;
 class RtspServer::Impl
 {
 public:
-    GMainLoop* loop = nullptr;
     GstRTSPServer* server = nullptr;
     GstRTSPMediaFactory* factory = nullptr;
     GstAppSrc* appsrc = nullptr;
@@ -62,6 +61,7 @@ RtspServer::~RtspServer()
 
     gst_object_unref(d->factory);
     gst_object_unref(d->server);
+    gst_deinit();
     delete d;
 }
 

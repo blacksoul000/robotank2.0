@@ -41,7 +41,7 @@ public:
     void subscribe(const QString& topic, void(T::*fp)(const M&), T* object)
     {
         QMutexLocker locker(&m_mutex);
-        auto sub = new Subscriber < M >(std::bind(fp, object, std::placeholders::_1));
+        auto sub = new Subscriber < M >(std::bind(fp, object, std::placeholders::_1), m_parent);
         sub->moveToThread(object->thread());
         const auto& publishers = m_publishers.values(topic);
         for (auto ptr: publishers)
@@ -54,11 +54,13 @@ public:
 
 private:
     PubSub() = default;
-    // TODO - delete all publishers and subscribers
+    ~PubSub() { delete m_parent; }
 
     QMutex m_mutex;
     QHash< QString, void* > m_publishers;
     QHash< QString, void* > m_subscribers;
+
+    QObject* m_parent = new QObject; // Object will be parent of all subscribers to delete them
 };
 
 #endif // PUBSUB_H

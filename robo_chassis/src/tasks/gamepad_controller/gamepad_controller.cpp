@@ -43,6 +43,9 @@ GamepadController::GamepadController() :
 GamepadController::~GamepadController()
 {
     close(d->fd);
+    delete d->joyStatusP;
+    delete d->axesP;
+    delete d->buttonsP;
     delete d;
 }
 

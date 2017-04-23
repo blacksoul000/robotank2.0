@@ -53,15 +53,14 @@ TrackerTask::TrackerTask() :
 
     d->targetP->publish(QRectF());
     d->trackerStatusP->publish(false);
-
-//    TODO
-//    int trackerCode = 0;
-//    QSettings::value("trackAlgorithm")
-//    d->trackAlgo(trackerCode);
 }
 
 TrackerTask::~TrackerTask()
 {
+    delete d->targetP;
+    delete d->deviationP;
+    delete d->trackerStatusP;
+
     delete d->tracker;
     delete d;
 }

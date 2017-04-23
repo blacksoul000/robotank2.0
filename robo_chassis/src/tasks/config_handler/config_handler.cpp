@@ -67,6 +67,10 @@ ConfigHandler::ConfigHandler() :
 ConfigHandler::~ConfigHandler()
 {
     d->settings->sync();
+    delete d->imageSettingsP;
+    delete d->enginePowerP;
+    delete d->trackSelectorP;
+    delete d->videoSourceP;
     delete d;
 }
 

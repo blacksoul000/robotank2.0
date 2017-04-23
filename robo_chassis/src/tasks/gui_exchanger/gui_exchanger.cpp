@@ -81,6 +81,14 @@ GuiExchanger::GuiExchanger() :
 
 GuiExchanger::~GuiExchanger()
 {
+    delete d->trackRectP;
+    delete d->trackSelectorP;
+    delete d->imageSettingsP;
+    delete d->calibrateGunP;
+    delete d->calibrateCameraP;
+    delete d->calibrateYprP;
+    delete d->enginePowerP;
+    delete d->videoSourceP;
     delete d;
 }
 

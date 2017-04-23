@@ -103,7 +103,6 @@ Rectangle {
         Column {
             id: col
             spacing: root.rowSpacing
-            width: 800
 
             GroupBox {
                 Layout.fillHeight: true
@@ -134,21 +133,6 @@ Rectangle {
                         font.pixelSize: roboPalette.textSize
                         text: presenter.videoSource
                         onEditingFinished: presenter.videoSource = text
-                    }
-
-                    Text {
-                        id: qualityLabel
-                        color: roboPalette.textColor
-                        font.pixelSize: roboPalette.textSize
-                        text: "Quality"
-                    }
-                    RSpinBox {
-                        height: qualityLabel.height
-                        anchors.right: parent.right
-                        inputValue: presenter.quality
-                        onValueChanged: presenter.quality = value
-
-                        Component.onCompleted: minimumValue = 1; // set value from presenter first
                     }
 
                     Text {

@@ -80,6 +80,8 @@ VideoSource::VideoSource(int& argc, char** argv) :
 VideoSource::~VideoSource()
 {
     d->capturer.release();
+    delete d->imageP;
+    delete d->dotsPerDegreeP;
     delete d->rtsp;
     delete d;
 }

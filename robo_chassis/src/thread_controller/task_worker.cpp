@@ -12,6 +12,7 @@ public:
     QList < ITaskPtr > tasks;
     QElapsedTimer timer;
     quint64 interval;
+    volatile bool started = false;
 };
 
 TaskWorker::TaskWorker(quint64 interval, QObject *parent) :
@@ -33,12 +34,13 @@ void TaskWorker::addTask(const ITaskPtr& task)
 
 void TaskWorker::start()
 {
+    d->started = true;
     for(const auto& task: d->tasks)
     {
         task->start();
     }
 
-    while (1)
+    while (d->started)
     {
         d->timer.start();
         for(const auto& task: d->tasks)
@@ -48,6 +50,11 @@ void TaskWorker::start()
         qApp->processEvents();
         auto elapsed = d->timer.elapsed();
         qint64 sleep = d->interval - elapsed;
-        if (sleep > 0) QThread::currentThread()->msleep(sleep);
+        if (sleep > 0) QThread::msleep(sleep);
     }
+}
+
+void TaskWorker::stop()
+{
+    d->started = false;
 }

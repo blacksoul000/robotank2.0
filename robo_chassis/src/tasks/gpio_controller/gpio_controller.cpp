@@ -43,6 +43,7 @@ GpioController::GpioController():
 GpioController::~GpioController()
 {
     digitalWrite (::shotFinishedPin1, LOW);
+    delete d->shotStatusP;
     delete d;
 }
 
@@ -53,7 +54,7 @@ void GpioController::execute()
     if(digitalRead(::shotFinishedPin2) == HIGH)
     {
         d->shotClosing = true;
-    } 
+    }
     else if (d->shotClosing)
     {
         d->shotClosing = false;

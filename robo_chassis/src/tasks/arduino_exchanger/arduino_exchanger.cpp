@@ -108,6 +108,10 @@ ArduinoExchanger::ArduinoExchanger():
 ArduinoExchanger::~ArduinoExchanger()
 {
     if (d->serial->isOpen()) d->serial->close();
+    delete d->gunPositionP;
+    delete d->cameraPositionP;
+    delete d->yprP;
+    delete d->arduinoStatusP;
     delete d;
 }
 

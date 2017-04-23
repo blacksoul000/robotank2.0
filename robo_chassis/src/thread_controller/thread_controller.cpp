@@ -22,6 +22,7 @@ ThreadController::ThreadController(quint64 interval, QObject* parent) :
 
 ThreadController::~ThreadController()
 {
+    d->worker->stop();
     d->thread->quit();
     d->thread->wait();
 

@@ -12,7 +12,8 @@ template < typename T >
 class Subscriber : public QObject
 {
 public:
-    Subscriber(const std::function< void(const T&) >& f)
+    Subscriber(const std::function< void(const T&) >& f, QObject* parent = nullptr) :
+        QObject(parent)
     {
         m_callback = f;
     }

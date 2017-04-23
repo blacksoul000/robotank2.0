@@ -64,6 +64,7 @@ RoboCore::RoboCore():
 
 RoboCore::~RoboCore()
 {
+    delete d->influenceP;
     delete d;
 }
 

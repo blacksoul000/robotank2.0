@@ -14,6 +14,7 @@ public:
     void addTask(const ITaskPtr& task);
 
     void start();
+    void stop();
 
 private:
     class Impl;
