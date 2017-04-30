@@ -5,7 +5,7 @@
 
 struct JoyAxes
 {
-    static const int axesCount = 8;
+    static const int axesCount = 14;
     QVector< double > axes = QVector< double >(axesCount);
 };
 

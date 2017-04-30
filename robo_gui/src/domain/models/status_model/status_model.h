@@ -45,8 +45,8 @@ namespace domain
         void setArduinoStatus(bool status);
         bool arduinoStatus() const;
 
-        void setJoyStatus(bool status);
-        bool joyStatus() const;
+        void setGamepadStatus(bool status);
+        bool gamepadStatus() const;
 
     signals:
         void batteryLevelChanged(int level);
@@ -60,7 +60,7 @@ namespace domain
         void pitchChanged(qreal pitch);
         void rollChanged(qreal roll);
         void arduinoStatusChanged(bool status);
-        void joyStatusChanged(bool status);
+        void gamepadStatusChanged(bool status);
 
     private:
         class Impl;

@@ -15,6 +15,7 @@ Rectangle {
     property int rowSpacing: 10
     property int columnSpacing: 30
     property QtObject presenter
+    property QtObject statusPresenter
 
     ListModel {
         id: trackersModel
@@ -103,6 +104,62 @@ Rectangle {
         Column {
             id: col
             spacing: root.rowSpacing
+
+            GroupBox {
+                Layout.fillHeight: true
+                Layout.fillWidth: true
+                title: qsTr("Gamepad")
+    //            label: Text {
+    //                color: roboPalette.textColor
+    //                font.pixelSize: roboPalette.captionTextSize / 2
+    //                text: qsTr("Gamepad")
+    //            }
+
+                Column {
+                    anchors.fill: parent
+                    spacing: root.rowSpacing
+
+                    Row {
+                        spacing: root.columnSpacing
+
+                        Text {
+                            color: roboPalette.textColor
+                            font.pixelSize: roboPalette.textSize
+                            text: qsTr("Status") + ":"
+                        }
+                        Text {
+                            color: roboPalette.textColor
+                            font.pixelSize: roboPalette.textSize
+                            text: statusPresenter.gamepadStatus ? qsTr("Connected")
+                                                                : qsTr("Unconnected")
+                        }
+                    }
+
+                    Button {
+                        anchors.horizontalCenter: parent.horizontalCenter
+                        style: ButtonStyle {
+                            label: Text {
+                                renderType: Text.NativeRendering
+                                verticalAlignment: Text.AlignVCenter
+                                horizontalAlignment: Text.AlignHCenter
+                                font.pixelSize: roboPalette.textSize
+                                color: roboPalette.backgroundColor
+                                text: qsTr("Manage")
+                            }
+                        }
+                        onClicked: {
+                            if (bluetoothManagerLoader.item)
+                            {
+                                bluetoothManagerLoader.item.open()
+                            }
+                            else
+                            {
+                                bluetoothManagerLoader.source = "qrc:/qml/BluetoothManager.qml"
+                            }
+                        }
+                    }
+                }
+            }
 
             GroupBox {
                 Layout.fillHeight: true
@@ -294,6 +351,10 @@ Rectangle {
                 }
             }
         }
+    }
+
+    Loader {
+        id: bluetoothManagerLoader
     }
 
     onPresenterChanged: {

@@ -18,6 +18,7 @@ Item {
         property color backgroundColor: "#212126"
         property color textColor: "white"
         property int captionTextSize: 32
+        property int middleTextSize: 28
         property int textSize: 24
     }
 

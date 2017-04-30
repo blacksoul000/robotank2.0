@@ -145,6 +145,7 @@ Item {
 
         onLoaded: {
             item.presenter = settingsPresenter
+            item.statusPresenter = statusPresenter
             item.widthChanged.connect(updateHidden)
             updateHidden()
         }

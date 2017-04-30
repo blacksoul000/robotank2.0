@@ -7,6 +7,7 @@
 #include "track_model.h"
 #include "status_model.h"
 #include "settings_model.h"
+#include "bluetooth_model.h"
 
 #include <QTimer>
 #include <QDateTime>
@@ -20,7 +21,8 @@ namespace
 {
     const quint16 receivePort = 56001;
     const quint16 sendPort = 56002;
-    const QHostAddress sendHost = QHostAddress::LocalHost; // FIXME
+    const QHostAddress sendHost = QHostAddress("192.168.1.3"); // FIXME
+//    const QHostAddress sendHost = QHostAddress::LocalHost; // FIXME
 
     constexpr double positionCoef = 360.0 / 32767;
 
@@ -31,16 +33,24 @@ namespace
 class ChassisExchanger::Impl
 {
 public:
+    struct CommandInfo
+    {
+        uint8_t commandId = CommandPacket::None;
+        CommandPacketPtr packet;
+        qint64 timestamp;
+    };
+
     QUdpSocket* sender = nullptr;
     QUdpSocket* receiver = nullptr;
     QTimer* timer = nullptr;
     domain::RoboModel* model = nullptr;
 
     quint8 nextId = 1;
-    QHash < qint64, CommandPacket > queue;
+    QList< CommandInfo > queue;
     ChassisPacket last;
 
-    QHash < qint64, CommandPacket >::Iterator findQueueId(quint8 id);
+    QList< CommandInfo >::Iterator findQueueId(quint8 id);
+    void appendPacket(const CommandPacketPtr& packet);
     void removeQueueId(quint8 id);
 };
 
@@ -60,6 +70,7 @@ ChassisExchanger::ChassisExchanger(domain::RoboModel* model, QObject *parent) :
 
     connect(d->model->track(), &domain::TrackModel::trackRequest,
             this, &ChassisExchanger::onTrackToggle);
+
     connect(d->model->settings(), &domain::SettingsModel::qualityChanged,
             this, &ChassisExchanger::onImageSettingsChanged);
     connect(d->model->settings(), &domain::SettingsModel::brightnessChanged,
@@ -79,6 +90,11 @@ ChassisExchanger::ChassisExchanger(domain::RoboModel* model, QObject *parent) :
     connect(d->model->settings(), &domain::SettingsModel::videoSourceChanged,
             this, &ChassisExchanger::onVideoSourceChanged);
 
+    connect(d->model->bluetooth(), &domain::BluetoothModel::requsestScan,
+            this, &ChassisExchanger::onRequestScan);
+    connect(d->model->bluetooth(), &domain::BluetoothModel::requestPair,
+            this, &ChassisExchanger::onRequestPair);
+
     d->timer->start();
 
     this->onRequestConfig();
@@ -93,16 +109,16 @@ ChassisExchanger::~ChassisExchanger()
 void ChassisExchanger::send()
 {
     qint64 currentTime = QDateTime::currentMSecsSinceEpoch();
-    for (auto it = d->queue.begin(), end = d->queue.end(); it != end;)
+    for (auto it = d->queue.begin(); it != d->queue.end();)
     {
-        if (currentTime - it.key() > ::packetTimeout
-                && it.value().commandId != CommandPacket::RequestConfig)
+        if (currentTime - it->timestamp > ::packetTimeout
+                && it->commandId != CommandPacket::RequestConfig)
         {
             it = d->queue.erase(it);
         }
         else
         {
-            d->sender->writeDatagram(it.value().toByteArray(), ::sendHost, ::sendPort);
+            d->sender->writeDatagram(it->packet->toByteArray(), ::sendHost, ::sendPort);
             ++it;
         }
     }
@@ -122,78 +138,92 @@ void ChassisExchanger::onReadyRead()
 void ChassisExchanger::onImageSettingsChanged()
 {
     const auto& s = d->model->settings();
-    CommandPacket packet(d->nextId, CommandPacket::ImageSettings);
+    CommandPacketPtr packet = CommandPacketPtr::create(d->nextId, CommandPacket::ImageSettings);
 
-    QDataStream out(&packet.data, QIODevice::WriteOnly);
+    QDataStream out(&packet->data, QIODevice::WriteOnly);
     out << s->quality() << s->brightness() << s->contrast();
-    d->queue.insert(QDateTime::currentMSecsSinceEpoch(), packet);
-    ++d->nextId;
+    d->appendPacket(packet);
 }
 
 void ChassisExchanger::onSelectedTrackerChanged(quint8 code)
 {
-    CommandPacket packet(d->nextId, CommandPacket::TrackerCode);
-    QDataStream out(&packet.data, QIODevice::WriteOnly);
+    CommandPacketPtr packet = CommandPacketPtr::create(d->nextId, CommandPacket::TrackerCode);
+    QDataStream out(&packet->data, QIODevice::WriteOnly);
     out << code;
-    d->queue.insert(QDateTime::currentMSecsSinceEpoch(), packet);
-    ++d->nextId;
+    d->appendPacket(packet);
 }
 
 void ChassisExchanger::onTrackToggle(const QRectF& rect)
 {
-    CommandPacket packet(d->nextId, CommandPacket::TrackerRect);
-    QDataStream out(&packet.data, QIODevice::WriteOnly);
+    CommandPacketPtr packet = CommandPacketPtr::create(d->nextId, CommandPacket::TrackerRect);
+    QDataStream out(&packet->data, QIODevice::WriteOnly);
     out << rect;
-    d->queue.insert(QDateTime::currentMSecsSinceEpoch(), packet);
-    ++d->nextId;
+    d->appendPacket(packet);
 }
 
 void ChassisExchanger::onCalibrateGun()
 {
-    CommandPacket packet(d->nextId, CommandPacket::CalibrateGun);
-    d->queue.insert(QDateTime::currentMSecsSinceEpoch(), packet);
-    ++d->nextId;
+    CommandPacketPtr packet = CommandPacketPtr::create(d->nextId, CommandPacket::CalibrateGun);
+    d->appendPacket(packet);
 }
 
 void ChassisExchanger::onCalibrateCamera()
 {
-    CommandPacket packet(d->nextId, CommandPacket::CalibrateCamera);
-    d->queue.insert(QDateTime::currentMSecsSinceEpoch(), packet);
-    ++d->nextId;
+    CommandPacketPtr packet = CommandPacketPtr::create(d->nextId, CommandPacket::CalibrateCamera);
+    d->appendPacket(packet);
 }
 
 void ChassisExchanger::onCalibrateGyro()
 {
-    CommandPacket packet(d->nextId, CommandPacket::CalibrateYpr);
-    d->queue.insert(QDateTime::currentMSecsSinceEpoch(), packet);
-    ++d->nextId;
+    CommandPacketPtr packet = CommandPacketPtr::create(d->nextId, CommandPacket::CalibrateYpr);
+    d->appendPacket(packet);
 }
 
 void ChassisExchanger::onVideoSourceChanged(const QString& source)
 {
-    CommandPacket packet(d->nextId, CommandPacket::VideoSource);
-    QDataStream out(&packet.data, QIODevice::WriteOnly);
+    CommandPacketPtr packet = CommandPacketPtr::create(d->nextId, CommandPacket::VideoSource);
+    QDataStream out(&packet->data, QIODevice::WriteOnly);
     out << source;
-    d->queue.insert(QDateTime::currentMSecsSinceEpoch(), packet);
-    ++d->nextId;
+    d->appendPacket(packet);
 }
 
 void ChassisExchanger::onEnginePowerChanged()
 {
     const auto& s = d->model->settings();
-    CommandPacket packet(d->nextId, CommandPacket::EnginePower);
-    QDataStream out(&packet.data, QIODevice::WriteOnly);
+    CommandPacketPtr packet = CommandPacketPtr::create(d->nextId, CommandPacket::EnginePower);
+    QDataStream out(&packet->data, QIODevice::WriteOnly);
     out << s->enginePower(domain::SettingsModel::Left)
         << s->enginePower(domain::SettingsModel::Right);
-    d->queue.insert(QDateTime::currentMSecsSinceEpoch(), packet);
-    ++d->nextId;
+    d->appendPacket(packet);
+}
+
+void ChassisExchanger::onRequestScan()
+{
+    CommandPacketPtr packet = CommandPacketPtr::create(d->nextId, CommandPacket::BluetoothScan);
+    d->appendPacket(packet);
+
+    this->onRequestBluetoothConfig();
+}
+
+void ChassisExchanger::onRequestPair(const QString& address, bool paired)
+{
+    CommandPacketPtr packet = CommandPacketPtr::create(d->nextId, CommandPacket::BluetoothPair);
+    QDataStream out(&packet->data, QIODevice::WriteOnly);
+    out << address << paired;
+    d->appendPacket(packet);
+}
+
+void ChassisExchanger::onRequestBluetoothConfig()
+{
+    CommandPacketPtr packet = CommandPacketPtr::create(d->nextId,
+                                                       CommandPacket::RequestBlutoothStatus);
+    d->appendPacket(packet);
 }
 
 void ChassisExchanger::onRequestConfig()
 {
-    CommandPacket packet(d->nextId, CommandPacket::RequestConfig);
-    d->queue.insert(QDateTime::currentMSecsSinceEpoch(), packet);
-    ++d->nextId;
+    CommandPacketPtr packet = CommandPacketPtr::create(d->nextId, CommandPacket::RequestConfig);
+    d->appendPacket(packet);
 }
 
 void ChassisExchanger::processPacket(const QByteArray& data)
@@ -212,7 +242,7 @@ void ChassisExchanger::processPacket(const QByteArray& data)
     {
         ChassisTmi tmi = ChassisTmi::fromByteArray(packet.data);
         d->model->status()->setArduinoStatus(tmi.arduinoStatus);
-        d->model->status()->setJoyStatus(tmi.joyStatus);
+        d->model->status()->setGamepadStatus(tmi.joyStatus);
 
         d->model->track()->setTargetRect(tmi.target);
         d->model->track()->setTracking(tmi.trackerStatus);
@@ -243,16 +273,33 @@ void ChassisExchanger::processPacket(const QByteArray& data)
 
         break;
     }
+    case PacketType::Bluetooth:
+    {
+        ChassisBluetoothStatus status = ChassisBluetoothStatus::fromByteArray(packet.data);
+
+        const bool scanStatus = status.status.scanStatus;
+        if (scanStatus || scanStatus == d->model->bluetooth()->scanStatus())
+        {
+             // scan is not finished, request again
+            this->onRequestBluetoothConfig();
+        }
+        d->model->bluetooth()->setScanStatus(scanStatus);
+        d->model->bluetooth()->setDevices(status.devices);
+
+        d->removeQueueId(status.id);
+        break;
+    }
     default:
         break;
     }
 }
 
 //------------------------------------------------------------------------------------
-QHash < qint64, CommandPacket >::Iterator ChassisExchanger::Impl::findQueueId(quint8 id)
+ QList< ChassisExchanger::Impl::CommandInfo >::Iterator
+ ChassisExchanger::Impl::findQueueId(quint8 id)
 {
-    return std::find_if(queue.begin(), queue.end(), [id](const CommandPacket& packet)->bool{
-        return id == packet.id;
+    return std::find_if(queue.begin(), queue.end(), [id](const CommandInfo& info)->bool{
+        return id == info.packet->id;
     });
 }
 
@@ -265,4 +312,14 @@ void ChassisExchanger::Impl::removeQueueId(quint8 id)
         return;
     }
     this->queue.erase(it);
+}
+
+void ChassisExchanger::Impl::appendPacket(const CommandPacketPtr& packet)
+{
+    CommandInfo info;
+    info.commandId = packet->commandId;
+    info.packet = packet;
+    info.timestamp = QDateTime::currentMSecsSinceEpoch();
+    queue.append(info);
+    ++nextId;
 }

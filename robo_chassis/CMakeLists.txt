@@ -23,6 +23,7 @@ find_package(OpenCV 3)
 find_package(Qt5Core)
 find_package(Qt5Network)
 find_package(Qt5SerialPort)
+find_package(Qt5Bluetooth)
 
 include(FindPkgConfig)
 pkg_check_modules(GSTRTSP gstreamer-rtsp-server-1.0)
@@ -31,6 +32,7 @@ set(LIBS
     Qt5::Core
     Qt5::Network
     Qt5::SerialPort
+    Qt5::Bluetooth
     ${OpenCV_LIBS}
     opencv_tracking
     ${CMAKE_BINARY_DIR}/OpenTLD/lib/libopentld.a

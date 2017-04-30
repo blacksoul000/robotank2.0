@@ -6,7 +6,7 @@ namespace domain
     class StatusModel;
     class TrackModel;
     class SettingsModel;
-    class JoystickModel;
+    class BluetoothModel;
 
     class RoboModel
     {
@@ -17,11 +17,13 @@ namespace domain
         StatusModel* status() const;
         TrackModel* track() const;
         SettingsModel* settings() const;
+        BluetoothModel* bluetooth() const;
 
     private:
         StatusModel* m_status = nullptr;
         TrackModel* m_track = nullptr;
         SettingsModel* m_settings = nullptr;
+        BluetoothModel* m_bluetooth = nullptr;
     };
 }
 

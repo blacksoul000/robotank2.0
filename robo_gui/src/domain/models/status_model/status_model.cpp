@@ -16,7 +16,7 @@ public:
     qreal pitch = 0;
     qreal roll = 0;
     bool arduinoStatus = false;
-    bool joyStatus = false;
+    bool gamepadStatus = false;
 };
 
 StatusModel::StatusModel(QObject* parent) :
@@ -167,15 +167,15 @@ bool StatusModel::arduinoStatus() const
     return d->arduinoStatus;
 }
 
-void StatusModel::setJoyStatus(bool status)
+void StatusModel::setGamepadStatus(bool status)
 {
-    if (status != d->joyStatus)
+    if (status != d->gamepadStatus)
 
-    d->joyStatus = status;
-    emit joyStatusChanged(status);
+    d->gamepadStatus = status;
+    emit gamepadStatusChanged(status);
 }
 
-bool StatusModel::joyStatus() const
+bool StatusModel::gamepadStatus() const
 {
-    return d->joyStatus;
+    return d->gamepadStatus;
 }

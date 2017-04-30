@@ -44,6 +44,11 @@ StatusPresenter::StatusPresenter(domain::RoboModel *model, QObject *parent) :
     connect(d->model, &StatusModel::yawChanged, this, &StatusPresenter::yawChanged);
     connect(d->model, &StatusModel::pitchChanged, this, &StatusPresenter::pitchChanged);
     connect(d->model, &StatusModel::rollChanged, this, &StatusPresenter::rollChanged);
+
+    connect(d->model, &StatusModel::arduinoStatusChanged,
+            this, &StatusPresenter::arduinoStatusChanged);
+    connect(d->model, &StatusModel::gamepadStatusChanged,
+            this, &StatusPresenter::gamepadStatusChanged);
 }
 
 StatusPresenter::~StatusPresenter()
@@ -99,4 +104,14 @@ qreal StatusPresenter::pitch() const
 qreal StatusPresenter::roll() const
 {
     return d->model->roll();
+}
+
+bool StatusPresenter::arduinoStatus() const
+{
+    return d->model->arduinoStatus();
+}
+
+bool StatusPresenter::gamepadStatus() const
+{
+    return d->model->gamepadStatus();
 }
