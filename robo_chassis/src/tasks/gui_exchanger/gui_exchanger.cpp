@@ -18,7 +18,7 @@ namespace
 {
     const quint16 sendPort = 56001;
     const quint16 receivePort = 56002;
-    const QHostAddress sendHost = QHostAddress::LocalHost; // FIXME
+    const QHostAddress sendHost = QHostAddress::Broadcast;
 
     constexpr double positionCoef = 360.0 / 32767;
 }

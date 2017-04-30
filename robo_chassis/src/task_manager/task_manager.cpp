@@ -46,7 +46,7 @@ bool TaskManager::createTasks()
     this->addTask(ITaskPtr(new GamepadController), 20);
     this->addTask(ITaskPtr(new GuiExchanger), 25);
     this->addTask(ITaskPtr(new VideoSource(d->argc, d->argv)), 25);
-//    this->addTask(ITaskPtr(new GpioController), 100);
+    this->addTask(ITaskPtr(new GpioController), 100);
     this->addTask(ITaskPtr(new ConfigHandler), 0); // last one
 }
 

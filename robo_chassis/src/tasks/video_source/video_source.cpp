@@ -147,9 +147,16 @@ void VideoSource::Impl::setContrast(int contrast)
 
 void VideoSource::Impl::initRtspServer()
 {
-    rtsp = new rtsp_server::RtspServer(argc, argv,
-                                       "videoconvert ! x264enc ! rtph264pay name=pay0 pt=96 sync=true",
-//                                       "videoconvert ! x264enc noise-reduction=10000 "
+/*    rtsp = new rtsp_server::RtspServer(argc, argv, "videoconvert ! "
+#ifdef __arm__
+"omxh264enc"
+#else
+"x264enc"
+#endif
+" ! rtph264pay name=pay0 pt=96 sync=true",
+*/
+    rtsp = new rtsp_server::RtspServer(argc, argv, "videoconvert ! x264enc ! rtph264pay name=pay0 pt=96 sync=true",
+//                                       "videoconvert ! omxh264enc noise-reduction=10000 "
 //                                       "tune=zerolatency byte-stream=true threads=1 !"
 //                                       "rtph264pay name=pay0 pt=96 sync=true",
                                        ::width, ::height, 25, "BGR");
@@ -175,8 +182,7 @@ bool VideoSource::Impl::openCamera()
     capturer.set(CV_CAP_PROP_FRAME_WIDTH, ::width);
     capturer.set(CV_CAP_PROP_FRAME_HEIGHT, ::height);
 
-//    if(!capturer.open(0))
-    if(!capturer.open("/tmp/test.avi"))
+    if(!capturer.open(0))
 #endif //PICAM
     {
         qDebug() << Q_FUNC_INFO << "Failed to open camera";
