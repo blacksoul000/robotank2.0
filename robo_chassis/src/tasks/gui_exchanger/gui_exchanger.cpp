@@ -9,6 +9,8 @@
 #include "chassis_packet.h"
 #include "command_packet.h"
 
+#include "bluetooth_manager.h"
+
 #include <QPoint>
 #include <QUdpSocket>
 #include <QHostAddress>
@@ -26,6 +28,9 @@ namespace
 class GuiExchanger::Impl
 {
 public:
+    domain::BluetoothManager* bluetooth = nullptr;
+
+    // publishers
     Publisher< QRectF >* trackRectP = nullptr;
     Publisher< quint8 >* trackSelectorP = nullptr;
     Publisher< ImageSettings >* imageSettingsP = nullptr;
@@ -54,6 +59,8 @@ GuiExchanger::GuiExchanger() :
     ITask(),
     d(new Impl)
 {
+    bzero(&d->chassis, sizeof(ChassisTmi));
+
     d->trackRectP = PubSub::instance()->advertise< QRectF >("tracker/toggle");
     d->trackSelectorP = PubSub::instance()->advertise< quint8 >("tracker/selector");
     d->imageSettingsP = PubSub::instance()->advertise< ImageSettings >("camera/settings");
@@ -81,6 +88,8 @@ GuiExchanger::GuiExchanger() :
 
 GuiExchanger::~GuiExchanger()
 {
+    delete d->bluetooth;
+
     delete d->trackRectP;
     delete d->trackSelectorP;
     delete d->imageSettingsP;
@@ -99,6 +108,8 @@ void GuiExchanger::start()
     d->receiver->bind(::receivePort);
 
     d->sender = new QUdpSocket(this);
+    d->bluetooth = new domain::BluetoothManager(this);
+    d->bluetooth->start();
 }
 
 void GuiExchanger::execute()
@@ -260,6 +271,29 @@ void GuiExchanger::Impl::processPacket(const CommandPacket& packet)
             videoSourceP->publish(videoSource);
         }
         break;
+    }
+    case CommandPacket::CommandId::BluetoothScan:
+    {
+        bluetooth->scan();
+        break;
+    }
+    case CommandPacket::CommandId::BluetoothPair:
+    {
+        QDataStream in(packet.data);
+        QString address;
+        bool paired;
+        in >> address >> paired;
+        bluetooth->requestPairing(address, paired);
+        break;
+    }
+    case CommandPacket::CommandId::RequestBlutoothStatus:
+    {
+        ChassisBluetoothStatus bt;
+        bt.id = packet.id;
+        bt.status.scanStatus = bluetooth->isScanning();
+        bt.devices = bluetooth->devices();
+        sender->writeDatagram(ChassisPacket(bt).toByteArray(), ::sendHost, ::sendPort);
+        return;
     }
     case CommandPacket::CommandId::RequestConfig:
     {

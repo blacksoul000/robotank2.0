@@ -175,8 +175,7 @@ bool VideoSource::Impl::openCamera()
     capturer.set(CV_CAP_PROP_FRAME_WIDTH, ::width);
     capturer.set(CV_CAP_PROP_FRAME_HEIGHT, ::height);
 
-//    if(!capturer.open(0))
-    if(!capturer.open("/tmp/test.avi"))
+    if(!capturer.open(0))
 #endif //PICAM
     {
         qDebug() << Q_FUNC_INFO << "Failed to open camera";

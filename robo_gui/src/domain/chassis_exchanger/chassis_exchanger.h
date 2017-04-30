@@ -28,6 +28,10 @@ namespace domain
         void onRequestConfig();
         void onVideoSourceChanged(const QString& source);
 
+        void onRequestScan();
+        void onRequestPair(const QString& address, bool paired);
+        void onRequestBluetoothConfig();
+
     private slots:
         void send();
         void onReadyRead();

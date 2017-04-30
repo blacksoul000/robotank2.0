@@ -2,6 +2,7 @@
     <qresource prefix="/">
         <file>qml/Battery.qml</file>
         <file>qml/BatteryIndicator.qml</file>
+        <file>qml/BluetoothManager.qml</file>
         <file>qml/CaptureArea.qml</file>
         <file>qml/ChassisScheme.qml</file>
         <file>qml/Combat.qml</file>

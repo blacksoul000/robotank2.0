@@ -4,12 +4,14 @@
 #include "track_presenter.h"
 #include "settings_presenter.h"
 #include "status_presenter.h"
+#include "bluetooth_presenter.h"
 
 #include <QtQml>
 
 using presentation::PresenterFactory;
 using presentation::SettingsPresenter;
 using presentation::StatusPresenter;
+using presentation::BluetoothPresenter;
 
 class PresenterFactory::Impl
 {
@@ -42,4 +44,9 @@ QObject* PresenterFactory::settingsPresenter()
 QObject* PresenterFactory::statusPresenter()
 {
     return new StatusPresenter(d->model, this);
+}
+
+QObject* PresenterFactory::bluetoothPresenter()
+{
+    return new BluetoothPresenter(d->model, this);
 }

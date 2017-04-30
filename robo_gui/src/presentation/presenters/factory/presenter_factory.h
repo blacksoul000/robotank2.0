@@ -21,6 +21,7 @@ namespace presentation
         QObject* trackPresenter();
         QObject* settingsPresenter();
         QObject* statusPresenter();
+        QObject* bluetoothPresenter();
 
     private:
         class Impl;

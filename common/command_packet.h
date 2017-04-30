@@ -3,7 +3,7 @@
 
 #include <QRectF>
 #include <QDataStream>
-
+#include <QSharedPointer>
 
 #pragma pack(push, 1)
 
@@ -20,6 +20,9 @@ struct CommandPacket
         TrackerCode,
         TrackerRect,
         VideoSource,
+        BluetoothScan,
+        BluetoothPair,
+        RequestBlutoothStatus,
         RequestConfig
     };
 
@@ -53,5 +56,7 @@ struct CommandPacket
 };
 
 #pragma pack(pop)
+
+using CommandPacketPtr = QSharedPointer< CommandPacket >;
 
 #endif // COMMAND_PACKET_H
