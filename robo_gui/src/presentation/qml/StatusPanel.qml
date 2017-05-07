@@ -1,4 +1,5 @@
 import QtQuick 2.0
+import QtGraphicalEffects 1.0
 
 Item {
     id: root
@@ -46,16 +47,34 @@ Item {
                 width: 45
                 height: parent.height
                 level: presenter.robotBatteryLevel
-                image: "qrc:/icons/pitch.svg"
+                image.source: "qrc:/icons/pitch.svg"
                 anchors.verticalCenter: parent.verticalCenter
+
+                ColorOverlay {
+                    x: parent.image.x
+                    y: parent.image.y
+                    width: parent.image.width
+                    height: parent.image.height
+                    source: parent.image
+                    color: presenter.chassisStatus ? "#00ce00" : "#ce0000"
+                }
             }
 
             BatteryIndicator {
                 width: 30
                 height: parent.height
                 level: presenter.gamepadBatteryLevel
-                image: "qrc:/icons/gamepad.svg"
+                image.source: "qrc:/icons/gamepad.svg"
                 anchors.verticalCenter: parent.verticalCenter
+
+                ColorOverlay {
+                    x: parent.image.x
+                    y: parent.image.y
+                    width: parent.image.width
+                    height: parent.image.height
+                    source: parent.image
+                    color: presenter.gamepadStatus ? "#00ce00" : "#ce0000"
+                }
             }
 
             BatteryIndicator {
@@ -63,7 +82,7 @@ Item {
                 height: parent.height
                 level: presenter.batteryLevel
                 charging: presenter.isCharging
-                image: "qrc:/icons/phone.svg"
+                image.source: "qrc:/icons/phone.svg"
                 anchors.verticalCenter: parent.verticalCenter
             }
         }

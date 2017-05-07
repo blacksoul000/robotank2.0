@@ -49,6 +49,8 @@ StatusPresenter::StatusPresenter(domain::RoboModel *model, QObject *parent) :
             this, &StatusPresenter::arduinoStatusChanged);
     connect(d->model, &StatusModel::gamepadStatusChanged,
             this, &StatusPresenter::gamepadStatusChanged);
+    connect(d->model, &StatusModel::chassisStatusChanged,
+            this, &StatusPresenter::chassisStatusChanged);
 }
 
 StatusPresenter::~StatusPresenter()
@@ -114,4 +116,9 @@ bool StatusPresenter::arduinoStatus() const
 bool StatusPresenter::gamepadStatus() const
 {
     return d->model->gamepadStatus();
+}
+
+bool StatusPresenter::chassisStatus() const
+{
+    return d->model->chassisStatus();
 }

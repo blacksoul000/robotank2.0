@@ -26,6 +26,7 @@ namespace presentation
         Q_PROPERTY(qreal roll READ roll NOTIFY rollChanged)
         Q_PROPERTY(bool arduinoStatus READ arduinoStatus NOTIFY arduinoStatusChanged)
         Q_PROPERTY(bool gamepadStatus READ gamepadStatus NOTIFY gamepadStatusChanged)
+        Q_PROPERTY(bool chassisStatus READ chassisStatus NOTIFY chassisStatusChanged)
 
         StatusPresenter(domain::RoboModel* model, QObject* parent = nullptr);
         ~StatusPresenter() override;
@@ -43,6 +44,7 @@ namespace presentation
 
         bool arduinoStatus() const;
         bool gamepadStatus() const;
+        bool chassisStatus() const;
 
     signals:
         void batteryLevelChanged(int level);
@@ -58,7 +60,7 @@ namespace presentation
 
         void arduinoStatusChanged(bool online);
         void gamepadStatusChanged(bool online);
-
+        void chassisStatusChanged(bool online);
 
     private:
         class Impl;

@@ -7,7 +7,7 @@ Item {
 
     property alias level: battery.level
     property alias charging: battery.charging
-    property alias image: ico.source
+    property alias image: ico
     property alias imageHeight: ico.height
 
     Column {

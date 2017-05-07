@@ -36,6 +36,7 @@ namespace domain
         void send();
         void onReadyRead();
         void processPacket(const QByteArray& data);
+        void connectionLost();
 
     private:
         class Impl;
