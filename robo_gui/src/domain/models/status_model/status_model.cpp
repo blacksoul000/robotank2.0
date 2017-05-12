@@ -17,6 +17,7 @@ public:
     qreal roll = 0;
     bool arduinoStatus = false;
     bool gamepadStatus = false;
+    bool chassisStatus = false;
 };
 
 StatusModel::StatusModel(QObject* parent) :
@@ -178,4 +179,17 @@ void StatusModel::setGamepadStatus(bool status)
 bool StatusModel::gamepadStatus() const
 {
     return d->gamepadStatus;
+}
+
+void StatusModel::setChassisStatus(bool status)
+{
+    if (status != d->chassisStatus)
+
+        d->chassisStatus = status;
+    emit chassisStatusChanged(status);
+}
+
+bool StatusModel::chassisStatus() const
+{
+    return d->chassisStatus;
 }

@@ -71,16 +71,11 @@ Dialog {
         }
 
         Row {
+            id: buttonBox
             anchors.bottom: parent.bottom
             anchors.horizontalCenter: parent.horizontalCenter
             anchors.margins: 5
             spacing: 10
-
-            Text {
-                text: presenter.scanStatus
-                color: roboPalette.textColor
-                //            anchors.centerIn: parent
-            }
 
             Button {
                 style: ButtonStyle {
@@ -112,6 +107,15 @@ Dialog {
                     close()
                 }
             }
+        }
+
+        ProgressBar {
+            anchors.left: buttonBox.right
+            anchors.right: parent.right
+            anchors.verticalCenter: buttonBox.verticalCenter
+            anchors.margins: 5
+            indeterminate: true
+            visible: presenter.scanStatus
         }
     }
 }

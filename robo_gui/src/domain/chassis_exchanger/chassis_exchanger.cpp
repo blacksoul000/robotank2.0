@@ -28,6 +28,7 @@ namespace
 
     const int sendInterval = 100; //ms
     const int packetTimeout = 3000; //ms
+    const int connectionTimeout = 2000; //ms
 }
 
 class ChassisExchanger::Impl
@@ -43,6 +44,7 @@ public:
     QUdpSocket* sender = nullptr;
     QUdpSocket* receiver = nullptr;
     QTimer* timer = nullptr;
+    QTimer* connection = nullptr;
     domain::RoboModel* model = nullptr;
 
     quint8 nextId = 1;
@@ -67,6 +69,10 @@ ChassisExchanger::ChassisExchanger(domain::RoboModel* model, QObject *parent) :
     d->timer = new QTimer(this);
     d->timer->setInterval(::sendInterval);
     connect(d->timer, &QTimer::timeout, this, &ChassisExchanger::send);
+
+    d->connection = new QTimer(this);
+    d->connection->setInterval(::connectionTimeout);
+    connect(d->connection, &QTimer::timeout, this, &ChassisExchanger::connectionLost);
 
     connect(d->model->track(), &domain::TrackModel::trackRequest,
             this, &ChassisExchanger::onTrackToggle);
@@ -292,6 +298,14 @@ void ChassisExchanger::processPacket(const QByteArray& data)
     default:
         break;
     }
+    d->model->status()->setChassisStatus(true);
+    d->connection->start();
+}
+
+void ChassisExchanger::connectionLost()
+{
+    d->model->status()->setChassisStatus(false);
+    d->connection->stop();
 }
 
 //------------------------------------------------------------------------------------

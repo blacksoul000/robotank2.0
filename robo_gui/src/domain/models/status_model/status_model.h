@@ -48,6 +48,9 @@ namespace domain
         void setGamepadStatus(bool status);
         bool gamepadStatus() const;
 
+        void setChassisStatus(bool status);
+        bool chassisStatus() const;
+
     signals:
         void batteryLevelChanged(int level);
         void isChargingChanged(bool charging);
@@ -61,6 +64,7 @@ namespace domain
         void rollChanged(qreal roll);
         void arduinoStatusChanged(bool status);
         void gamepadStatusChanged(bool status);
+        void chassisStatusChanged(bool status);
 
     private:
         class Impl;
