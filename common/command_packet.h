@@ -19,7 +19,6 @@ struct CommandPacket
         EnginePower,
         TrackerCode,
         TrackerRect,
-        VideoSource,
         BluetoothScan,
         BluetoothPair,
         RequestBlutoothStatus,
