@@ -183,13 +183,12 @@ Rectangle {
                         font.pixelSize: roboPalette.textSize
                         text: qsTr("Source")
                     }
-                    TextInput {
+                    Text {
                         height: videoSourceLabel.height
                         anchors.right: parent.right
                         color: roboPalette.textColor
                         font.pixelSize: roboPalette.textSize
                         text: presenter.videoSource
-                        onEditingFinished: presenter.videoSource = text
                     }
 
                     Text {

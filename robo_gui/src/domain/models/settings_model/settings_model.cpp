@@ -13,7 +13,7 @@ public:
     quint8 contrast = 65;
     quint8 tracker = 7; // OpenTLD
 
-    QString videoSource = "rtsp://192.168.1.3:8554/test";
+    QString videoSource = "rtsp://192.168.1.3:8554/live";
 
     QMap< SettingsModel::Engine, quint8 > enginePower {{SettingsModel::Engine::Left, 100},
                                                        {SettingsModel::Engine::Right, 100}};
@@ -92,6 +92,7 @@ quint8 SettingsModel::enginePower(SettingsModel::Engine engine) const
 
 void SettingsModel::setVideoSource(const QString& source)
 {
+    return;
     if (d->videoSource == source) return;
     d->videoSource = source;
     emit videoSourceChanged(source);

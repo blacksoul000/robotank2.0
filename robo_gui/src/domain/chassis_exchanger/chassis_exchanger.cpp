@@ -21,8 +21,7 @@ namespace
 {
     const quint16 receivePort = 56001;
     const quint16 sendPort = 56002;
-    const QHostAddress sendHost = QHostAddress("192.168.1.3"); // FIXME
-//    const QHostAddress sendHost = QHostAddress::LocalHost; // FIXME
+    const QHostAddress sendHost = QHostAddress::Broadcast;
 
     constexpr double positionCoef = 360.0 / 32767;
 
@@ -93,8 +92,6 @@ ChassisExchanger::ChassisExchanger(domain::RoboModel* model, QObject *parent) :
             this, &ChassisExchanger::onCalibrateGyro);
     connect(d->model->settings(), &domain::SettingsModel::enginePowerChanged,
             this, &ChassisExchanger::onEnginePowerChanged);
-    connect(d->model->settings(), &domain::SettingsModel::videoSourceChanged,
-            this, &ChassisExchanger::onVideoSourceChanged);
 
     connect(d->model->bluetooth(), &domain::BluetoothModel::requsestScan,
             this, &ChassisExchanger::onRequestScan);
@@ -185,14 +182,6 @@ void ChassisExchanger::onCalibrateGyro()
     d->appendPacket(packet);
 }
 
-void ChassisExchanger::onVideoSourceChanged(const QString& source)
-{
-    CommandPacketPtr packet = CommandPacketPtr::create(d->nextId, CommandPacket::VideoSource);
-    QDataStream out(&packet->data, QIODevice::WriteOnly);
-    out << source;
-    d->appendPacket(packet);
-}
-
 void ChassisExchanger::onEnginePowerChanged()
 {
     const auto& s = d->model->settings();
@@ -228,6 +217,7 @@ void ChassisExchanger::onRequestBluetoothConfig()
 
 void ChassisExchanger::onRequestConfig()
 {
+    qDebug() << Q_FUNC_INFO ;
     CommandPacketPtr packet = CommandPacketPtr::create(d->nextId, CommandPacket::RequestConfig);
     d->appendPacket(packet);
 }
@@ -266,6 +256,7 @@ void ChassisExchanger::processPacket(const QByteArray& data)
     }
     case PacketType::Config:
     {
+        qDebug() << Q_FUNC_INFO ;
         ChassisConfig config = ChassisConfig::fromByteArray(packet.data);
         d->model->settings()->setQuality(config.quality);
         d->model->settings()->setBrightness(config.brightness);
@@ -274,6 +265,7 @@ void ChassisExchanger::processPacket(const QByteArray& data)
         d->model->settings()->setEnginePower(SettingsModel::Engine::Right, config.rightEngine);
         d->model->settings()->setTracker(config.selectedTracker);
         d->model->settings()->setVideoSource(config.videoSource);
+        qDebug() << Q_FUNC_INFO  << config.videoSource;
 
         d->removeQueueId(config.id);
 

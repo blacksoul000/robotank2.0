@@ -26,7 +26,6 @@ namespace domain
         void onCalibrateGyro();
         void onEnginePowerChanged();
         void onRequestConfig();
-        void onVideoSourceChanged(const QString& source);
 
         void onRequestScan();
         void onRequestPair(const QString& address, bool paired);
