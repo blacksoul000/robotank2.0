@@ -105,7 +105,7 @@ void GuiExchanger::start()
 {
     d->receiver = new QUdpSocket(this);
     connect(d->receiver, &QUdpSocket::readyRead, this, &GuiExchanger::onReadyRead);
-    d->receiver->bind(::receivePort);
+    d->receiver->bind(QHostAddress::Any, ::receivePort);
 
     d->sender = new QUdpSocket(this);
     d->bluetooth = new domain::BluetoothManager(this);
@@ -258,18 +258,6 @@ void GuiExchanger::Impl::processPacket(const CommandPacket& packet)
         QRectF rect;
         in >> rect;
         trackRectP->publish(rect);
-        break;
-    }
-    case CommandPacket::CommandId::VideoSource:
-    {
-        QDataStream in(packet.data);
-        QString source;
-        in >> source;
-        if (videoSource != source)
-        {
-            videoSource = source;
-            videoSourceP->publish(videoSource);
-        }
         break;
     }
     case CommandPacket::CommandId::BluetoothScan:
