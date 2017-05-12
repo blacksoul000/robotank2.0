@@ -16,18 +16,16 @@ namespace rtsp_server
     class RtspServer
     {
     public:
-        RtspServer(int& argc, char** argv,
-                   const std::string& pipeline, int width, int height, int fps,
-                   const std::string& format);
+        RtspServer(int& argc, char** argv, const std::string& pipeline);
         ~RtspServer();
-
-        void setHost(const std::string& host);
-        void setPort(uint16_t port);
-        void setStreamName(const std::string& name);
 
         void start();
         void stop();
-        bool write(const char* data, int size);
+        void spin();
+        uint16_t port() const;
+        std::string streamName() const;
+
+        unsigned char* lastFrame() const;
 
         static void mediaConfigureProxy(GstRTSPMediaFactory* factory, GstRTSPMedia* media,
                                         gpointer obj);

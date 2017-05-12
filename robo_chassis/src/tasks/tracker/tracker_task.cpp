@@ -30,7 +30,7 @@ public:
     int imageWidth = 0;
     int imageHeight = 0;
     int64_t prevTime = 0;
-    cv::Mat frame;
+    QSharedPointer< cv::Mat > frame;
     QElapsedTimer fpsTimer;
 
     void onNewFrame(const cv::Mat& image);
@@ -67,12 +67,15 @@ TrackerTask::~TrackerTask()
 
 void TrackerTask::execute()
 {
+    if (d->frame.isNull()) return;
+
     d->fpsTimer.start();
-    d->imageWidth = d->frame.cols;
-    d->imageHeight = d->frame.rows;
+    d->imageWidth = d->frame->cols;
+    d->imageHeight = d->frame->rows;
+
     if (!d->tracker || !d->tracker->isTracking()) return;
     cv::Mat scaled;
-    resize(d->frame, scaled, cv::Size(::width, ::height));
+    resize(*d->frame, scaled, cv::Size(::width, ::height));
     d->tracker->track(scaled);
 
     d->publishTarget(d->tracker->target());
@@ -80,9 +83,9 @@ void TrackerTask::execute()
     qDebug() << Q_FUNC_INFO << "Time: " << d->fpsTimer.elapsed();
 }
 
-void TrackerTask::onNewFrame(const cv::Mat& frame)
+void TrackerTask::onNewFrame(const QSharedPointer< cv::Mat >& frame)
 {
-    d->frame = frame.clone();
+    d->frame = frame;
 }
 
 void TrackerTask::onToggleRequest(const QRectF& rect)
