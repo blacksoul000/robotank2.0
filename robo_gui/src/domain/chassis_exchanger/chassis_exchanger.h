@@ -29,7 +29,7 @@ namespace domain
 
         void onRequestScan();
         void onRequestPair(const QString& address, bool paired);
-        void onRequestBluetoothConfig();
+        void onRequestBluetoothStatus();
 
     private slots:
         void send();

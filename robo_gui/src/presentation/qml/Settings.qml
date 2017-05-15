@@ -178,20 +178,6 @@ Rectangle {
                     columns: 2
 
                     Text {
-                        id: videoSourceLabel
-                        color: roboPalette.textColor
-                        font.pixelSize: roboPalette.textSize
-                        text: qsTr("Source")
-                    }
-                    Text {
-                        height: videoSourceLabel.height
-                        anchors.right: parent.right
-                        color: roboPalette.textColor
-                        font.pixelSize: roboPalette.textSize
-                        text: presenter.videoSource
-                    }
-
-                    Text {
                         id: brightnessLabel
                         color: roboPalette.textColor
                         font.pixelSize: roboPalette.textSize
