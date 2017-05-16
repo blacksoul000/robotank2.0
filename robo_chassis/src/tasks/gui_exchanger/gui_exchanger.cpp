@@ -51,6 +51,7 @@ public:
     quint8 selectedTracker;
 
     QString videoSource;
+    decltype(CommandPacket::id) id = 0;
 
     void processPacket(const CommandPacket& packet);
 };
@@ -195,6 +196,9 @@ void GuiExchanger::onVideoSourceChanged(const QString& source)
 //------------------------------------------------------------------------------------
 void GuiExchanger::Impl::processPacket(const CommandPacket& packet)
 {
+    if (id >= packet.id && id - packet.id < 20) return;
+    id = packet.id;
+
     switch (packet.commandId)
     {
     case CommandPacket::CommandId::CalibrateGun:

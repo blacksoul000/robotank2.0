@@ -29,7 +29,6 @@ BluetoothManager::~BluetoothManager()
     delete d;
 }
 
-#include <QTimer>
 void BluetoothManager::start()
 {
     d->localDevice = new QBluetoothLocalDevice(this);
@@ -43,6 +42,11 @@ void BluetoothManager::start()
             this, &BluetoothManager::onScanFinished);
     connect(d->localDevice, &QBluetoothLocalDevice::pairingFinished,
             this, &BluetoothManager::onPairingFinished);
+    connect(d->agent, static_cast<void(QBluetoothDeviceDiscoveryAgent::*)
+            (QBluetoothDeviceDiscoveryAgent::Error)>(&QBluetoothDeviceDiscoveryAgent::error),
+            [&](){
+        qDebug() << Q_FUNC_INFO << __LINE__  << d->agent->errorString();
+    });
     connect(d->localDevice, &QBluetoothLocalDevice::pairingDisplayConfirmation,
             this, [](){
         qDebug() << Q_FUNC_INFO << __LINE__ ;
@@ -57,14 +61,14 @@ void BluetoothManager::start()
 
 void BluetoothManager::scan()
 {
-    d->isScanning = true;
+    qDebug() << Q_FUNC_INFO;
     d->devices.clear();
     d->agent->start();
 }
 
 void BluetoothManager::addDevice(const QBluetoothDeviceInfo& info)
 {
-    qDebug() << Q_FUNC_INFO << info.address();
+    qDebug() << Q_FUNC_INFO << info.address().toString();
     DeviceInfo device;
     device.address = info.address().toString();
     device.name = info.name();
@@ -104,18 +108,17 @@ QVector< DeviceInfo > BluetoothManager::devices() const
 
 bool BluetoothManager::isScanning() const
 {
-    return d->isScanning;
+    return d->agent->isActive();
 }
 
 void BluetoothManager::onScanFinished()
 {
     qDebug() << Q_FUNC_INFO ;
-    d->isScanning = false;
 }
 
 void BluetoothManager::onPairingDisplayConfirmation(const QBluetoothAddress& address,
                                                     const QString& pin)
 {
-    qDebug() << Q_FUNC_INFO << address << pin;
+    qDebug() << Q_FUNC_INFO << address.toString() << pin;
     d->localDevice->pairingConfirmation(true);
 }

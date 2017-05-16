@@ -13,13 +13,12 @@ Rpi:
 
   Reboot.
 
-* Connect DualShock4 via bluetooth
-  sudo apt-get install bluetooth bluez-utils blueman bluez python-gobject python-gobject-2
-  run blueman-manager and connect device
-
 * Install opencv-3 with contrib modules https://github.com/Itseez/opencv_contrib
 
 * Install gstreamer1.0 with ugly plugins
+
+* Add apt source and install Qt
+    deb https://twolife.be/raspbian/ jessie main qt
 
 Testing:
 

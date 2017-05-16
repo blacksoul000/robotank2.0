@@ -43,11 +43,11 @@ void TaskWorker::start()
     while (d->started)
     {
         d->timer.start();
+        qApp->processEvents();
         for(const auto& task: d->tasks)
         {
             task->execute();
         }
-        qApp->processEvents();
         auto elapsed = d->timer.elapsed();
         qint64 sleep = d->interval - elapsed;
         if (sleep > 0) QThread::msleep(sleep);

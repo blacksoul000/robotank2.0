@@ -124,7 +124,11 @@ unsigned char* RtspServer::lastFrame() const
     if (d->buffer) gst_buffer_unmap (d->buffer, &d->map);
     if (d->sample) gst_sample_unref (d->sample);
     g_object_get (d->sink, "last-sample", &d->sample, NULL);
-    if (!d->sample) return nullptr;
+    if (!d->sample) 
+    {
+        d->buffer = nullptr;
+        return nullptr;
+    }
 
     d->buffer = gst_sample_get_buffer (d->sample);
     gst_buffer_map (d->buffer, &d->map, GST_MAP_READ);
