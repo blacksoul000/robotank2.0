@@ -93,6 +93,8 @@ ChassisExchanger::ChassisExchanger(domain::RoboModel* model, QObject *parent) :
     connect(d->model->settings(), &domain::SettingsModel::enginePowerChanged,
             this, &ChassisExchanger::onEnginePowerChanged);
 
+    connect(d->model->bluetooth(), &domain::BluetoothModel::requestStatus,
+            this, &ChassisExchanger::onRequestBluetoothStatus);
     connect(d->model->bluetooth(), &domain::BluetoothModel::requsestScan,
             this, &ChassisExchanger::onRequestScan);
     connect(d->model->bluetooth(), &domain::BluetoothModel::requestPair,
@@ -102,7 +104,6 @@ ChassisExchanger::ChassisExchanger(domain::RoboModel* model, QObject *parent) :
 
     this->onRequestConfig();
 }
-
 
 ChassisExchanger::~ChassisExchanger()
 {
@@ -196,8 +197,6 @@ void ChassisExchanger::onRequestScan()
 {
     CommandPacketPtr packet = CommandPacketPtr::create(d->nextId, CommandPacket::BluetoothScan);
     d->appendPacket(packet);
-
-    this->onRequestBluetoothConfig();
 }
 
 void ChassisExchanger::onRequestPair(const QString& address, bool paired)
@@ -208,7 +207,7 @@ void ChassisExchanger::onRequestPair(const QString& address, bool paired)
     d->appendPacket(packet);
 }
 
-void ChassisExchanger::onRequestBluetoothConfig()
+void ChassisExchanger::onRequestBluetoothStatus()
 {
     CommandPacketPtr packet = CommandPacketPtr::create(d->nextId,
                                                        CommandPacket::RequestBlutoothStatus);
@@ -217,7 +216,6 @@ void ChassisExchanger::onRequestBluetoothConfig()
 
 void ChassisExchanger::onRequestConfig()
 {
-    qDebug() << Q_FUNC_INFO ;
     CommandPacketPtr packet = CommandPacketPtr::create(d->nextId, CommandPacket::RequestConfig);
     d->appendPacket(packet);
 }
@@ -256,7 +254,6 @@ void ChassisExchanger::processPacket(const QByteArray& data)
     }
     case PacketType::Config:
     {
-        qDebug() << Q_FUNC_INFO ;
         ChassisConfig config = ChassisConfig::fromByteArray(packet.data);
         d->model->settings()->setQuality(config.quality);
         d->model->settings()->setBrightness(config.brightness);
@@ -265,7 +262,6 @@ void ChassisExchanger::processPacket(const QByteArray& data)
         d->model->settings()->setEnginePower(SettingsModel::Engine::Right, config.rightEngine);
         d->model->settings()->setTracker(config.selectedTracker);
         d->model->settings()->setVideoSource(config.videoSource);
-        qDebug() << Q_FUNC_INFO  << config.videoSource;
 
         d->removeQueueId(config.id);
 
@@ -275,13 +271,7 @@ void ChassisExchanger::processPacket(const QByteArray& data)
     {
         ChassisBluetoothStatus status = ChassisBluetoothStatus::fromByteArray(packet.data);
 
-        const bool scanStatus = status.status.scanStatus;
-        if (scanStatus || scanStatus == d->model->bluetooth()->scanStatus())
-        {
-             // scan is not finished, request again
-            this->onRequestBluetoothConfig();
-        }
-        d->model->bluetooth()->setScanStatus(scanStatus);
+        d->model->bluetooth()->setScanStatus(status.status.scanStatus);
         d->model->bluetooth()->setDevices(status.devices);
 
         d->removeQueueId(status.id);

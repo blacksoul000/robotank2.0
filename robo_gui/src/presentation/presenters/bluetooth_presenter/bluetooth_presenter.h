@@ -27,7 +27,11 @@ namespace presentation
         bool scanStatus() const;
         QList< QObject* > devices() const;
 
+
     public slots:
+        void start();
+        void stop();
+        void requestStatus();
         void requestScan();
         void requestPair(const QString& address, bool paired);
 

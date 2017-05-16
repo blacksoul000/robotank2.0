@@ -40,6 +40,12 @@ public:
 
     quint16 buttonsState = 0;
 
+    template< class T >
+    bool isBitSet(T value, quint8 bit) const
+    {
+        return (value & (1 << bit));
+    }
+
 #ifdef ANDROID
     QAndroidJniObject wakeLock;
     bool wakeLocked = false;
@@ -90,18 +96,22 @@ MainWindow::~MainWindow()
 void MainWindow::onButtonsUpdated(quint16 buttons)
 {
     if (d->buttonsState == buttons) return;
-    if ((buttons | Button::Square) != (d->buttonsState | Button::Square))
+
+    const bool squarePressed = d->isBitSet(buttons, Button::Square);
+    const bool trianglePressed = d->isBitSet(buttons, Button::Triangle);
+
+    if (squarePressed != d->isBitSet(d->buttonsState, Button::Square))
     {
-        if ((buttons | Button::Square) != Button::Square) // Button is released
+        if (squarePressed)
         {
             QRectF r = d->model->track()->isTracking()
                     ? QRectF() : d->model->track()->captureRect();
             d->exchanger->onTrackToggle(r);
         }
     }
-    if ((buttons | Button::Triangle) != (d->buttonsState | Button::Triangle))
+    if (trianglePressed != d->isBitSet(d->buttonsState, Button::Triangle))
     {
-        if ((buttons | Button::Triangle) != Button::Triangle) // Button is released
+        if (trianglePressed)
         {
             d->model->track()->nextCaptureSize();
         }

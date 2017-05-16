@@ -14,7 +14,7 @@ Dialog {
     contentItem: Rectangle {
         id: root
         color: roboPalette.backgroundColor
-        implicitWidth: 400
+        implicitWidth: 500
         implicitHeight: 400
 
         ListView {
@@ -40,11 +40,12 @@ Dialog {
                     Text {
                         text: modelData.name
                         color: roboPalette.textColor
-                        font.pixelSize: roboPalette.middleTextSize
+                        font.pixelSize: roboPalette.textSize
                     }
                     Text {
                         text: modelData.address
                         color: roboPalette.textColor
+                        font.pixelSize: roboPalette.textSize / 2
                     }
                 }
 
@@ -52,7 +53,7 @@ Dialog {
                     anchors.right: parent.right
                     anchors.verticalCenter: parent.verticalCenter
                     anchors.rightMargin: 10
-                    width: 200
+                    width: 180
                     style: ButtonStyle {
                         label: Text {
                             renderType: Text.NativeRendering
@@ -104,6 +105,7 @@ Dialog {
                     }
                 }
                 onClicked: {
+                    presenter.stop()
                     close()
                 }
             }
@@ -118,4 +120,6 @@ Dialog {
             visible: presenter.scanStatus
         }
     }
+
+    Component.onCompleted: presenter.start()
 }

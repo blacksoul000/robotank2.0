@@ -21,6 +21,7 @@ namespace domain
         QVector< DeviceInfo > devices() const;
 
     signals:
+        void requestStatus();
         void requsestScan();
         void requestPair(const QString& address, bool paired);
 

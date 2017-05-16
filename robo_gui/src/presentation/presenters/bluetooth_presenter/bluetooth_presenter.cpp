@@ -6,16 +6,23 @@
 #include "chassis_packet.h"
 
 #include <QtQml>
+#include <QTimer>
 #include <QDebug>
 
 using presentation::BluetoothPresenter;
 using presentation::BluetoothDevice;
 using domain::BluetoothModel;
 
+namespace
+{
+    const int statusInterval = 1000;
+}
+
 class BluetoothPresenter::Impl
 {
 public:
     BluetoothModel* model = nullptr;
+    QTimer* statusTimer = nullptr;
 
     QList< BluetoothDevice* > devices;
 };
@@ -27,11 +34,14 @@ BluetoothPresenter::BluetoothPresenter(domain::RoboModel* model, QObject* parent
     qmlRegisterUncreatableType< BluetoothDevice >("Robotank", 1, 0, "BluetoothDevice", "");
 
     d->model = model->bluetooth();
+    d->statusTimer = new QTimer(this);
+    d->statusTimer->setInterval(::statusInterval);
 
     connect(d->model, &BluetoothModel::scanStatusChanged,
             this, &BluetoothPresenter::scanStatusChanged);
     connect(d->model, &BluetoothModel::devicesChanged,
             this, &BluetoothPresenter::onDevicesChanged);
+    connect(d->statusTimer, &QTimer::timeout, this, &BluetoothPresenter::requestStatus);
 }
 
 BluetoothPresenter::~BluetoothPresenter()
@@ -52,6 +62,16 @@ QList< QObject* > BluetoothPresenter::devices() const
         devices.append(device);
     }
     return devices;
+}
+
+void BluetoothPresenter::start()
+{
+    d->statusTimer->start();
+}
+
+void BluetoothPresenter::stop()
+{
+    d->statusTimer->stop();
 }
 
 void BluetoothPresenter::onDevicesChanged(const QVector< DeviceInfo >& devices)
@@ -76,6 +96,11 @@ void BluetoothPresenter::onDevicesChanged(const QVector< DeviceInfo >& devices)
     }
 }
 
+void BluetoothPresenter::requestStatus()
+{
+    d->model->requestStatus();
+}
+
 void BluetoothPresenter::requestScan()
 {
     d->model->requsestScan();
@@ -83,6 +108,5 @@ void BluetoothPresenter::requestScan()
 
 void BluetoothPresenter::requestPair(const QString& address, bool paired)
 {
-    qDebug() << Q_FUNC_INFO  << address << paired;
     d->model->requestPair(address, paired);
 }
