@@ -17,7 +17,7 @@ public:
     RoboCore();
     ~RoboCore();
 
-    void execute() override {}
+    void execute() override;
 
     void onTrackerStatusChanged(const bool& status);
     void onTrackerDeviation(const QPointF& deviation);

@@ -27,16 +27,6 @@ namespace
     struct RaspberryPkg
     {
         RaspberryPkg(){}
-        RaspberryPkg(const Influence& influence)
-        {
-            angleType = influence.angleType;
-            shot = influence.shot;
-            gunV = influence.gunV;
-            cameraV = influence.cameraV;
-            leftEngine = influence.leftEngine;
-            rightEngine = influence.rightEngine;
-            towerH = influence.towerH;
-        }
 
         uint8_t angleType: 3;
         uint8_t shot: 1;
@@ -50,6 +40,11 @@ namespace
 #pragma pack(pop)
 
     const int timeout = 500; // ms
+    const int sendInterval = 50; // ms
+    const int maxVerticalSpeed = 20; // degrees per second
+
+    constexpr double positionCoef = 360.0 / 32767;
+
 } // namespace
 
 class ArduinoExchanger::Impl
@@ -57,6 +52,7 @@ class ArduinoExchanger::Impl
 public:
     QSerialPort* serial = nullptr;
     QTimer* timer = nullptr;
+    QTimer* sendTimer = nullptr;
 
     QByteArray buffer;
     QByteArray prefix = QByteArray(2, 0x55);
@@ -64,14 +60,20 @@ public:
 
     ArduinoPkg offsets;
     ArduinoPkg lastData;
+    RaspberryPkg package;
+
+    AngleType angleType = AngleType::Velocity;
+    short gunVTick = 0;
 
     Publisher< QPoint >* gunPositionP = nullptr;
     Publisher< QPoint >* cameraPositionP = nullptr;
     Publisher< Point3D >* yprP = nullptr;
     Publisher< bool >* arduinoStatusP = nullptr;
 
+    void sendData();
     void readData();
     void setArduinoOnline(bool set);
+    bool isArduinoOnline() const;
 
 private:
     bool arduinoOnline = true;
@@ -92,6 +94,10 @@ ArduinoExchanger::ArduinoExchanger():
     d->timer->setInterval(::timeout);
     connect(d->timer, &QTimer::timeout, [&](){ d->setArduinoOnline(false); });
 
+    d->sendTimer = new QTimer(this);
+    d->sendTimer->setInterval(::sendInterval);
+    connect(d->sendTimer, &QTimer::timeout, [&](){ d->sendData(); });
+
     d->gunPositionP = PubSub::instance()->advertise< QPoint >("gun/position");
     d->cameraPositionP = PubSub::instance()->advertise< QPoint >("camera/position");
     d->yprP = PubSub::instance()->advertise< Point3D >("robo/ypr");
@@ -103,6 +109,8 @@ ArduinoExchanger::ArduinoExchanger():
     PubSub::instance()->subscribe("ypr/calibrate", &ArduinoExchanger::onGyroCalibrate, this);
 
     d->setArduinoOnline(false);
+    d->package.angleType = static_cast<int>(AngleType::Position);
+    d->package.shot = 0;
 }
 
 ArduinoExchanger::~ArduinoExchanger()
@@ -123,20 +131,31 @@ void ArduinoExchanger::execute()
 void ArduinoExchanger::start()
 {
     d->serial->open(QIODevice::ReadWrite);
+    d->sendTimer->start();
 }
 
 void ArduinoExchanger::onInfluence(const Influence& influence)
 {
-    if (!d->serial->isOpen()) return;
+    if (!d->isArduinoOnline()) return;
+    d->angleType = influence.angleType;
 
-    ::RaspberryPkg pkg(influence);
+    d->package.shot = influence.shot;
+    d->package.leftEngine = influence.leftEngine;
+    d->package.rightEngine = influence.rightEngine;
+    d->package.towerH = influence.towerH;
 
-    QByteArray data(d->prefix);
-    data.append(QByteArray(reinterpret_cast<const char *>(&pkg), sizeof(pkg)));
-
-    if (d->serial->write(data) != data.size())
+    if (influence.angleType == AngleType::Position)
     {
-        qDebug() << Q_FUNC_INFO << "Failed to write to the bus.";
+        d->gunVTick = 0;
+        // * influenceCoef / positionCoef
+        d->package.gunV = d->lastData.gunV + influence.gunV / 4;
+        qDebug() << Q_FUNC_INFO << d->lastData.gunV << influence.gunV << (d->lastData.gunV + influence.gunV / 4) 
+                << d->package.gunV << d->lastData.gunV * ::positionCoef << d->package.gunV * ::positionCoef;
+    }
+    else
+    {
+//        qDebug() << Q_FUNC_INFO << d->package.leftEngine << d->package.rightEngine << d->package.gunV << d->package.towerH;
+        d->gunVTick = std::ceil(1.0 * influence.gunV / SHRT_MAX * maxVerticalSpeed * sendInterval / 1000.0 / ::positionCoef);
     }
 }
 
@@ -146,7 +165,7 @@ void ArduinoExchanger::onGunCalibrate(const Empty&)
     d->offsets.gunV = d->lastData.gunV;
 }
 
-void ArduinoExchanger::onCameraCalibrate(const Empty &)
+void ArduinoExchanger::onCameraCalibrate(const Empty&)
 {
     d->offsets.cameraV = d->lastData.cameraV;
 }
@@ -188,6 +207,9 @@ void ArduinoExchanger::Impl::readData()
 
         ::ArduinoPkg pkg = *reinterpret_cast<::ArduinoPkg *>(
                     buffer.mid(prefix.size(), sizeof(::ArduinoPkg)).data());
+//        qDebug() << Q_FUNC_INFO << pkg.yaw << pkg.pitch << pkg.roll << buffer.mid(prefix.size(), sizeof(::ArduinoPkg)).toHex();
+//        qDebug() << Q_FUNC_INFO << pkg.cameraV << pkg.gunV;
+
         buffer.remove(0, packetSize);
         waitPrefix = true;
 
@@ -197,14 +219,12 @@ void ArduinoExchanger::Impl::readData()
                                pkg.pitch - offsets.pitch,
                                pkg.roll - offsets.roll}));
 
-//        qDebug() << Q_FUNC_INFO << pkg.yaw << pkg.pitch << pkg.roll << data.toHex();
-
+        if (angleType == AngleType::Velocity && gunVTick == 0) package.gunV = pkg.gunV;
         memcpy(&lastData, &pkg, sizeof(ArduinoPkg));
 
         timer->start();
         this->setArduinoOnline(true);
     }
-
 }
 
 void ArduinoExchanger::Impl::setArduinoOnline(bool online)
@@ -213,4 +233,28 @@ void ArduinoExchanger::Impl::setArduinoOnline(bool online)
     qDebug() << (online ? "Arduino online" : "Arduino offline");
     arduinoOnline = online;
     arduinoStatusP->publish(online);
+}
+
+void ArduinoExchanger::Impl::sendData()
+{
+    if (!serial->isOpen()) return;
+    if (!isArduinoOnline()) return;
+
+    if (angleType == AngleType::Velocity) package.gunV -= gunVTick;
+    package.cameraV = package.gunV + offsets.gunV - offsets.cameraV;
+//    qDebug() << Q_FUNC_INFO << gunVTick << package.gunV << package.cameraV;
+//    qDebug() << Q_FUNC_INFO << package.leftEngine << package.rightEngine << package.towerH;
+
+    QByteArray data(prefix);
+    data.append(QByteArray(reinterpret_cast<const char *>(&package), sizeof(package)));
+
+    if (serial->write(data) != data.size())
+    {
+        qDebug() << Q_FUNC_INFO << "Failed to write to the bus.";
+    }
+}
+
+bool ArduinoExchanger::Impl::isArduinoOnline() const
+{
+    return arduinoOnline;
 }

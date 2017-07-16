@@ -57,8 +57,11 @@ Servo camera;
 MPU6050 mpu[] = {0x69, 0x68};
 MpuData mpuData[2];
 
-uint32_t ms, ms1, ms2 = 0;
+uint32_t ms, ms1, ms2, ms3, ms4, rpiOnline = 0;
 int8_t gunSpeed = 0;
+uint16_t gunSpeedTick = 0;
+int8_t cameraSpeed = 0;
+uint16_t cameraSpeedTick = 0;
 
 String prefix;
 String buf;
@@ -133,6 +136,13 @@ void setup() {
 
 void dmpDataReady0() { mpuData[0].mpuInterrupt = true; }
 void dmpDataReady1() { mpuData[1].mpuInterrupt = true; }
+
+int sign(int x)
+{
+    if (x > 0) return 1;
+    if (x < 0) return -1;
+    return 0;
+}
 
 void setupGyro(uint8_t index)
 {
@@ -221,7 +231,7 @@ void processAccelGyro(uint8_t index)
 void applySpeed(int16_t speed, int8_t pin1, int8_t pin2, int8_t pinPwm)
 {
   int16_t absSpeed = abs(speed);
-  analogWrite(pinPwm, absSpeed > 255 ? 255 : absSpeed);
+  analogWrite(pinPwm, min(absSpeed, 255));
   if (speed > 0)
   {
     digitalWrite(pin2, LOW);
@@ -246,9 +256,9 @@ void sendData()
       int16_t roll = 0;
   } pkg;
 
-  pkg.gunX = mpuData[0].ypr[0] * 180 / M_PI / positionCoef;
-  pkg.gunY = gun.read() / positionCoef;
-  pkg.cameraY = camera.read() / positionCoef;
+  pkg.gunX = ceil(mpuData[0].ypr[0] * 180 / M_PI / positionCoef);
+  pkg.gunY = ceil(gun.read() / positionCoef);
+  pkg.cameraY = ceil(camera.read() / positionCoef);
   pkg.yaw = mpuData[1].ypr[0] /** 180 / M_PI / positionCoef*/;
   pkg.pitch = -mpuData[1].ypr[2] /** 180 / M_PI / positionCoef*/; //bcoz sensor attitude pitch and roll swapped and pitch inverted
   pkg.roll = mpuData[1].ypr[1] /** 180 / M_PI / positionCoef*/;
@@ -259,7 +269,6 @@ void sendData()
 
 void serialEvent()
 {
-      
   while (Serial.available())
   {
     buf += (char)Serial.read();
@@ -287,13 +296,14 @@ void serialEvent()
     if (buf.length() < packetSize) return;
 
     RpiPkg pkg = *reinterpret_cast< const RpiPkg* >(buf.c_str() + prefix.length());
+    rpiOnline = millis();
     waitPrefix = true;
     buf.remove(0, packetSize);
 
     // debug start    
     mpuData[1].ypr[0] = pkg.leftEngine / velocityCoef;
-    mpuData[1].ypr[1] = pkg.towerH / velocityCoef;
-    mpuData[1].ypr[2] = -pkg.rightEngine / velocityCoef;
+    mpuData[1].ypr[1] = pkg.rightEngine / velocityCoef;
+    mpuData[1].ypr[2] = -pkg.towerH / velocityCoef;
     // debug end
     digitalWrite(shotPwm, pkg.shot);
     applySpeed(pkg.leftEngine / velocityCoef, boardL1, boardL2, boardPwmL);
@@ -302,14 +312,19 @@ void serialEvent()
 
 #ifdef ENABLE_SERVO
     if (pkg.angleType == 1) // position
-    {
+    { 
         gunSpeed = 0;
-        gun.write(gun.read() - pkg.gunV * (90.0 / 32767));
-        camera.write(camera.read() - pkg.cameraV * (90.0 / 32767));
+        cameraSpeed = 0;
+        gun.write(pkg.gunV * positionCoef);
+        camera.write(pkg.cameraV * positionCoef);
     }
     else
     {
-        gunSpeed = 1.0 * pkg.gunV / 32767 * 3;
+        gunSpeed = sign(pkg.gunV);
+        gunSpeedTick = 5.0 / (abs(pkg.gunV) / 32767.0);
+      
+        cameraSpeed = sign(pkg.cameraV);
+        cameraSpeedTick = 5.0 / (abs(pkg.cameraV) / 32767.0);
     }
 #endif
   }
@@ -318,24 +333,47 @@ void serialEvent()
 void loop()
 {
   ms = millis();
-  if ((ms - ms1) > 50 || ms < ms1 )
+  if (ms1 + 50 < ms)
   {
     ms1 = ms;
-
     sendData();
   }
-
-  if ((ms - ms2) > 30 || ms < ms2 )
+  if (rpiOnline + 1000 < ms)
   {
-    ms2 = ms;
-#ifdef ENABLE_GYRO
+    digitalWrite(boardPwmL, 0);
+    digitalWrite(boardPwmR, 0);
+    digitalWrite(towerPwm, 0);
+    digitalWrite(shotPwm, 0);
+    gunSpeed = 0;
+    cameraSpeed = 0;
+  }
+
+#ifdef ENABLE_GYRO  
+  if (ms2 + 30 < ms)
+  {
+    ms2 = ms
     processAccelGyro(0);
     processAccelGyro(1);
-#endif
+  }
+#endif  
 
 #ifdef ENABLE_SERVO
-    gun.write(gun.read() - gunSpeed);
-    camera.write(camera.read() - gunSpeed);
-#endif    
+  if (ms3 + gunSpeedTick < ms)
+  {
+    ms3 = ms;
+    if (gunSpeed != 0)
+    {
+      gun.write(gun.read() - gunSpeed);
+    }
   }
+  
+  if (ms4 + cameraSpeedTick < ms)
+  {
+    ms4 = ms;
+    if (cameraSpeed != 0)
+    {
+      camera.write(camera.read() - cameraSpeed);
+    }
+  }
+#endif 
 }

@@ -15,6 +15,7 @@ public:
 private:
     bool open();
     void readData();
+    void onGamepadStatusChanged();
 
 private:
     class Impl;

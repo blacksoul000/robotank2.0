@@ -7,15 +7,13 @@
 #include <QRectF>
 #include <QPointF>
 #include <QElapsedTimer>
-#include <QThread> // --- 
+#include <QDebug>
 
 #include <opencv2/highgui/highgui.hpp>
 #include "opencv2/video/tracking.hpp"
 
 namespace
 {
-//    const double width = 240;
-//    const double height = 192;
     const double width = 320;
     const double height = 240;
 
@@ -136,18 +134,21 @@ void TrackerTask::Impl::publishTarget(const cv::Rect& rect)
     const double scaleY = ::height / imageHeight;
 
     QRectF r(rect.x / scaleX, rect.y / scaleY, rect.width / scaleX, rect.height / scaleY);
+    qDebug() << Q_FUNC_INFO << r;
     targetP->publish(r);
 }
 
 void TrackerTask::Impl::publishDeviation(const cv::Rect& rect)
 {
+    if (rect.width == 0 || rect.height == 0) return;
+
     const double scaleX = ::width / imageWidth;
     const double scaleY = ::height / imageHeight;
-    const double targetCenterX = (rect.x + rect.width) / 2;
-    const double targetCenterY = (rect.y + rect.height) / 2;
+    const double targetCenterX = rect.x + rect.width / 2;
+    const double targetCenterY = rect.y + rect.height / 2;
     const double imageCenterX = imageWidth / 2;
     const double imageCenterY = imageHeight / 2;
 
-    deviationP->publish(QPointF(imageCenterX - (targetCenterX / scaleX),
-                                imageCenterY - (targetCenterY / scaleY)));
+    deviationP->publish(QPointF((targetCenterX / scaleX) - imageCenterX,
+                                (targetCenterY / scaleY - imageCenterY)));
 }

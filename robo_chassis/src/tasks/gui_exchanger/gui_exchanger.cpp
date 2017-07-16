@@ -261,6 +261,7 @@ void GuiExchanger::Impl::processPacket(const CommandPacket& packet)
         QDataStream in(packet.data);
         QRectF rect;
         in >> rect;
+        qDebug() << rect;
         trackRectP->publish(rect);
         break;
     }

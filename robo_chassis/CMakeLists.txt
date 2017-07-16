@@ -46,10 +46,7 @@ set(LIBS
 
 if(PICAM)
     message("** Enabling RPi Camera **")
-    set(raspicam_DIR /usr/local/lib/cmake)
-    find_package(raspicam REQUIRED)
     add_definitions(-DPICAM)
-    set(LIBS ${LIBS} ${raspicam_CV_LIBS})
 endif(PICAM)
 
 set(CMAKE_AUTOMOC ON)
