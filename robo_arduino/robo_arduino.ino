@@ -1,67 +1,55 @@
-#include <Servo.h>
 #include <Wire.h>
 #include "I2Cdev.h"
 
-#include "MPU6050_6Axis_MotionApps20.h"
+#define ENABLE_GYRO
+#define DMP_FIFO_RATE 20
 
-//#define ENABLE_GYRO
-//#define ENABLE_SERVO
+#include "MPU6050_6Axis_MotionApps20.h"
 
 // chassis engines
 const int8_t boardL1 = 8;
 const int8_t boardL2 = 7;
-const int8_t boardPwmL = 11;
+const int8_t boardPwmL = 9;
 const int8_t boardR1 = 5;
 const int8_t boardR2 = 4;
 const int8_t boardPwmR = 6;
 const int8_t tower1 = 15;
 const int8_t tower2 = 14;
 const int8_t towerPwm = 10;
-
-const int8_t gunPwm = 17;
-const int8_t cameraPwm = 16;
-const int8_t shotPwm = 9;
-
-// mpu
-struct MpuData
-{
-    volatile bool mpuInterrupt = false;     // indicates whether MPU interrupt pin has gone high
-    bool dmpReady = false;  // set true if DMP init was successful
-    uint8_t mpuIntStatus;   // holds actual interrupt status byte from MPU
-    uint16_t packetSize;    // expected DMP packet size (default is 42 bytes)
-    uint16_t fifoCount;     // count of all bytes currently in FIFO
-    uint8_t fifoBuffer[64]; // FIFO storage buffer
-    Quaternion q;           // [w, x, y, z]         quaternion container
-    VectorFloat gravity;    // [x, y, z]            gravity vector
-    float ypr[3];           // [yaw, pitch, roll]   yaw/pitch/roll container and gravity vector
-};
+const int8_t shotPwm = 11;
 
 const double velocityCoef = 32767.0 / 255;
 const double positionCoef = 360.0 / 32767;
 
 struct RpiPkg
 {
-    uint8_t angleType:3;
-    uint8_t shot:1;
-    uint8_t reserve:4;
-    int16_t gunV = 0;
-    int16_t cameraV = 0;
+    uint8_t shot = 0;
     int16_t leftEngine = 0;
     int16_t rightEngine = 0;
     int16_t towerH = 0;
 };
 
-Servo gun;
-Servo camera;
+struct MpuData
+{
+    // MPU control/status vars
+    bool dmpReady = false;  // set true if DMP init was successful
+    uint8_t devStatus;      // return status after each device operation (0 = success, !0 = error)
+    uint16_t packetSize;    // expected DMP packet size (default is 42 bytes)
+    uint16_t fifoCount;     // count of all bytes currently in FIFO
+    uint8_t fifoBuffer[64]; // FIFO storage buffer
 
-MPU6050 mpu[] = {0x69, 0x68};
-MpuData mpuData[2];
+    // orientation/motion vars
+    Quaternion q;           // [w, x, y, z]         quaternion container
+    VectorInt16 aa;         // [x, y, z]            accel sensor measurements
+    VectorInt16 aaReal;     // [x, y, z]            gravity-free accel sensor measurements
+    VectorInt16 aaWorld;    // [x, y, z]            world-frame accel sensor measurements
+    VectorFloat gravity;    // [x, y, z]            gravity vector
+    float ypr[3];           // [yaw, pitch, roll]   yaw/pitch/roll container and gravity vector
+} mpuData;
 
-uint32_t ms, ms1, ms2, ms3, ms4, rpiOnline = 0;
-int8_t gunSpeed = 0;
-uint16_t gunSpeedTick = 0;
-int8_t cameraSpeed = 0;
-uint16_t cameraSpeedTick = 0;
+MPU6050 mpu;
+
+uint32_t ms, ms1, rpiOnline = 0;
 
 String prefix;
 String buf;
@@ -95,37 +83,9 @@ void setup() {
   pinMode(shotPwm, OUTPUT);
   digitalWrite(shotPwm, 0);
   
-  // Servo
-#ifdef ENABLE_SERVO
-  gun.attach(gunPwm);
-  camera.attach(cameraPwm);
-#endif
-  
 #ifdef ENABLE_GYRO
-  mpu[0].initialize();
-  mpu[1].initialize();
-
-  // supply your own gyro offsets here, scaled for min sensitivity
-  mpu[0].setXGyroOffset(43);
-  mpu[0].setYGyroOffset(-52);
-  mpu[0].setZGyroOffset(27);
-  mpu[0].setXAccelOffset(888);
-  mpu[0].setYAccelOffset(248);
-  mpu[0].setZAccelOffset(1274);
-  mpu[1].setXGyroOffset(59);
-  mpu[1].setYGyroOffset(-15);
-  mpu[1].setZGyroOffset(-28);
-  mpu[1].setXAccelOffset(-2389);
-  mpu[1].setYAccelOffset(-796);
-  mpu[1].setZAccelOffset(988);
-
-  setupGyro(0);
-  setupGyro(1);
-
-  // enable Arduino interrupt detection
-  // Serial.println(F("Enabling interrupt detection (Arduino external interrupt)..."));
-  attachInterrupt(digitalPinToInterrupt(2), dmpDataReady0, RISING);
-  attachInterrupt(digitalPinToInterrupt(3), dmpDataReady1, RISING);
+  Wire.begin();
+  initMpu();
 #endif
 
   pinMode(13, OUTPUT);
@@ -134,98 +94,53 @@ void setup() {
 //  Serial.println("Ready!");
 }
 
-void dmpDataReady0() { mpuData[0].mpuInterrupt = true; }
-void dmpDataReady1() { mpuData[1].mpuInterrupt = true; }
-
-int sign(int x)
+void processAccelGyro()
 {
-    if (x > 0) return 1;
-    if (x < 0) return -1;
-    return 0;
-}
+    // if programming failed, don't try to do anything
+    if (!mpuData.dmpReady) return;
 
-void setupGyro(uint8_t index)
-{
-    mpu[index].setFullScaleGyroRange(MPU6050_GYRO_FS_2000);
-
-    uint8_t devStatus = mpu[index].dmpInitialize();
-    // make sure it worked (returns 0 if so)
-    if (devStatus == 0)
+    // get current FIFO count
+    mpuData.fifoCount = mpu.getFIFOCount();
+    
+    if (mpuData.fifoCount == 1024)
     {
-      // turn on the DMP, now that it's ready
-  //    Serial.println(F("Enabling DMP..."));
-      mpu[index].setDMPEnabled(true);
-
-      mpuData[index].mpuIntStatus = mpu[index].getIntStatus();
-
-      // set our DMP Ready flag so the main loop() function knows it's okay to use it
-  //    Serial.println(F("DMP ready! Waiting for first interrupt..."));
-      mpuData[index].dmpReady = true;
-
-      // get expected DMP packet size for later comparison
-      mpuData[index].packetSize = mpu[index].dmpGetFIFOPacketSize();
-    }
-    else
-    {
-      // ERROR!
-      // 1 = initial memory load failed
-      // 2 = DMP configuration updates failed
-      // (if it's going to break, usually the code will be 1)
-      Serial.print(F("DMP Initialization failed (code "));
-      Serial.print(devStatus);
-      Serial.println(F(")"));
-    }
-}
-
-void processAccelGyro(uint8_t index)
-{
-    MPU6050& currentMpu = mpu[index];
-    MpuData& currentData = mpuData[index];
-
-  // if programming failed, don't try to do anything
-  if (!currentData.dmpReady) return;
-
-  // wait for MPU interrupt or extra packet(s) available
-  if (!currentData.mpuInterrupt && currentData.fifoCount < currentData.packetSize) return;
-
-  // reset interrupt flag and get INT_STATUS byte
-  currentData.mpuInterrupt = false;
-  currentData.mpuIntStatus = currentMpu.getIntStatus();
-
-  // get current FIFO count
-  currentData.fifoCount = currentMpu.getFIFOCount();
-
-  // check for overflow (this should never happen unless our code is too inefficient)
-  if ((currentData.mpuIntStatus & 0x10) || currentData.fifoCount == 1024) {
-    // reset so we can continue cleanly
-    currentMpu.resetFIFO();
-    //    Serial.println(F("FIFO overflow!"));
-
+        // reset so we can continue cleanly
+        mpu.resetFIFO();
+        // printf("FIFO overflow!\n");
+    
     // otherwise, check for DMP data ready interrupt (this should happen frequently)
-  }
-  else if (currentData.mpuIntStatus & 0x02) {
-    // wait for correct available data length, should be a VERY short wait
-    while (currentData.fifoCount < currentData.packetSize) currentData.fifoCount = currentMpu.getFIFOCount();
+    }
+    else if (mpuData.fifoCount >= 42)
+    {
+        // read a packet from FIFO
+        mpu.getFIFOBytes(mpuData.fifoBuffer, mpuData.packetSize);
+    
+        // display Euler angles in degrees
+        mpu.dmpGetQuaternion(&mpuData.q, mpuData.fifoBuffer);
+        mpu.dmpGetGravity(&mpuData.gravity, &mpuData.q);
+        mpu.dmpGetYawPitchRoll(mpuData.ypr, &mpuData.q, &mpuData.gravity);
+        // printf("ypr  %7.2f %7.2f %7.2f    ", mpuData.ypr[0] * 180/M_PI, mpuData.ypr[1] * 180/M_PI, mpuData.ypr[2] * 180/M_PI);
+        
+        #ifdef OUTPUT_READABLE_REALACCEL
+            // display real acceleration, adjusted to remove gravity
+            mpu.dmpGetQuaternion(&mpuData.q, mpuData.fifoBuffer);
+            mpu.dmpGetAccel(&mpuData.aa, mpuData.fifoBuffer);
+            mpu.dmpGetGravity(&mpuData.gravity, &mpuData.q);
+            mpu.dmpGetLinearAccel(&mpuData.aaReal, &mpuData.aa, &mpuData.gravity);
+            // printf("areal %6d %6d %6d    ", mpuData.aaReal.x, mpuData.aaReal.y, mpuData.aaReal.z);
+        #endif
 
-    // read a packet from FIFO
-    currentMpu.getFIFOBytes(currentData.fifoBuffer, currentData.packetSize);
-
-    // track FIFO count here in case there is > 1 packet available
-    // (this lets us immediately read more without waiting for an interrupt)
-    currentData.fifoCount -= currentData.packetSize;
-
-    // display Euler angles in degrees
-    currentMpu.dmpGetQuaternion(&currentData.q, currentData.fifoBuffer);
-
-    currentMpu.dmpGetGravity(&currentData.gravity, &currentData.q);
-    currentMpu.dmpGetYawPitchRoll(currentData.ypr, &currentData.q, &currentData.gravity);
-//    Serial.print("ypr\t");
-//    Serial.print(ypr[0] * 180 / M_PI);
-//    Serial.print("\t");
-//    Serial.print(ypr[1] * 180 / M_PI);
-//    Serial.print("\t");
-//    Serial.println(ypr[2] * 180 / M_PI);
-  }
+        #ifdef OUTPUT_READABLE_WORLDACCEL
+            // display initial world-frame acceleration, adjusted to remove gravity
+            // and rotated based on known orientation from quaternion
+            mpu.dmpGetQuaternion(&mpuData.q, mpuData.fifoBuffer);
+            mpu.dmpGetAccel(&mpuData.aa, mpuData.fifoBuffer);
+            mpu.dmpGetGravity(&mpuData.gravity, &mpuData.q);
+            mpu.dmpGetLinearAccelInWorld(&mpuData.aaWorld, &mpuData.aaReal, &mpuData.q);
+            // printf("aworld %6d %6d %6d    ", mpuData.aaWorld.x, mpuData.aaWorld.y, mpuData.aaWorld.z);
+        #endif
+        // printf("\n");
+    }
 }  // processAccelGyro()
 
 void applySpeed(int16_t speed, int8_t pin1, int8_t pin2, int8_t pinPwm)
@@ -248,20 +163,14 @@ void sendData()
 {
   struct ArduinoPkg
   {
-      int16_t gunX = 0;
-      int16_t gunY = 0;
-      int16_t cameraY = 0;
       int16_t yaw = 0;
       int16_t pitch = 0;
       int16_t roll = 0;
   } pkg;
 
-  pkg.gunX = ceil(mpuData[0].ypr[0] * 180 / M_PI / positionCoef);
-  pkg.gunY = ceil(gun.read() / positionCoef);
-  pkg.cameraY = ceil(camera.read() / positionCoef);
-  pkg.yaw = mpuData[1].ypr[0] /** 180 / M_PI / positionCoef*/;
-  pkg.pitch = -mpuData[1].ypr[2] /** 180 / M_PI / positionCoef*/; //bcoz sensor attitude pitch and roll swapped and pitch inverted
-  pkg.roll = mpuData[1].ypr[1] /** 180 / M_PI / positionCoef*/;
+  pkg.yaw = mpuData.ypr[0] * 180 / M_PI / positionCoef;
+  pkg.pitch = mpuData.ypr[2] * 180 / M_PI / positionCoef; //bcoz sensor attitude pitch and roll swapped
+  pkg.roll = mpuData.ypr[1] * 180 / M_PI / positionCoef;
 
   Serial.write(prefix.c_str(), prefix.length());
   Serial.write(reinterpret_cast< const unsigned char* >(&pkg), sizeof(pkg));
@@ -300,42 +209,22 @@ void serialEvent()
     waitPrefix = true;
     buf.remove(0, packetSize);
 
-    // debug start    
-    mpuData[1].ypr[0] = pkg.leftEngine / velocityCoef;
-    mpuData[1].ypr[1] = pkg.rightEngine / velocityCoef;
-    mpuData[1].ypr[2] = -pkg.towerH / velocityCoef;
-    // debug end
     digitalWrite(shotPwm, pkg.shot);
     applySpeed(pkg.leftEngine / velocityCoef, boardL1, boardL2, boardPwmL);
     applySpeed(pkg.rightEngine / velocityCoef, boardR1, boardR2, boardPwmR);
     applySpeed(pkg.towerH / velocityCoef, tower1, tower2, towerPwm);
-
-#ifdef ENABLE_SERVO
-    if (pkg.angleType == 1) // position
-    { 
-        gunSpeed = 0;
-        cameraSpeed = 0;
-        gun.write(pkg.gunV * positionCoef);
-        camera.write(pkg.cameraV * positionCoef);
-    }
-    else
-    {
-        gunSpeed = sign(pkg.gunV);
-        gunSpeedTick = 5.0 / (abs(pkg.gunV) / 32767.0);
-      
-        cameraSpeed = sign(pkg.cameraV);
-        cameraSpeedTick = 5.0 / (abs(pkg.cameraV) / 32767.0);
-    }
-#endif
   }
 }
 
 void loop()
 {
   ms = millis();
-  if (ms1 + 50 < ms)
+  if (ms1 + 100 < ms)
   {
     ms1 = ms;
+#ifdef ENABLE_GYRO      
+    processAccelGyro();
+#endif
     sendData();
   }
   if (rpiOnline + 1000 < ms)
@@ -344,36 +233,53 @@ void loop()
     digitalWrite(boardPwmR, 0);
     digitalWrite(towerPwm, 0);
     digitalWrite(shotPwm, 0);
-    gunSpeed = 0;
-    cameraSpeed = 0;
   }
+}
 
-#ifdef ENABLE_GYRO  
-  if (ms2 + 30 < ms)
-  {
-    ms2 = ms
-    processAccelGyro(0);
-    processAccelGyro(1);
-  }
-#endif  
+void initMpu()
+{
+  // initialize device
+  // printf("Initializing I2C devices...\n");
+  mpu.initialize();
 
-#ifdef ENABLE_SERVO
-  if (ms3 + gunSpeedTick < ms)
+  // verify connection
+  // printf("Testing device connections...\n");
+  // printf(mpu.testConnection() ? "MPU6050 connection successful\n" : "MPU6050 connection failed\n");
+
+  // load and configure the DMP
+  // printf("Initializing DMP...\n");
+  mpuData.devStatus = mpu.dmpInitialize();
+
+  // make sure it worked (returns 0 if so)
+  if (mpuData.devStatus == 0)
   {
-    ms3 = ms;
-    if (gunSpeed != 0)
-    {
-      gun.write(gun.read() - gunSpeed);
-    }
+      // turn on the DMP, now that it's ready
+      // printf("Enabling DMP...\n");
+      mpu.setDMPEnabled(true);
+
+      // set our DMP Ready flag so the main loop() function knows it's okay to use it
+      // printf("DMP ready!\n");
+      mpuData.dmpReady = true;
+
+      // get expected DMP packet size for later comparison
+      mpuData.packetSize = mpu.dmpGetFIFOPacketSize();
   }
-  
-  if (ms4 + cameraSpeedTick < ms)
+  else
   {
-    ms4 = ms;
-    if (cameraSpeed != 0)
-    {
-      camera.write(camera.read() - cameraSpeed);
-    }
+      // ERROR!
+      // 1 = initial memory load failed
+      // 2 = DMP configuration updates failed
+      // (if it's going to break, usually the code will be 1)
+      // printf("DMP Initialization failed (code %d)\n", mpuData.devStatus);
   }
-#endif 
+  // supply your own gyro offsets here, scaled for min sensitivity
+  mpu.setXGyroOffset(68);
+  mpu.setYGyroOffset(-17);
+  mpu.setZGyroOffset(-31);
+  mpu.setXAccelOffset(-2364);
+  mpu.setYAccelOffset(-983);
+  mpu.setZAccelOffset(987);
+
+//  Serial.println(mpu.testConnection() ? F("MPU6050 connection successful") : F("MPU6050 connection failed"));
+//  mpu.setFullScaleGyroRange(MPU6050_GYRO_FS_2000);
 }

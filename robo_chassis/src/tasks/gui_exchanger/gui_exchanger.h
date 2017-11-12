@@ -3,7 +3,7 @@
 
 #include "i_task.h"
 
-struct Point3D;
+struct PointF3D;
 struct ImageSettings;
 
 class GuiExchanger : public ITask
@@ -18,9 +18,9 @@ public:
 private:
     void onReadyRead();
 
-    void onGunPosition(const QPoint& position);
-    void onCameraPosition(const QPoint& position);
-    void onYpr(const Point3D& ypr);
+    void onGunPosition(const QPointF& position);
+    void onCameraPosition(const QPointF& position);
+    void onYpr(const PointF3D& ypr);
     void onArduinoStatus(const bool& status);
     void onJoyButtons(const quint16& buttons);
     void onJoyStatus(const bool& status);

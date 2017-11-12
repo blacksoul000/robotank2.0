@@ -2,6 +2,7 @@
 #include "joy_axes.h"
 #include "influence.h"
 #include "point3d.h"
+#include "pointf3d.h"
 #include "image_settings.h"
 
 #include <QDebug>
@@ -19,6 +20,10 @@ inline QDebug operator<< (QDebug d, const Influence& e) {
     return d;
 }
 inline QDebug operator<< (QDebug d, const Point3D& e) {
+    d << e.x << e.y << e.z;
+    return d;
+}
+inline QDebug operator<< (QDebug d, const PointF3D& e) {
     d << e.x << e.y << e.z;
     return d;
 }

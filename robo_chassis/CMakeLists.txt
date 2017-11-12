@@ -38,7 +38,7 @@ set(LIBS
     ${CMAKE_BINARY_DIR}/OpenTLD/lib/libopentld.a
     ${CMAKE_BINARY_DIR}/OpenTLD/lib/libcvblobs.a
     gomp
-    wiringPi
+    pigpio
     gstrtsp-1.0
     gstapp-1.0
     ${GSTRTSP_LIBRARIES}

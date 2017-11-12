@@ -6,7 +6,6 @@
 #include "pub_sub.h"
 
 //Qt
-#include <QSocketNotifier>
 #include <QDebug>
 
 // linux
@@ -30,8 +29,6 @@ public:
 
     int fd = -1;
     bool isOpened = false;
-
-    int infoFd = -1;
 };
 
 GamepadController::GamepadController() :
@@ -100,9 +97,4 @@ void GamepadController::readData()
             break;
         }
     }
-}
-
-void GamepadController::onGamepadStatusChanged()
-{
-
 }

@@ -2,7 +2,7 @@
 
 //msgs
 #include "image_settings.h"
-#include "point3d.h"
+#include "pointf3d.h"
 #include "empty.h"
 
 #include "pub_sub.h"
@@ -73,7 +73,7 @@ GuiExchanger::GuiExchanger() :
 
     PubSub::instance()->subscribe("gun/position", &GuiExchanger::onGunPosition, this);
     PubSub::instance()->subscribe("camera/position", &GuiExchanger::onCameraPosition, this);
-    PubSub::instance()->subscribe("robo/ypr", &GuiExchanger::onYpr, this);
+    PubSub::instance()->subscribe("chassis/ypr", &GuiExchanger::onYpr, this);
     PubSub::instance()->subscribe("arduino/status", &GuiExchanger::onArduinoStatus, this);
     PubSub::instance()->subscribe("joy/buttons", &GuiExchanger::onJoyButtons, this);
     PubSub::instance()->subscribe("joy/status", &GuiExchanger::onJoyStatus, this);
@@ -129,23 +129,23 @@ void GuiExchanger::onReadyRead()
     }
 }
 
-void GuiExchanger::onGunPosition(const QPoint& position)
+void GuiExchanger::onGunPosition(const QPointF& position)
 {
-    d->chassis.gunH = position.x();
-    d->chassis.gunV = position.y();
+    d->chassis.gunH = position.x() / ::positionCoef;
+    d->chassis.gunV = position.y() / ::positionCoef;
 }
 
-void GuiExchanger::onCameraPosition(const QPoint& position)
+void GuiExchanger::onCameraPosition(const QPointF& position)
 {
-    d->chassis.cameraH = position.x();
-    d->chassis.cameraV = position.y();
+    d->chassis.cameraH = position.x() / ::positionCoef;
+    d->chassis.cameraV = position.y() / ::positionCoef;
 }
 
-void GuiExchanger::onYpr(const Point3D& ypr)
+void GuiExchanger::onYpr(const PointF3D& ypr)
 {
-    d->chassis.yaw = ypr.x;
-    d->chassis.pitch = ypr.y;
-    d->chassis.roll = ypr.z;
+    d->chassis.yaw = ypr.x / ::positionCoef;
+    d->chassis.pitch = ypr.y / ::positionCoef;
+    d->chassis.roll = ypr.z / ::positionCoef;
 }
 
 void GuiExchanger::onArduinoStatus(const bool& status)
