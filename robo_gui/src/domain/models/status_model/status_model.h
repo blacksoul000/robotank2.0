@@ -24,14 +24,14 @@ namespace domain
         void setRobotBatteryLevel(int level);
         int robotBatteryLevel() const;
 
-        void setGunPositionH(int position);
-        int gunPositionH() const;
+        void setGunPositionH(qreal position);
+        qreal gunPositionH() const;
 
-        void setGunPositionV(int position);
-        int gunPositionV() const;
+        void setGunPositionV(qreal position);
+        qreal gunPositionV() const;
 
-        void setCameraPositionV(int position);
-        int cameraPositionV() const;
+        void setCameraPositionV(qreal position);
+        qreal cameraPositionV() const;
 
         void setYaw(qreal yaw);
         qreal yaw() const;

@@ -1,5 +1,7 @@
 #include "status_model.h"
 
+#include <QDebug>
+
 using domain::StatusModel;
 
 class StatusModel::Impl
@@ -9,9 +11,9 @@ public:
     bool isCharging = false;
     int gamepadBatteryLevel = 0;
     int robotBatteryLevel = 0;
-    int gunPositionH = 0;
-    int gunPositionV = 0;
-    int cameraPositionV = 0;
+    qreal gunPositionH = 0;
+    qreal gunPositionV = 0;
+    qreal cameraPositionV = 0;
     qreal yaw = 0;
     qreal pitch = 0;
     qreal roll = 0;
@@ -83,47 +85,49 @@ int StatusModel::robotBatteryLevel() const
     return d->robotBatteryLevel;
 }
 
-void StatusModel::setGunPositionH(int position)
+void StatusModel::setGunPositionH(qreal position)
 {
-    if (d->gunPositionH == position) return;
+    if (qFuzzyCompare(d->gunPositionH, position)) return;
 
     d->gunPositionH = position;
     emit gunPositionHChanged(position);
 }
 
-int StatusModel::gunPositionH() const
+qreal StatusModel::gunPositionH() const
 {
     return d->gunPositionH;
 }
 
-void StatusModel::setGunPositionV(int position)
+void StatusModel::setGunPositionV(qreal position)
 {
-    if (d->gunPositionV == position) return;
+    if (qFuzzyCompare(d->gunPositionV, position)) return;
 
     d->gunPositionV = position;
     emit gunPositionVChanged(position);
 }
 
-int StatusModel::gunPositionV() const
+qreal StatusModel::gunPositionV() const
 {
     return d->gunPositionV;
 }
 
-void StatusModel::setCameraPositionV(int position)
+void StatusModel::setCameraPositionV(qreal position)
 {
-    if (d->cameraPositionV == position) return;
+    if (qFuzzyCompare(d->cameraPositionV, position)) return;
 
     d->cameraPositionV = position;
     emit cameraPositionVChanged(position);
 }
 
-int StatusModel::cameraPositionV() const
+qreal StatusModel::cameraPositionV() const
 {
     return d->cameraPositionV;
 }
 
 void StatusModel::setYaw(qreal yaw)
 {
+    if (qFuzzyCompare(d->yaw, yaw)) return;
+
     d->yaw = yaw;
     emit yawChanged(yaw);
 }
@@ -135,6 +139,8 @@ qreal StatusModel::yaw() const
 
 void StatusModel::setPitch(qreal pitch)
 {
+    if (qFuzzyCompare(d->pitch, pitch)) return;
+
     d->pitch = pitch;
     emit pitchChanged(pitch);
 }
@@ -146,6 +152,8 @@ qreal StatusModel::pitch() const
 
 void StatusModel::setRoll(qreal roll)
 {
+    if (qFuzzyCompare(d->roll, roll)) return;
+
     d->roll = roll;
     emit rollChanged(roll);
 }

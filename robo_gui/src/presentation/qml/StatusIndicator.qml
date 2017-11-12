@@ -31,7 +31,7 @@ Item {
             id: label
             width: 30
             anchors.verticalCenter: parent.verticalCenter
-            font.pointSize: 18
+            font.pointSize: 10
             color: "white"
         }
     }

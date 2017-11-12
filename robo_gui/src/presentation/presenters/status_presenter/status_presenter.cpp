@@ -78,17 +78,17 @@ int StatusPresenter::robotBatteryLevel() const
     return d->model->robotBatteryLevel();
 }
 
-int StatusPresenter::gunPositionH() const
+qreal StatusPresenter::gunPositionH() const
 {
     return d->model->gunPositionH();
 }
 
-int StatusPresenter::gunPositionV() const
+qreal StatusPresenter::gunPositionV() const
 {
     return d->model->gunPositionV();
 }
 
-int StatusPresenter::cameraPositionV() const
+qreal StatusPresenter::cameraPositionV() const
 {
     return d->model->cameraPositionV();
 }

@@ -20,12 +20,12 @@ Item {
             StatusIndicator {
                 image: "qrc:/icons/azimuth.svg"
                 imageWidth: 60
-                text: presenter.gunPositionH
+                text: presenter.gunPositionH.toFixed(1)
                 anchors.verticalCenter: parent.verticalCenter
             }
             StatusIndicator {
                 image: "qrc:/icons/angle.svg"
-                text: presenter.gunPositionV
+                text: presenter.gunPositionV.toFixed(1)
                 anchors.verticalCenter: parent.verticalCenter
             }
             StatusIndicator {

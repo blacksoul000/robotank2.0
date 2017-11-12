@@ -248,6 +248,7 @@ void ChassisExchanger::processPacket(const QByteArray& data)
         d->model->status()->setYaw(tmi.yaw * ::positionCoef);
         d->model->status()->setPitch(tmi.pitch * ::positionCoef);
         d->model->status()->setRoll(tmi.roll * ::positionCoef);
+        qDebug() << Q_FUNC_INFO << tmi.gunH << tmi.gunV << tmi.yaw << tmi.pitch << tmi.roll;
 
         emit buttonsUpdated(tmi.buttons);
         break;
