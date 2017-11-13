@@ -34,7 +34,7 @@ namespace
 #pragma pack(pop)
 
     const int timeout = 500; // ms
-    const int sendInterval = 50; // ms
+    const int sendInterval = 100; // ms
     constexpr double positionCoef = 360.0 / 32767;
 } // namespace
 
@@ -133,7 +133,7 @@ void ArduinoExchanger::Impl::readData()
     {
         if (buffer.size() < prefix.size()) return;
 
-        auto idx = buffer.indexOf(prefix);
+        auto idx = buffer.lastIndexOf(prefix, buffer.count() - sizeof(::ArduinoPkg));
         if (idx == -1)
         {
             buffer.remove(0, buffer.size() - prefix.size());
@@ -154,7 +154,7 @@ void ArduinoExchanger::Impl::readData()
 
         ::ArduinoPkg pkg = *reinterpret_cast<::ArduinoPkg *>(
                     buffer.mid(prefix.size(), sizeof(::ArduinoPkg)).data());
-//        qDebug() << Q_FUNC_INFO << pkg.ax << pkg.ay << pkg.az << buffer.mid(prefix.size(), sizeof(::ArduinoPkg)).toHex();
+//        qDebug() << Q_FUNC_INFO << pkg.yaw << pkg.pitch << pkg.roll << buffer.toHex();
 
         buffer.remove(0, packetSize);
         waitPrefix = true;
@@ -175,8 +175,6 @@ void ArduinoExchanger::Impl::sendData()
 {
     if (!serial->isOpen()) return;
     if (!isArduinoOnline()) return;
-
-//    qDebug() << Q_FUNC_INFO << package.leftEngine << package.rightEngine << package.towerH;
 
     QByteArray data(prefix);
     data.append(QByteArray(reinterpret_cast<const char *>(&package), sizeof(package)));

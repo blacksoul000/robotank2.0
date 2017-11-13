@@ -3,9 +3,9 @@
 
 struct PointF3D
 {
-    float x;
-    float y;
-    float z;
+    double x;
+    double y;
+    double z;
 };
 
 #endif // POINTF3D_H

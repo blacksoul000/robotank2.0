@@ -25,6 +25,7 @@ public:
     void onEnginePowerChanged(const QPoint& enginePower);
     void onJoyEvent(const JoyAxes& axes);
     void onFireStatusChanged(const bool &status);
+    void onGunPosition(const QPointF& position);
 
 private:
     class Impl;

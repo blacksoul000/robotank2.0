@@ -297,15 +297,8 @@ void GpioController::servoTick()
 {
     for (auto it = d->servo.begin(), end = d->servo.end(); it != end; ++it)
     {
-        it.value().pulse += it.value().tick;
-        if (it.value().pulse < it.value().minPulse)
-        {
-            it.value().pulse = it.value().minPulse;
-        } 
-        else if (it.value().pulse > it.value().maxPulse)
-        {
-            it.value().pulse = it.value().maxPulse;
-        }
+        it.value().pulse = qBound< uint16_t >(it.value().minPulse, it.value().pulse + it.value().tick, it.value().maxPulse);
+//        qDebug() << it.value().pulse << it.value().minPulse << it.value().maxPulse;
         gpioServo(it.key(), it.value().pulse);
     }
 }

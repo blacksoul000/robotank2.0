@@ -1,4 +1,5 @@
 #include "robo_core.h"
+#include "pid.h"
 
 // msgs
 #include "influence.h"
@@ -14,6 +15,14 @@ namespace
 {
     constexpr float defaultDotsPerDegree = 100;
     constexpr double influenceCoef = 90.0 / 32767;
+
+    // towerH pid
+    const double Kp = 4.5;
+    const double Ki = 0.1;
+    const double Kd = 0;
+    const double dt = 0.1;
+    const double minInfluence = -40;
+    const double maxInfluence = 40;
 
     enum Axes
     {
@@ -38,10 +47,13 @@ public:
     State state = State::Search;
     Influence influence;
     QPointF dotsPerDegree;
+    QPointF gunPosition;
+    PID pid = PID(::dt, ::maxInfluence, ::minInfluence, ::Kp, ::Kd, ::Ki);
 
     short enginePowerLeft = SHRT_MAX;
     short enginePowerRight = SHRT_MAX;
     bool hasNewData = false;
+    double requiredTowerH = 0;
     JoyAxes joy;
 
     Publisher< Influence >* influenceP = nullptr;
@@ -61,6 +73,7 @@ RoboCore::RoboCore():
     PubSub::instance()->subscribe("core/enginePower", &RoboCore::onEnginePowerChanged, this);
     PubSub::instance()->subscribe("joy/axes", &RoboCore::onJoyEvent, this);
     PubSub::instance()->subscribe("core/shot", &RoboCore::onFireStatusChanged, this);
+    PubSub::instance()->subscribe("gun/position", &RoboCore::onGunPosition, this);
 
     this->onTrackerStatusChanged(false);
 }
@@ -73,12 +86,22 @@ RoboCore::~RoboCore()
 
 void RoboCore::execute()
 {
+    if (d->state == State::Track)
+    {
+        if (std::fabs(d->requiredTowerH - d->gunPosition.x()) > 0.1)
+        {
+            d->influence.towerH = d->pid.calculate(d->requiredTowerH, d->gunPosition.x()) / ::influenceCoef;
+            qDebug() << Q_FUNC_INFO << d->requiredTowerH << d->gunPosition.x() << d->influence.towerH << (d->influence.towerH * ::influenceCoef);
+            d->hasNewData = true;
+        }
+    }
+
     if (d->hasNewData) 
     {
-        d->hasNewData = false;
         d->influenceP->publish(d->influence);
 //        qDebug() << Q_FUNC_INFO << d->influence.leftEngine << d->influence.rightEngine << d->influence.gunV << d->influence.towerH;
     }
+
 }
 
 void RoboCore::onJoyEvent(const JoyAxes& joy)
@@ -123,19 +146,27 @@ void RoboCore::onJoyEvent(const JoyAxes& joy)
         d->hasNewData = true;
     //    qDebug() << Q_FUNC_INFO << d->influence.leftEngine << d->influence.rightEngine << speed << turnSpeed << joy.axes;
     }
+/*
+    // FIXME - debug
+    if (d->joy.axes[Axes::X2] != joy.axes[Axes::X2])
+    {   
+        d->joy.axes[Axes::X2] = joy.axes[Axes::X2];
+        if (d->state == State::Search) this->onTrackerStatusChanged(true);
+        d->requiredTowerH += (joy.axes[Axes::X2] / 32767) * 10;
+    }
+*/
 }
 
 void RoboCore::onTrackerDeviation(const QPointF& deviation)
 {
     if (d->state != State::Track) return;
 
-    d->influence.towerH = (deviation.x() / d->dotsPerDegree.x()) / ::influenceCoef; // TODO PID
+    d->requiredTowerH = d->gunPosition.x() + (deviation.x() / d->dotsPerDegree.x());
     d->influence.gunV = d->influence.cameraV =
             (deviation.y() / d->dotsPerDegree.y()) / ::influenceCoef;
     qDebug() << Q_FUNC_INFO << deviation 
              << QPointF((deviation.x() / d->dotsPerDegree.x()), (deviation.y() / d->dotsPerDegree.y()))
              << d->influence.towerH << d->influence.gunV;
-    d->hasNewData = true;
 }
 
 void RoboCore::onEnginePowerChanged(const QPoint& enginePower)
@@ -144,10 +175,16 @@ void RoboCore::onEnginePowerChanged(const QPoint& enginePower)
     d->enginePowerRight = enginePower.y() * SHRT_MAX / 100;
 }
 
+void RoboCore::onGunPosition(const QPointF& position)
+{
+    d->gunPosition = position;
+}
+
 void RoboCore::onTrackerStatusChanged(const bool& status)
 {
     if (status)
     {
+        d->requiredTowerH = d->gunPosition.x();
         d->state = State::Track;
         d->influence.angleType = AngleType::Position;
     }
@@ -161,7 +198,6 @@ void RoboCore::onTrackerStatusChanged(const bool& status)
 
 void RoboCore::onFireStatusChanged(const bool& status)
 {
-    qDebug() << Q_FUNC_INFO << status;
     d->influence.shot = status;
     d->hasNewData = true;
 }
