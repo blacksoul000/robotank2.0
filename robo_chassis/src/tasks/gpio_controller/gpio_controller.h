@@ -8,6 +8,8 @@ struct PointF3D;
 struct Influence;
 struct Empty;
 
+class QPointF;
+
 class GpioController : public ITask
 {
 public:
@@ -21,6 +23,7 @@ private:
     void readGyroData();
     void onJoyEvent(const quint16& joy);
     void onInfluence(const Influence& influence);
+    void onDeviation(const QPointF& point);
     void onGunCalibrate(const Empty&);
     void onCameraCalibrate(const Empty&);
     void onGyroCalibrate(const Empty&);

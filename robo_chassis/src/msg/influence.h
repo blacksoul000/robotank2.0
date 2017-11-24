@@ -3,15 +3,8 @@
 
 #include <cstdint>
 
-enum AngleType
-{
-    Velocity = 0,
-    Position = 1,
-};
-
 struct Influence
 {
-    AngleType angleType = AngleType::Velocity;
     uint8_t shot = 0;
     int16_t gunV = 0;
     int16_t cameraV = 0;

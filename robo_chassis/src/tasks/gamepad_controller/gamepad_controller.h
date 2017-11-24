@@ -13,8 +13,11 @@ public:
     void execute() override;
 
 private:
-    bool open();
     void readData();
+
+private slots:
+    void onCapacityChanged();
+    void onStatusChanged();
 
 private:
     class Impl;

@@ -30,6 +30,8 @@ private:
     void onImageSettingsChanged(const ImageSettings& settings);
     void onSwitchTrackerRequest(const quint8& code);
     void onVideoSourceChanged(const QString& source);
+    void onJoyCapacity(const quint8& capacity);
+    void onJoyCharging(const bool& charging);
 
 private:
     class Impl;

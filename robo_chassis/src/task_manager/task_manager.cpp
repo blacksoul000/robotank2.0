@@ -40,13 +40,13 @@ TaskManager::~TaskManager()
 
 bool TaskManager::createTasks()
 {
-    this->addTask(ITaskPtr(new RoboCore), 20);
+    this->addTask(ITaskPtr(new RoboCore), 30);
     this->addTask(ITaskPtr(new ArduinoExchanger), 0);
-    this->addTask(ITaskPtr(new TrackerTask), 10);
-    this->addTask(ITaskPtr(new GamepadController), 20);
-    this->addTask(ITaskPtr(new GuiExchanger), 25);
-    this->addTask(ITaskPtr(new VideoSource(d->argc, d->argv)), 10);
-    this->addTask(ITaskPtr(new GpioController), 100);
+    this->addTask(ITaskPtr(new TrackerTask), 60);
+    this->addTask(ITaskPtr(new GamepadController), 30);
+    this->addTask(ITaskPtr(new GuiExchanger), 40);
+    this->addTask(ITaskPtr(new VideoSource(d->argc, d->argv)), 100);
+    this->addTask(ITaskPtr(new GpioController), 10);
     this->addTask(ITaskPtr(new ConfigHandler), 0); // last one
 }
 

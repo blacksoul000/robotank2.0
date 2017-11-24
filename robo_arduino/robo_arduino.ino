@@ -187,7 +187,7 @@ void serialEvent()
   {
     if (buf.length() < prefix.length()) return;
 
-    int8_t pos = buf.indexOf(prefix);
+    int8_t pos = buf.lastIndexOf(prefix, buf.length() - sizeof(RpiPkg));
     if (pos == -1)
     {
       buf.remove(0, buf.length() - prefix.length());
