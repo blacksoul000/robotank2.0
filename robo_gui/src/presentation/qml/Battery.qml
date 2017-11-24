@@ -56,8 +56,8 @@ Item {
             }
             Image {
                 id: ico
-                width: root.width
-                height: width
+                width: root.width / 6
+                height: root.width / 2
                 source: "qrc:/icons/charging.svg"
                 visible: root.charging && level < 100
                 anchors.centerIn: parent
@@ -65,7 +65,7 @@ Item {
                 ColorOverlay {
                     anchors.fill: ico
                     source: ico
-                    color: "white"
+                    color: "yellow"
                 }
             }
         }

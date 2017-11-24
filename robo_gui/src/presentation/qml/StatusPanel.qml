@@ -64,6 +64,7 @@ Item {
                 width: 30
                 height: parent.height
                 level: presenter.gamepadBatteryLevel
+                charging: presenter.gamepadCharging
                 image.source: "qrc:/icons/gamepad.svg"
                 anchors.verticalCenter: parent.verticalCenter
 

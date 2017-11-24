@@ -21,6 +21,9 @@ namespace domain
         void setGamepadBatteryLevel(int level);
         int gamepadBatteryLevel() const;
 
+        void setGamepadCharging(bool charging);
+        bool gamepadCharging() const;
+
         void setRobotBatteryLevel(int level);
         int robotBatteryLevel() const;
 
@@ -55,6 +58,7 @@ namespace domain
         void batteryLevelChanged(int level);
         void isChargingChanged(bool charging);
         void gamepadBatteryLevelChanged(int level);
+        void gamepadChargingChanged(bool charging);
         void robotBatteryLevelChanged(int level);
         void gunPositionHChanged(int position);
         void gunPositionVChanged(int position);

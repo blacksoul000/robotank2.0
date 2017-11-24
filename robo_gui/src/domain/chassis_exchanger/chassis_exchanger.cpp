@@ -237,6 +237,8 @@ void ChassisExchanger::processPacket(const QByteArray& data)
         ChassisTmi tmi = ChassisTmi::fromByteArray(packet.data);
         d->model->status()->setArduinoStatus(tmi.arduinoStatus);
         d->model->status()->setGamepadStatus(tmi.joyStatus);
+        d->model->status()->setGamepadBatteryLevel(tmi.joyCapacity);
+        d->model->status()->setGamepadCharging(tmi.joyCharging);
 
         d->model->track()->setTargetRect(tmi.target);
         d->model->track()->setTracking(tmi.trackerStatus);
@@ -248,7 +250,6 @@ void ChassisExchanger::processPacket(const QByteArray& data)
         d->model->status()->setYaw(tmi.yaw * ::positionCoef);
         d->model->status()->setPitch(tmi.pitch * ::positionCoef);
         d->model->status()->setRoll(tmi.roll * ::positionCoef);
-        qDebug() << Q_FUNC_INFO << tmi.gunH << tmi.gunV << tmi.yaw << tmi.pitch << tmi.roll;
 
         emit buttonsUpdated(tmi.buttons);
         break;
@@ -288,6 +289,7 @@ void ChassisExchanger::processPacket(const QByteArray& data)
 void ChassisExchanger::connectionLost()
 {
     d->model->status()->setChassisStatus(false);
+    d->model->status()->setGamepadStatus(false);
     d->connection->stop();
 }
 

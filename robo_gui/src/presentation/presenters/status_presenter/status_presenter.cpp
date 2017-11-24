@@ -32,6 +32,9 @@ StatusPresenter::StatusPresenter(domain::RoboModel *model, QObject *parent) :
     connect(d->model, &StatusModel::robotBatteryLevelChanged,
             this, &StatusPresenter::robotBatteryLevelChanged);
 
+    connect(d->model, &StatusModel::gamepadChargingChanged,
+            this, &StatusPresenter::gamepadChargingChanged);
+
     connect(d->model, &StatusModel::gunPositionHChanged,
             this, &StatusPresenter::gunPositionHChanged);
 
@@ -71,6 +74,11 @@ bool StatusPresenter::isCharging() const
 int StatusPresenter::gamepadBatteryLevel() const
 {
     return d->model->gamepadBatteryLevel();
+}
+
+bool StatusPresenter::gamepadCharging() const
+{
+    return d->model->gamepadCharging();
 }
 
 int StatusPresenter::robotBatteryLevel() const

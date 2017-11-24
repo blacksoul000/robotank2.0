@@ -17,6 +17,7 @@ namespace presentation
         Q_PROPERTY(int batteryLevel READ batteryLevel NOTIFY batteryLevelChanged)
         Q_PROPERTY(bool isCharging READ isCharging NOTIFY isChargingChanged)
         Q_PROPERTY(int gamepadBatteryLevel READ gamepadBatteryLevel NOTIFY gamepadBatteryLevelChanged)
+        Q_PROPERTY(bool gamepadCharging READ gamepadCharging NOTIFY gamepadChargingChanged)
         Q_PROPERTY(int robotBatteryLevel READ robotBatteryLevel NOTIFY robotBatteryLevelChanged)
         Q_PROPERTY(qreal gunPositionH READ gunPositionH NOTIFY gunPositionHChanged)
         Q_PROPERTY(qreal gunPositionV READ gunPositionV NOTIFY gunPositionVChanged)
@@ -34,6 +35,7 @@ namespace presentation
         int batteryLevel() const;
         bool isCharging() const;
         int gamepadBatteryLevel() const;
+        bool gamepadCharging() const;
         int robotBatteryLevel() const;
         qreal gunPositionH() const;
         qreal gunPositionV() const;
@@ -50,6 +52,7 @@ namespace presentation
         void batteryLevelChanged(int level);
         void isChargingChanged(bool charging);
         void gamepadBatteryLevelChanged(int level);
+        void gamepadChargingChanged(bool charging);
         void robotBatteryLevelChanged(int level);
         void gunPositionHChanged(qreal position);
         void gunPositionVChanged(qreal position);
