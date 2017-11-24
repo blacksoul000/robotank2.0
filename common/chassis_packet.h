@@ -89,7 +89,8 @@ struct ChassisTmi
     int8_t arduinoStatus: 1;
     int8_t joyStatus: 1;
     int8_t trackerStatus: 1;
-    int8_t reserve: 5;
+    int8_t joyCharging: 1;
+    int8_t reserve: 4;
 
     int16_t gunH = 0;
     int16_t gunV = 0;
@@ -103,6 +104,7 @@ struct ChassisTmi
 
     QRectF target;
     int16_t buttons = 0;
+    uint8_t joyCapacity = 0;
 
     QByteArray toByteArray() const
     {

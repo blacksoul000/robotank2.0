@@ -6,6 +6,11 @@
 #include "pub_sub.h"
 
 //Qt
+#include <QScopedPointer>
+#include <QSocketNotifier>
+#include <QDir>
+#include <QFileInfo>
+#include <QFile>
 #include <QDebug>
 
 // linux
@@ -24,11 +29,18 @@ public:
     Publisher< bool >* joyStatusP = nullptr;
     Publisher< JoyAxes >* axesP = nullptr;
     Publisher< quint16 >* buttonsP = nullptr;
+    Publisher< quint8 >* capacityP = nullptr;
+    Publisher< bool >* chargingP = nullptr;
 
-    const QString device = "/dev/input/js0";
-
+    const QString gamepad = "/dev/input/js0";
     int fd = -1;
     bool isOpened = false;
+
+    QFile capacity;
+    QFile status;
+
+    QString gamepadSystemPath() const;
+    bool open();
 };
 
 GamepadController::GamepadController() :
@@ -38,20 +50,51 @@ GamepadController::GamepadController() :
     d->joyStatusP = PubSub::instance()->advertise< bool >("joy/status");
     d->axesP = PubSub::instance()->advertise< JoyAxes >("joy/axes");
     d->buttonsP = PubSub::instance()->advertise< quint16 >("joy/buttons");
+    d->capacityP = PubSub::instance()->advertise< quint8 >("joy/capacity");
+    d->chargingP = PubSub::instance()->advertise< bool >("joy/charging");
 }
 
 GamepadController::~GamepadController()
 {
-    close(d->fd);
+    if (d->capacity.isOpen()) d->capacity.close();
+    if (d->status.isOpen()) d->status.close();
+    close (d->fd);
     delete d->joyStatusP;
     delete d->axesP;
     delete d->buttonsP;
+    delete d->capacityP;
+    delete d->chargingP;
     delete d;
 }
 
 void GamepadController::execute()
 {
-    if (!d->isOpened && !this->open()) return;
+    if (!d->isOpened)
+    {
+        if (d->open())
+        {
+            qDebug() << Q_FUNC_INFO << "Connected";
+            d->joyStatusP->publish(true);
+
+            const QString path = d->gamepadSystemPath();
+            if (!path.isEmpty())
+            {
+                d->capacity.setFileName(path + "/capacity");
+                d->capacity.open(QIODevice::ReadOnly | QIODevice::Text);
+                connect(&d->capacity, &QIODevice::readyRead, this, &GamepadController::onCapacityChanged);
+                this->onCapacityChanged();
+
+                d->status.setFileName(path + "/status");
+                d->status.open(QIODevice::ReadOnly | QIODevice::Text);
+                connect(&d->status, &QIODevice::readyRead, this, &GamepadController::onStatusChanged);
+                this->onStatusChanged();
+            }
+        }
+        else
+        {
+            return;
+        }
+    }
     this->readData();
 
     if (d->axesChanged)
@@ -66,16 +109,11 @@ void GamepadController::execute()
     }
 }
 
-bool GamepadController::open()
+bool GamepadController::Impl::open()
 {
-    d->fd = ::open(d->device.toStdString().c_str(), O_RDONLY | O_NONBLOCK);
-    d->isOpened = (d->fd >= 0);
-    if (d->isOpened)
-    {
-        qDebug() << Q_FUNC_INFO << "Connected";
-        d->joyStatusP->publish(true);
-    }
-    return d->isOpened;
+    fd = ::open(gamepad.toStdString().c_str(), O_RDONLY | O_NONBLOCK);
+    isOpened = (fd >= 0);
+    return isOpened;
 }
 
 void GamepadController::readData()
@@ -97,4 +135,33 @@ void GamepadController::readData()
             break;
         }
     }
+}
+
+void GamepadController::onCapacityChanged()
+{
+
+    d->capacity.seek(0);
+    QByteArray data = d->capacity.readAll().trimmed();
+    bool ok;
+    const int capacity = data.toInt(&ok);
+    if (ok) d->capacityP->publish(capacity);
+}
+
+void GamepadController::onStatusChanged()
+{
+    d->status.seek(0);
+    const QString data = d->status.readAll();
+    const bool charging = data.compare("Charging", Qt::CaseInsensitive) == 0;
+    d->chargingP->publish(charging);
+}
+
+
+QString GamepadController::Impl::gamepadSystemPath() const
+{
+    QDir dir("/sys/class/power_supply");
+    if (!dir.exists()) return QString();
+
+    const auto& list = dir.entryInfoList(QDir::Dirs | QDir::NoDotAndDotDot);
+    if (list.isEmpty()) return QString();
+    return list.first().absoluteFilePath();
 }

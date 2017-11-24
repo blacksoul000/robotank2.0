@@ -77,6 +77,8 @@ GuiExchanger::GuiExchanger() :
     PubSub::instance()->subscribe("arduino/status", &GuiExchanger::onArduinoStatus, this);
     PubSub::instance()->subscribe("joy/buttons", &GuiExchanger::onJoyButtons, this);
     PubSub::instance()->subscribe("joy/status", &GuiExchanger::onJoyStatus, this);
+    PubSub::instance()->subscribe("joy/capacity", &GuiExchanger::onJoyCapacity, this);
+    PubSub::instance()->subscribe("joy/charging", &GuiExchanger::onJoyCharging, this);
     PubSub::instance()->subscribe("tracker/target", &GuiExchanger::onTrackerTarget, this);
     PubSub::instance()->subscribe("tracker/status", &GuiExchanger::onTrackerStatus, this);
 
@@ -111,6 +113,8 @@ void GuiExchanger::start()
     d->sender = new QUdpSocket(this);
     d->bluetooth = new domain::BluetoothManager(this);
     d->bluetooth->start();
+
+    bzero(&d->chassis, sizeof(ChassisPacket));
 }
 
 void GuiExchanger::execute()
@@ -191,6 +195,16 @@ void GuiExchanger::onSwitchTrackerRequest(const quint8& code)
 void GuiExchanger::onVideoSourceChanged(const QString& source)
 {
     d->videoSource = source;
+}
+
+void GuiExchanger::onJoyCapacity(const quint8& capacity)
+{
+    d->chassis.joyCapacity = capacity;
+}
+
+void GuiExchanger::onJoyCharging(const bool& charging)
+{
+    d->chassis.joyCharging = charging;
 }
 
 //------------------------------------------------------------------------------------
