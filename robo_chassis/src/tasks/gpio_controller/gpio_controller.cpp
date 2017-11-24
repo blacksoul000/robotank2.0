@@ -22,8 +22,8 @@ namespace
 
     const uint8_t resetPin = 4;
 
-    const uint8_t gunVPin = 19;
-    const uint8_t cameraVPin = 13;
+    const uint8_t gunVPin = 13;
+    const uint8_t cameraVPin = 19;
 
     const int maxVerticalSpeed = 300; // pulse per sec
     const int tickInterval = 100;
@@ -41,7 +41,7 @@ public:
         uint16_t pulse;
         int8_t tick;
         uint16_t zeroLift;
-        uint8_t pulsePerDegree;
+        float pulsePerDegree;
     };
 
     struct MpuData
@@ -76,7 +76,10 @@ public:
 
     PointF3D chassisGyroData;
 
-    QMap< uint8_t, ServoInfo > servo = {{::gunVPin, {1124, 1726, 1560, 0, 1560, 18}}, {::cameraVPin, {1000, 2000, 1500, 0, 1500, 6}}};
+    QMap< uint8_t, ServoInfo > servo = {
+                                        {::gunVPin, {900, 1400, 1300, 0, 1300, 18}}, 
+                                        {::cameraVPin, {1600, 2300, 1900, 0, 1900, 9.08}},  // ~376 pulses = camera field of view(41.41 deg)
+                                       };
 
     void onShotStatusChanged(bool shot);
     bool initMpu();
@@ -135,6 +138,7 @@ void GpioController::start()
     PubSub::instance()->subscribe("joy/buttons", &GpioController::onJoyEvent, this);
     PubSub::instance()->subscribe("arduino/status", &GpioController::onArduinoStatusChanged, this);
     PubSub::instance()->subscribe("core/influence", &GpioController::onInfluence, this);
+    PubSub::instance()->subscribe("core/deviationV", &GpioController::onDeviation, this);
     PubSub::instance()->subscribe("gun/calibrate", &GpioController::onGunCalibrate, this);
     PubSub::instance()->subscribe("camera/calibrate", &GpioController::onCameraCalibrate, this);
     PubSub::instance()->subscribe("ypr/calibrate", &GpioController::onGyroCalibrate, this);
@@ -232,29 +236,23 @@ void GpioController::onJoyEvent(const quint16& joy)
 
 void GpioController::onInfluence(const Influence& influence)
 {
-    switch(influence.angleType)
-    {
-        case AngleType::Velocity:
-        {
-            d->servo[::gunVPin].tick = -std::ceil(influence.gunV * ::tickCoef);
-            d->servo[::cameraVPin].tick = std::ceil(influence.cameraV * ::tickCoef);
-//            qDebug() << Q_FUNC_INFO << __LINE__ << influence.gunV << ::tickCoef << d->servo[::gunVPin].tick << d->servo[::gunVPin].pulse;
-            break;
-        }
-        case AngleType::Position:
-        {
-            d->servo[::gunVPin].tick = 0;
-            d->servo[::cameraVPin].tick = 0;
+    d->servo[::gunVPin].tick = -std::ceil(influence.gunV * ::tickCoef);
+    d->servo[::cameraVPin].tick = -std::ceil(influence.cameraV * ::tickCoef);
+//    qDebug() << Q_FUNC_INFO << __LINE__ << influence.gunV << ::tickCoef << d->servo[::gunVPin].tick << d->servo[::gunVPin].pulse;
+//    qDebug() << Q_FUNC_INFO << __LINE__ << influence.cameraV << ::tickCoef << d->servo[::cameraVPin].tick << d->servo[::cameraVPin].pulse;
+}
 
-            d->servo[::gunVPin].pulse += d->servo[::gunVPin].pulsePerDegree * influence.gunV * ::positionCoef;
-            d->servo[::cameraVPin].pulse += d->servo[::cameraVPin].pulsePerDegree * influence.cameraV * ::positionCoef;
-            qDebug() << Q_FUNC_INFO << __LINE__ << influence.gunV << ((d->servo[::gunVPin].maxPulse - d->servo[::gunVPin].minPulse) / 180.0) << d->servo[::gunVPin].pulse;
+void GpioController::onDeviation(const QPointF& point)
+{
+//    qDebug() << Q_FUNC_INFO << __LINE__ << point
+//             << (d->servo[::cameraVPin].pulsePerDegree * point.y())
+//             << d->servo[::cameraVPin].pulse;
 
-            break;
-        }
-        default:
-            break;
-    }
+    d->servo[::gunVPin].tick = 0;
+    d->servo[::cameraVPin].tick = 0;
+
+//    d->servo[::gunVPin].pulse += d->servo[::gunVPin].pulsePerDegree * point.x();
+    d->servo[::cameraVPin].pulse += 1.0 * point.y();
 }
 
 void GpioController::onGunCalibrate(const Empty&)
@@ -275,7 +273,7 @@ void GpioController::onGyroCalibrate(const Empty&)
 void GpioController::onChassisGyro(const PointF3D& ypr)
 {
     d->chassisGyroData = ypr;
-    printf("ypr2  %7.2f %7.2f %7.2f\n", ypr.x, ypr.y, ypr.z);
+//    printf("ypr2  %7.2f %7.2f %7.2f\n", ypr.x, ypr.y, ypr.z);
 }
 
 void GpioController::onArduinoStatusChanged(const bool& online)
@@ -295,10 +293,12 @@ void GpioController::servoTickProxy(void* data)
 
 void GpioController::servoTick()
 {
+//    auto it = d->servo.begin();
+//    ++it;
     for (auto it = d->servo.begin(), end = d->servo.end(); it != end; ++it)
     {
         it.value().pulse = qBound< uint16_t >(it.value().minPulse, it.value().pulse + it.value().tick, it.value().maxPulse);
-//        qDebug() << it.value().pulse << it.value().minPulse << it.value().maxPulse;
+//        qDebug() << it.key() << it.value().pulse << it.value().minPulse << it.value().maxPulse;
         gpioServo(it.key(), it.value().pulse);
     }
 }

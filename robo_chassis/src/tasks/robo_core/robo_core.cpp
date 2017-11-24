@@ -57,6 +57,7 @@ public:
     JoyAxes joy;
 
     Publisher< Influence >* influenceP = nullptr;
+    Publisher< QPointF >* deviationVP = nullptr;
 
     double smooth(double value, double maxInputValue, double maxOutputValue) const;
 };
@@ -66,6 +67,7 @@ RoboCore::RoboCore():
     d(new Impl)
 {
     d->influenceP = PubSub::instance()->advertise< Influence >("core/influence");
+    d->deviationVP = PubSub::instance()->advertise< QPointF >("core/deviationV");
 
     PubSub::instance()->subscribe("tracker/status", &RoboCore::onTrackerStatusChanged, this);
     PubSub::instance()->subscribe("tracker/deviation", &RoboCore::onTrackerDeviation, this);
@@ -81,6 +83,7 @@ RoboCore::RoboCore():
 RoboCore::~RoboCore()
 {
     delete d->influenceP;
+    delete d->deviationVP;
     delete d;
 }
 
@@ -91,7 +94,7 @@ void RoboCore::execute()
         if (std::fabs(d->requiredTowerH - d->gunPosition.x()) > 0.1)
         {
             d->influence.towerH = d->pid.calculate(d->requiredTowerH, d->gunPosition.x()) / ::influenceCoef;
-            qDebug() << Q_FUNC_INFO << d->requiredTowerH << d->gunPosition.x() << d->influence.towerH << (d->influence.towerH * ::influenceCoef);
+//            qDebug() << Q_FUNC_INFO << d->requiredTowerH << d->gunPosition.x() << d->influence.towerH << (d->influence.towerH * ::influenceCoef);
             d->hasNewData = true;
         }
     }
@@ -135,26 +138,17 @@ void RoboCore::onJoyEvent(const JoyAxes& joy)
         const int turn = joy.axes[Axes::DigitalX] ? joy.axes[Axes::DigitalX] : joy.axes[Axes::X1];
 
         d->influence.leftEngine = ::bound< int >(SHRT_MIN,
-                                d->smooth(speed - turn, SHRT_MAX, d->enginePowerLeft), SHRT_MAX);
+                                d->smooth(speed + turn, SHRT_MAX, d->enginePowerLeft), SHRT_MAX);
         d->influence.rightEngine = ::bound< int >(SHRT_MIN,
-                                d->smooth(speed + turn, SHRT_MAX, d->enginePowerRight), SHRT_MAX);
+                                d->smooth(speed - turn, SHRT_MAX, d->enginePowerRight), SHRT_MAX);
 
         d->joy.axes[Axes::X1] = joy.axes[Axes::X1];
         d->joy.axes[Axes::Y1] = joy.axes[Axes::Y1];
         d->joy.axes[Axes::DigitalX] = joy.axes[Axes::DigitalX];
         d->joy.axes[Axes::DigitalY] = joy.axes[Axes::DigitalY];
         d->hasNewData = true;
-    //    qDebug() << Q_FUNC_INFO << d->influence.leftEngine << d->influence.rightEngine << speed << turnSpeed << joy.axes;
+        qDebug() << Q_FUNC_INFO << d->influence.leftEngine << d->influence.rightEngine << speed << turn << joy.axes;
     }
-/*
-    // FIXME - debug
-    if (d->joy.axes[Axes::X2] != joy.axes[Axes::X2])
-    {   
-        d->joy.axes[Axes::X2] = joy.axes[Axes::X2];
-        if (d->state == State::Search) this->onTrackerStatusChanged(true);
-        d->requiredTowerH += (joy.axes[Axes::X2] / 32767) * 10;
-    }
-*/
 }
 
 void RoboCore::onTrackerDeviation(const QPointF& deviation)
@@ -162,11 +156,13 @@ void RoboCore::onTrackerDeviation(const QPointF& deviation)
     if (d->state != State::Track) return;
 
     d->requiredTowerH = d->gunPosition.x() + (deviation.x() / d->dotsPerDegree.x());
-    d->influence.gunV = d->influence.cameraV =
-            (deviation.y() / d->dotsPerDegree.y()) / ::influenceCoef;
-    qDebug() << Q_FUNC_INFO << deviation 
-             << QPointF((deviation.x() / d->dotsPerDegree.x()), (deviation.y() / d->dotsPerDegree.y()))
-             << d->influence.towerH << d->influence.gunV;
+
+    double gunV = (deviation.y() / d->dotsPerDegree.y());
+//    qDebug() << Q_FUNC_INFO << d->dotsPerDegree << deviation
+//             << QPointF((deviation.x() / d->dotsPerDegree.x()), (deviation.y() / d->dotsPerDegree.y()))
+//            << d->influence.towerH << gunV;
+
+    d->deviationVP->publish(QPointF(gunV, gunV));
 }
 
 void RoboCore::onEnginePowerChanged(const QPoint& enginePower)
@@ -186,12 +182,13 @@ void RoboCore::onTrackerStatusChanged(const bool& status)
     {
         d->requiredTowerH = d->gunPosition.x();
         d->state = State::Track;
-        d->influence.angleType = AngleType::Position;
+
+        d->influence.gunV = 0;
+        d->influence.cameraV = 0;
     }
     else
     {
         d->state = State::Search;
-        d->influence.angleType = AngleType::Velocity;
     }
     d->hasNewData = true;
 }

@@ -67,5 +67,5 @@ void TrackerKeypoints::track(const cv::Mat& image)
         if (!d->tracker->init(image, d->target)) return;
         d->inited = true;
     }
-    bool update = d->tracker->update(image, d->target);
+    d->tracker->update(image, d->target);
 }

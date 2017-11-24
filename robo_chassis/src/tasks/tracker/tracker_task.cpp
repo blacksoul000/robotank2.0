@@ -14,8 +14,10 @@
 
 namespace
 {
-    const double width = 320;
-    const double height = 240;
+//    const double width = 320;
+//    const double height = 240;
+    const double width = 240;
+    const double height = 180;
 
     const va::TrackerCode defaultTracker = va::TrackerCode::OpenTld;
 }  // namespace
@@ -67,8 +69,7 @@ TrackerTask::~TrackerTask()
 }
 
 void TrackerTask::execute()
-{
-}
+{}
 
 void TrackerTask::onNewFrame(const QSharedPointer< cv::Mat >& frame)
 {
@@ -134,7 +135,7 @@ void TrackerTask::Impl::publishTarget(const cv::Rect& rect)
     const double scaleY = ::height / imageHeight;
 
     QRectF r(rect.x / scaleX, rect.y / scaleY, rect.width / scaleX, rect.height / scaleY);
-    qDebug() << Q_FUNC_INFO << r;
+//    qDebug() << Q_FUNC_INFO << r;
     targetP->publish(r);
 }
 
