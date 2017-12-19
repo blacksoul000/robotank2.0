@@ -8,6 +8,7 @@
 
 #include <pigpio.h>
 
+#include <QTimer>
 #include <QtMath>
 #include <QPoint>
 #include <QDebug>
@@ -75,11 +76,7 @@ public:
     double towerHOffset = 0;
 
     PointF3D chassisGyroData;
-
-    QMap< uint8_t, ServoInfo > servo = {
-                                        {::gunVPin, {900, 1400, 1300, 0, 1300, 18}}, 
-                                        {::cameraVPin, {1600, 2300, 1900, 0, 1900, 9.08}},  // ~376 pulses = camera field of view(41.41 deg)
-                                       };
+    QMap< uint8_t, ServoInfo > servo;
 
     void onShotStatusChanged(bool shot);
     bool initMpu();
@@ -123,6 +120,12 @@ void GpioController::start()
     {
 #ifdef ENABLE_SERVO
         gpioSetTimerFuncEx(0, ::tickInterval, servoTickProxy, this);
+
+        // Battery can't hold sufficient power and RPi is going down if we init both servos at the same time
+        d->servo.insert(::gunVPin, {900, 1400, 1300, 0, 1300, 18});
+        QTimer::singleShot(1000, [&](){
+            d->servo.insert(::cameraVPin, {1600, 2300, 1900, 0, 1900, 9.08}); // ~376 pulses = camera field of view(41.41 deg)
+        });
 #endif //ENABLE_SERVO
 
         gpioSetMode(::shotFinishedPin1, PI_OUTPUT);
@@ -196,7 +199,7 @@ void GpioController::readGyroData()
         d->mpu->dmpGetQuaternion(&d->mpuData.q, d->mpuData.fifoBuffer);
         d->mpu->dmpGetGravity(&d->mpuData.gravity, &d->mpuData.q);
         d->mpu->dmpGetYawPitchRoll(d->mpuData.ypr, &d->mpuData.q, &d->mpuData.gravity);
-//        printf("ypr1  %7.2f %7.2f %7.2f    ", d->mpuData.ypr[0] * 180/M_PI, d->mpuData.ypr[1] * 180/M_PI, d->mpuData.ypr[2] * 180/M_PI);
+        printf("ypr1  %7.2f %7.2f %7.2f    ", d->mpuData.ypr[0] * 180/M_PI, d->mpuData.ypr[1] * 180/M_PI, d->mpuData.ypr[2] * 180/M_PI);
 
         #ifdef OUTPUT_READABLE_REALACCEL
             // display real acceleration, adjusted to remove gravity
@@ -216,7 +219,7 @@ void GpioController::readGyroData()
             d->mpu->dmpGetLinearAccelInWorld(&d->mpuData.aaWorld, &d->mpuData.aaReal, &d->mpuData.q);
             printf("aworld %6d %6d %6d    ", d->mpuData.aaWorld.x, d->mpuData.aaWorld.y, d->mpuData.aaWorld.z);
         #endif
-//        printf("\n");
+        printf("\n");
     }
 
     d->towerH = d->mpuData.ypr[0] * 180/M_PI - d->chassisGyroData.x;
