@@ -135,7 +135,8 @@ void RoboCore::onJoyEvent(const JoyAxes& joy)
 //            qDebug() << Q_FUNC_INFO << joy.axes;
         // Y axis is inverted. Up is negative, down is positive
         const int speed = -(joy.axes[Axes::DigitalY] ? joy.axes[Axes::DigitalY] : joy.axes[Axes::Y1]);
-        const int turn = joy.axes[Axes::DigitalX] ? joy.axes[Axes::DigitalX] : joy.axes[Axes::X1];
+        int turn = joy.axes[Axes::DigitalX] ? joy.axes[Axes::DigitalX] : joy.axes[Axes::X1];
+        if (speed < 0) turn *= -1;
 
         d->influence.leftEngine = ::bound< int >(SHRT_MIN,
                                 d->smooth(speed + turn, SHRT_MAX, d->enginePowerLeft), SHRT_MAX);
@@ -147,7 +148,7 @@ void RoboCore::onJoyEvent(const JoyAxes& joy)
         d->joy.axes[Axes::DigitalX] = joy.axes[Axes::DigitalX];
         d->joy.axes[Axes::DigitalY] = joy.axes[Axes::DigitalY];
         d->hasNewData = true;
-        qDebug() << Q_FUNC_INFO << d->influence.leftEngine << d->influence.rightEngine << speed << turn << joy.axes;
+//        qDebug() << Q_FUNC_INFO << d->influence.leftEngine << d->influence.rightEngine << speed << turn << joy.axes;
     }
 }
 
