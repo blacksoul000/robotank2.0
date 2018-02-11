@@ -87,6 +87,7 @@ GuiExchanger::GuiExchanger() :
     PubSub::instance()->subscribe("tracker/selector", &GuiExchanger::onSwitchTrackerRequest, this);
 
     PubSub::instance()->subscribe("camera/source", &GuiExchanger::onVideoSourceChanged, this);
+    PubSub::instance()->subscribe("chassis/voltage", &GuiExchanger::onChassisVoltage, this);
 }
 
 GuiExchanger::~GuiExchanger()
@@ -150,6 +151,11 @@ void GuiExchanger::onYpr(const PointF3D& ypr)
     d->chassis.yaw = ypr.x / ::positionCoef;
     d->chassis.pitch = ypr.y / ::positionCoef;
     d->chassis.roll = ypr.z / ::positionCoef;
+}
+
+void GuiExchanger::onChassisVoltage(const quint16& voltage)
+{
+    d->chassis.voltage = voltage;
 }
 
 void GuiExchanger::onArduinoStatus(const bool& status)

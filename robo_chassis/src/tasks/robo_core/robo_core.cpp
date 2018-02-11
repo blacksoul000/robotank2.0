@@ -103,8 +103,8 @@ void RoboCore::execute()
     {
         d->influenceP->publish(d->influence);
 //        qDebug() << Q_FUNC_INFO << d->influence.leftEngine << d->influence.rightEngine << d->influence.gunV << d->influence.towerH;
+        d->hasNewData = false;
     }
-
 }
 
 void RoboCore::onJoyEvent(const JoyAxes& joy)
@@ -113,14 +113,14 @@ void RoboCore::onJoyEvent(const JoyAxes& joy)
     {
         if (d->joy.axes[Axes::X2] != joy.axes[Axes::X2] || d->joy.axes[Axes::Y2] != joy.axes[Axes::Y2])
         {
-//            qDebug() << Q_FUNC_INFO << joy.axes;
+//            qDebug() << Q_FUNC_INFO << __LINE__ << joy.axes;
             short x = d->smooth(joy.axes[Axes::X2], SHRT_MAX, SHRT_MAX);
             short y = d->smooth(joy.axes[Axes::Y2], SHRT_MAX, SHRT_MAX);
 
             // Y axis is inverted. Up is negative, down is positive
             d->influence.gunV = d->influence.cameraV = -y;
             d->influence.towerH = x;
-    //        qDebug() << Q_FUNC_INFO << d->influence.gunV << d->influence.towerH << joy.axes;
+//            qDebug() << Q_FUNC_INFO << d->influence.gunV << d->influence.towerH << joy.axes;
             d->joy.axes[Axes::X2] = joy.axes[Axes::X2];
             d->joy.axes[Axes::Y2] = joy.axes[Axes::Y2];
             d->hasNewData = true;
@@ -132,7 +132,7 @@ void RoboCore::onJoyEvent(const JoyAxes& joy)
         || d->joy.axes[Axes::DigitalX] != joy.axes[Axes::DigitalX] 
         || d->joy.axes[Axes::DigitalY] != joy.axes[Axes::DigitalY])
     {
-//            qDebug() << Q_FUNC_INFO << joy.axes;
+//        qDebug() << Q_FUNC_INFO << __LINE__ << joy.axes;
         // Y axis is inverted. Up is negative, down is positive
         const int speed = -(joy.axes[Axes::DigitalY] ? joy.axes[Axes::DigitalY] : joy.axes[Axes::Y1]);
         int turn = joy.axes[Axes::DigitalX] ? joy.axes[Axes::DigitalX] : joy.axes[Axes::X1];
@@ -148,7 +148,9 @@ void RoboCore::onJoyEvent(const JoyAxes& joy)
         d->joy.axes[Axes::DigitalX] = joy.axes[Axes::DigitalX];
         d->joy.axes[Axes::DigitalY] = joy.axes[Axes::DigitalY];
         d->hasNewData = true;
-//        qDebug() << Q_FUNC_INFO << d->influence.leftEngine << d->influence.rightEngine << speed << turn << joy.axes;
+//        qDebug() << Q_FUNC_INFO << d->influence.leftEngine << d->influence.rightEngine << speed << turn 
+//            << d->smooth(speed + turn, SHRT_MAX, d->enginePowerLeft)
+//            << d->smooth(speed - turn, SHRT_MAX, d->enginePowerRight) << joy.axes;
     }
 }
 

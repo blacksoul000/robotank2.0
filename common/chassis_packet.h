@@ -105,6 +105,7 @@ struct ChassisTmi
     QRectF target;
     int16_t buttons = 0;
     uint8_t joyCapacity = 0;
+    uint16_t voltage = 0;
 
     QByteArray toByteArray() const
     {

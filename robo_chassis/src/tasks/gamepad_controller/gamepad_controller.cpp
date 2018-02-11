@@ -139,7 +139,6 @@ void GamepadController::readData()
 
 void GamepadController::onCapacityChanged()
 {
-
     d->capacity.seek(0);
     QByteArray data = d->capacity.readAll().trimmed();
     bool ok;
@@ -154,7 +153,6 @@ void GamepadController::onStatusChanged()
     const bool charging = data.compare("Charging", Qt::CaseInsensitive) == 0;
     d->chargingP->publish(charging);
 }
-
 
 QString GamepadController::Impl::gamepadSystemPath() const
 {

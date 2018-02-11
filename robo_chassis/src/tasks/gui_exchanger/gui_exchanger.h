@@ -32,6 +32,7 @@ private:
     void onVideoSourceChanged(const QString& source);
     void onJoyCapacity(const quint8& capacity);
     void onJoyCharging(const bool& charging);
+    void onChassisVoltage(const quint16& voltage);
 
 private:
     class Impl;

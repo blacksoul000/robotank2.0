@@ -15,6 +15,7 @@ public:
     void execute() override;
 
     void onInfluence(const Influence& influence);
+    void onJoyEvent(const quint16& joy);
 
 private:
     class Impl;

@@ -21,12 +21,15 @@ namespace
         int16_t yaw = 0;
         int16_t pitch = 0;
         int16_t roll = 0;
+        int16_t voltage = 0;
     };
     struct RaspberryPkg
     {
         RaspberryPkg(){}
 
-        uint8_t shot = 0;
+        uint8_t shot: 1;
+        uint8_t light: 1;
+        uint8_t reserve: 6;
         int16_t leftEngine = 0;
         int16_t rightEngine = 0;
         int16_t towerH = 0;
@@ -55,11 +58,13 @@ public:
 
     Publisher< PointF3D >* yprP = nullptr;
     Publisher< bool >* arduinoStatusP = nullptr;
+    Publisher< quint16 >* voltageP = nullptr;
 
     void sendData();
     void readData();
     void setArduinoOnline(bool set);
     bool isArduinoOnline() const;
+    void onLightTriggered();
 
 private:
     bool arduinoOnline = true;
@@ -86,11 +91,14 @@ ArduinoExchanger::ArduinoExchanger():
 
     d->yprP = PubSub::instance()->advertise< PointF3D >("chassis/ypr");
     d->arduinoStatusP = PubSub::instance()->advertise< bool >("arduino/status");
+    d->voltageP = PubSub::instance()->advertise< quint16 >("chassis/voltage");
 
     PubSub::instance()->subscribe("core/influence", &ArduinoExchanger::onInfluence, this);
+    PubSub::instance()->subscribe("joy/buttons", &ArduinoExchanger::onJoyEvent, this);
 
     d->setArduinoOnline(false);
     d->package.shot = 0;
+    d->package.light = 0;
 }
 
 ArduinoExchanger::~ArduinoExchanger()
@@ -98,6 +106,7 @@ ArduinoExchanger::~ArduinoExchanger()
     if (d->serial->isOpen()) d->serial->close();
     delete d->yprP;
     delete d->arduinoStatusP;
+    delete d->voltageP;
     delete d;
 }
 
@@ -119,6 +128,11 @@ void ArduinoExchanger::onInfluence(const Influence& influence)
     d->package.leftEngine = influence.leftEngine;
     d->package.rightEngine = influence.rightEngine;
     d->package.towerH = influence.towerH;
+}
+
+void ArduinoExchanger::onJoyEvent(const quint16& joy)
+{
+    if ((joy >> 4) & 1 == 1) d->onLightTriggered(); // L1 button
 }
 
 //------------------------------------------------------------------------------------
@@ -154,12 +168,13 @@ void ArduinoExchanger::Impl::readData()
 
         ::ArduinoPkg pkg = *reinterpret_cast<::ArduinoPkg *>(
                     buffer.mid(prefix.size(), sizeof(::ArduinoPkg)).data());
-//        qDebug() << Q_FUNC_INFO << pkg.yaw << pkg.pitch << pkg.roll << buffer.toHex();
+        // qDebug() << Q_FUNC_INFO << pkg.yaw << pkg.pitch << pkg.roll << pkg.voltage << buffer.toHex();
 
         buffer.remove(0, packetSize);
         waitPrefix = true;
 
         yprP->publish(PointF3D({pkg.yaw * ::positionCoef, pkg.pitch * ::positionCoef, pkg.roll * ::positionCoef}));
+        voltageP->publish(pkg.voltage);
     }
 }
 
@@ -188,4 +203,10 @@ void ArduinoExchanger::Impl::sendData()
 bool ArduinoExchanger::Impl::isArduinoOnline() const
 {
     return arduinoOnline;
+}
+
+void ArduinoExchanger::Impl::onLightTriggered()
+{
+    package.light = !package.light;
+    qDebug() << Q_FUNC_INFO << package.light;
 }

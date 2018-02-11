@@ -1,5 +1,7 @@
 #include <Wire.h>
 #include "I2Cdev.h"
+#include "LowPower.h"
+#include <avr/power.h>
 
 #define ENABLE_GYRO
 #define DMP_FIFO_RATE 20
@@ -17,13 +19,22 @@ const int8_t tower1 = 15;
 const int8_t tower2 = 14;
 const int8_t towerPwm = 10;
 const int8_t shotPwm = 11;
+const int8_t voltagePin = 17; // A3
+const int8_t lightPin = 2;
 
 const double velocityCoef = 32767.0 / 255;
 const double positionCoef = 360.0 / 32767;
 
+const float vccCoef = 1.07309486781; // 1.098 * 1000 / 1023;
+// 1.098 = (real_vcc * 1023) / (measured_vcc * 1000)
+const float dividerCoef = 10.9710144928;  // 100K and 10K
+const uint16_t minVoltage = 7000; //mV
+
 struct RpiPkg
 {
-    uint8_t shot = 0;
+    uint8_t shot : 1;
+    uint8_t light : 1;
+    uint8_t reserve: 6;
     int16_t leftEngine = 0;
     int16_t rightEngine = 0;
     int16_t towerH = 0;
@@ -54,6 +65,7 @@ uint32_t ms, ms1, rpiOnline = 0;
 String prefix;
 String buf;
 bool waitPrefix = true;
+bool ledOn = false;
 
 void setup() {
   Serial.begin(115200); // start serial for output
@@ -65,19 +77,19 @@ void setup() {
   pinMode(boardL1, OUTPUT);
   pinMode(boardL2, OUTPUT);
   pinMode(boardPwmL, OUTPUT);
-  digitalWrite(boardPwmL, 0);
+  applySpeed(0, boardL1, boardL2, boardPwmL);
 
   // Engine Right
   pinMode(boardR1, OUTPUT);
   pinMode(boardR2, OUTPUT);
   pinMode(boardPwmR, OUTPUT);
-  digitalWrite(boardPwmR, 0);
+  applySpeed(0, boardR1, boardR2, boardPwmR);
   
   // Tower
   pinMode(tower1, OUTPUT);
   pinMode(tower2, OUTPUT);
   pinMode(towerPwm, OUTPUT);
-  digitalWrite(towerPwm, 0);
+  applySpeed(0, tower1, tower2, towerPwm);
   
   // Shot
   pinMode(shotPwm, OUTPUT);
@@ -88,10 +100,15 @@ void setup() {
   initMpu();
 #endif
 
+  pinMode(voltagePin, INPUT);    // ADC pin
+  analogReference(INTERNAL);    // set the ADC reference to 1.1V
+  burn8Readings(voltagePin);            // make 8 readings but don't use them
+
+  // rpi echange indicator  
   pinMode(13, OUTPUT);
-  digitalWrite(13, HIGH);
-  
+ 
 //  Serial.println("Ready!");
+  delay(10); 
 }
 
 void processAccelGyro()
@@ -152,10 +169,15 @@ void applySpeed(int16_t speed, int8_t pin1, int8_t pin2, int8_t pinPwm)
     digitalWrite(pin2, LOW);
     digitalWrite(pin1, HIGH);
   }
-  else
+  else if (speed < 0)
   {
     digitalWrite(pin1, LOW);
     digitalWrite(pin2, HIGH);
+  } 
+  else
+  {
+    digitalWrite(pin1, LOW);
+    digitalWrite(pin2, LOW);
   }
 }
 
@@ -166,14 +188,30 @@ void sendData()
       int16_t yaw = 0;
       int16_t pitch = 0;
       int16_t roll = 0;
+      int16_t voltage = 0;
   } pkg;
 
   pkg.yaw = mpuData.ypr[0] * 180 / M_PI / positionCoef;
   pkg.pitch = mpuData.ypr[2] * 180 / M_PI / positionCoef; //bcoz sensor attitude pitch and roll swapped
   pkg.roll = mpuData.ypr[1] * 180 / M_PI / positionCoef;
 
+  uint16_t batteryValue = analogRead(voltagePin);    // read actual value
+  uint16_t vcc = batteryValue * vccCoef;
+  pkg.voltage = vcc * dividerCoef; // mV
+  
   Serial.write(prefix.c_str(), prefix.length());
   Serial.write(reinterpret_cast< const unsigned char* >(&pkg), sizeof(pkg));
+  
+  if (pkg.voltage < minVoltage)
+  {
+    sleepNow();
+  }
+}
+
+void sleepNow()
+{
+  power_all_disable();
+  LowPower.powerDown(SLEEP_FOREVER, ADC_OFF, BOD_OFF); // POWER OFF
 }
 
 void serialEvent()
@@ -206,10 +244,13 @@ void serialEvent()
 
     RpiPkg pkg = *reinterpret_cast< const RpiPkg* >(buf.c_str() + prefix.length());
     rpiOnline = millis();
+    digitalWrite(13, ledOn ? HIGH : LOW);
+    ledOn = !ledOn;
     waitPrefix = true;
     buf.remove(0, packetSize);
 
     digitalWrite(shotPwm, pkg.shot);
+    digitalWrite(lightPin, pkg.light);
     applySpeed(pkg.leftEngine / velocityCoef, boardL1, boardL2, boardPwmL);
     applySpeed(pkg.rightEngine / velocityCoef, boardR1, boardR2, boardPwmR);
     applySpeed(pkg.towerH / velocityCoef, tower1, tower2, towerPwm);
@@ -282,4 +323,12 @@ void initMpu()
 
 //  Serial.println(mpu.testConnection() ? F("MPU6050 connection successful") : F("MPU6050 connection failed"));
 //  mpu.setFullScaleGyroRange(MPU6050_GYRO_FS_2000);
+}
+
+void burn8Readings(int pin)
+{
+  for (int i = 0; i < 8; i++)
+  {
+    analogRead(pin);
+  }
 }

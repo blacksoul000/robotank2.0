@@ -8,7 +8,6 @@
 
 #include <pigpio.h>
 
-#include <QTimer>
 #include <QtMath>
 #include <QPoint>
 #include <QDebug>
@@ -22,13 +21,14 @@ namespace
     const uint8_t shotFinishedPin2 = 21;
 
     const uint8_t resetPin = 4;
+    const uint8_t laserPin = 26;
 
-    const uint8_t gunVPin = 13;
-    const uint8_t cameraVPin = 19;
+    const uint8_t gunVPin = 19;
+    const uint8_t cameraVPin = 13;
 
-    const int maxVerticalSpeed = 300; // pulse per sec
     const int tickInterval = 100;
-    constexpr double tickCoef = tickInterval * maxVerticalSpeed / 1000.0 / SHRT_MAX;
+    constexpr double gunTickCoef = 60.0 / SHRT_MAX;
+    constexpr double cameraTickCoef = 20.0 / SHRT_MAX;
     constexpr double positionCoef = 360.0 / 32767;
 }
 
@@ -71,6 +71,7 @@ public:
 
     bool shoting = false;
     bool shotClosing = false;
+    bool laser = false;
 
     double towerH = 0;
     double towerHOffset = 0;
@@ -80,6 +81,7 @@ public:
 
     void onShotStatusChanged(bool shot);
     bool initMpu();
+    void onLaserTriggered();
 };
 
 GpioController::GpioController():
@@ -121,11 +123,8 @@ void GpioController::start()
 #ifdef ENABLE_SERVO
         gpioSetTimerFuncEx(0, ::tickInterval, servoTickProxy, this);
 
-        // Battery can't hold sufficient power and RPi is going down if we init both servos at the same time
         d->servo.insert(::gunVPin, {900, 1400, 1300, 0, 1300, 18});
-        QTimer::singleShot(1000, [&](){
-            d->servo.insert(::cameraVPin, {1600, 2300, 1900, 0, 1900, 9.08}); // ~376 pulses = camera field of view(41.41 deg)
-        });
+        d->servo.insert(::cameraVPin, {1820, 1990, 1930, 0, 1930, 9.08}); // ~376 pulses = camera field of view(41.41 deg)
 #endif //ENABLE_SERVO
 
         gpioSetMode(::shotFinishedPin1, PI_OUTPUT);
@@ -199,7 +198,7 @@ void GpioController::readGyroData()
         d->mpu->dmpGetQuaternion(&d->mpuData.q, d->mpuData.fifoBuffer);
         d->mpu->dmpGetGravity(&d->mpuData.gravity, &d->mpuData.q);
         d->mpu->dmpGetYawPitchRoll(d->mpuData.ypr, &d->mpuData.q, &d->mpuData.gravity);
-        printf("ypr1  %7.2f %7.2f %7.2f    ", d->mpuData.ypr[0] * 180/M_PI, d->mpuData.ypr[1] * 180/M_PI, d->mpuData.ypr[2] * 180/M_PI);
+//        printf("ypr1  %7.2f %7.2f %7.2f    ", d->mpuData.ypr[0] * 180/M_PI, d->mpuData.ypr[1] * 180/M_PI, d->mpuData.ypr[2] * 180/M_PI);
 
         #ifdef OUTPUT_READABLE_REALACCEL
             // display real acceleration, adjusted to remove gravity
@@ -219,7 +218,7 @@ void GpioController::readGyroData()
             d->mpu->dmpGetLinearAccelInWorld(&d->mpuData.aaWorld, &d->mpuData.aaReal, &d->mpuData.q);
             printf("aworld %6d %6d %6d    ", d->mpuData.aaWorld.x, d->mpuData.aaWorld.y, d->mpuData.aaWorld.z);
         #endif
-        printf("\n");
+//        printf("\n");
     }
 
     d->towerH = d->mpuData.ypr[0] * 180/M_PI - d->chassisGyroData.x;
@@ -229,20 +228,19 @@ void GpioController::readGyroData()
 
 void GpioController::onJoyEvent(const quint16& joy)
 {
-    if (d->shoting) return;
-
     if (((joy >> 6) & 1 == 1) && ((joy >> 7) & 1 == 1)) // both triggers
     {
-        d->onShotStatusChanged(true);
+        d->onShotStatusChanged(!d->shoting);
     }
+    if ((joy >> 5) & 1 == 1) d->onLaserTriggered();
 }
 
 void GpioController::onInfluence(const Influence& influence)
 {
-    d->servo[::gunVPin].tick = -std::ceil(influence.gunV * ::tickCoef);
-    d->servo[::cameraVPin].tick = -std::ceil(influence.cameraV * ::tickCoef);
+    d->servo[::gunVPin].tick = -std::ceil(influence.gunV * ::gunTickCoef);
+    d->servo[::cameraVPin].tick = -std::ceil(influence.cameraV * ::cameraTickCoef);
 //    qDebug() << Q_FUNC_INFO << __LINE__ << influence.gunV << ::tickCoef << d->servo[::gunVPin].tick << d->servo[::gunVPin].pulse;
-//    qDebug() << Q_FUNC_INFO << __LINE__ << influence.cameraV << ::tickCoef << d->servo[::cameraVPin].tick << d->servo[::cameraVPin].pulse;
+//    qDebug() << Q_FUNC_INFO << __LINE__ << influence.cameraV << ::cameraTickCoef << d->servo[::cameraVPin].tick << d->servo[::cameraVPin].pulse;
 }
 
 void GpioController::onDeviation(const QPointF& point)
@@ -281,12 +279,8 @@ void GpioController::onChassisGyro(const PointF3D& ypr)
 
 void GpioController::onArduinoStatusChanged(const bool& online)
 {
-    if (online) return;
+    Q_UNUSED(online)
     return;
-
-//    digitalWrite (::resetPin, HIGH);
-//    delay(50);
-//    digitalWrite (::resetPin, LOW);
 }
 
 void GpioController::servoTickProxy(void* data)
@@ -296,8 +290,6 @@ void GpioController::servoTickProxy(void* data)
 
 void GpioController::servoTick()
 {
-//    auto it = d->servo.begin();
-//    ++it;
     for (auto it = d->servo.begin(), end = d->servo.end(); it != end; ++it)
     {
         it.value().pulse = qBound< uint16_t >(it.value().minPulse, it.value().pulse + it.value().tick, it.value().maxPulse);
@@ -310,8 +302,8 @@ void GpioController::servoTick()
 void GpioController::Impl::onShotStatusChanged(bool shot)
 {
     qDebug() << Q_FUNC_INFO << shot;
-    shotStatusP->publish(shot);
     gpioWrite(::shotFinishedPin1, shot);
+    shotStatusP->publish(shot);
     shoting = shot;
 }
 
@@ -354,4 +346,11 @@ bool GpioController::Impl::initMpu()
         printf("DMP Initialization failed (code %d)\n", mpuData.devStatus);
         return false;
     }
+}
+
+void GpioController::Impl::onLaserTriggered()
+{
+    laser = !laser;
+    qDebug() << Q_FUNC_INFO << laser;
+    gpioWrite(::laserPin, laser);
 }
