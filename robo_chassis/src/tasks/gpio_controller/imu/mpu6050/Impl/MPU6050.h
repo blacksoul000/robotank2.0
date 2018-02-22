@@ -864,7 +864,7 @@ class MPU6050 {
             uint8_t dmpGetQuaternionFloat(float *data, const uint8_t* packet=0);
 
             uint8_t dmpProcessFIFOPacket(const unsigned char *dmpData);
-            uint8_t dmpReadAndProcessFIFOPacket(uint8_t numPackets, uint8_t *processed=NULL);
+            uint8_t dmpReadAndProcessFIFOPacket(uint8_t numPackets, uint8_t *processed=nullptr);
 
             uint8_t dmpSetFIFOProcessedCallback(void (*func) (void));
 
@@ -966,7 +966,7 @@ class MPU6050 {
             uint8_t dmpGetQuaternionFloat(float *data, const uint8_t* packet=0);
 
             uint8_t dmpProcessFIFOPacket(const unsigned char *dmpData);
-            uint8_t dmpReadAndProcessFIFOPacket(uint8_t numPackets, uint8_t *processed=NULL);
+            uint8_t dmpReadAndProcessFIFOPacket(uint8_t numPackets, uint8_t *processed=nullptr);
 
             uint8_t dmpSetFIFOProcessedCallback(void (*func) (void));
 

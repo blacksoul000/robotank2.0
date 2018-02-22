@@ -1,10 +1,12 @@
 #include "gpio_controller.h"
-#include "MPU6050_6Axis_MotionApps20.h"
 
 #include "pub_sub.h"
 #include "influence.h"
 #include "pointf3d.h"
 #include "empty.h"
+
+#include "mpu6050_raw.h"
+#include "mpu6050_dmp.h"
 
 #include <pigpio.h>
 
@@ -45,29 +47,11 @@ public:
         float pulsePerDegree;
     };
 
-    struct MpuData
-    {
-        // MPU control/status vars
-        bool dmpReady = false;  // set true if DMP init was successful
-        uint8_t devStatus;      // return status after each device operation (0 = success, !0 = error)
-        uint16_t packetSize;    // expected DMP packet size (default is 42 bytes)
-        uint16_t fifoCount;     // count of all bytes currently in FIFO
-        uint8_t fifoBuffer[64]; // FIFO storage buffer
-
-        // orientation/motion vars
-        Quaternion q;           // [w, x, y, z]         quaternion container
-        VectorInt16 aa;         // [x, y, z]            accel sensor measurements
-        VectorInt16 aaReal;     // [x, y, z]            gravity-free accel sensor measurements
-        VectorInt16 aaWorld;    // [x, y, z]            world-frame accel sensor measurements
-        VectorFloat gravity;    // [x, y, z]            gravity vector
-        float ypr[3];           // [yaw, pitch, roll]   yaw/pitch/roll container and gravity vector
-    } mpuData;
-
     Publisher< bool >* shotStatusP = nullptr;
     Publisher< QPointF >* gunPositionP = nullptr;
     Publisher< QPointF >* cameraPositionP = nullptr;
 
-    QScopedPointer< MPU6050 > mpu;
+    QScopedPointer< IImu > imu;
 
     bool shoting = false;
     bool shotClosing = false;
@@ -107,15 +91,12 @@ GpioController::~GpioController()
 void GpioController::start()
 {
 #ifdef ENABLE_GYRO
-    d->initMpu();
+    d->imu.reset(new Mpu6050Dmp);
 
-    // supply your own gyro offsets here, scaled for min sensitivity
-    d->mpu->setXGyroOffset(14);
-    d->mpu->setYGyroOffset(-53);
-    d->mpu->setZGyroOffset(25);
-    d->mpu->setXAccelOffset(825);
-    d->mpu->setYAccelOffset(304);
-    d->mpu->setZAccelOffset(1254);
+    if (!d->imu->init())
+    {
+    	qWarning() << Q_FUNC_INFO << "Failed to init IMU";
+    }
 #endif //ENABLE_GYRO
 
     if (gpioInitialise() >= 0)
@@ -175,54 +156,9 @@ void GpioController::execute()
 
 void GpioController::readGyroData()
 {
-    // if programming failed, don't try to do anything
-    if (!d->mpuData.dmpReady) return;
-
-    // get current FIFO count
-    d->mpuData.fifoCount = d->mpu->getFIFOCount();
-
-    if (d->mpuData.fifoCount == 1024) 
-    {
-        // reset so we can continue cleanly
-        d->mpu->resetFIFO();
-        printf("FIFO overflow!\n");
-
-    // otherwise, check for DMP data ready interrupt (this should happen frequently)
-    } 
-    else if (d->mpuData.fifoCount >= 42) 
-    {
-        // read a packet from FIFO
-        d->mpu->getFIFOBytes(d->mpuData.fifoBuffer, d->mpuData.packetSize);
-
-        // display Euler angles in degrees
-        d->mpu->dmpGetQuaternion(&d->mpuData.q, d->mpuData.fifoBuffer);
-        d->mpu->dmpGetGravity(&d->mpuData.gravity, &d->mpuData.q);
-        d->mpu->dmpGetYawPitchRoll(d->mpuData.ypr, &d->mpuData.q, &d->mpuData.gravity);
-//        printf("ypr1  %7.2f %7.2f %7.2f    ", d->mpuData.ypr[0] * 180/M_PI, d->mpuData.ypr[1] * 180/M_PI, d->mpuData.ypr[2] * 180/M_PI);
-
-        #ifdef OUTPUT_READABLE_REALACCEL
-            // display real acceleration, adjusted to remove gravity
-            d->mpu->dmpGetQuaternion(&d->mpuData.q, d->mpuData.fifoBuffer);
-            d->mpu->dmpGetAccel(&d->mpuData.aa, d->mpuData.fifoBuffer);
-            d->mpu->dmpGetGravity(&d->mpuData.gravity, &d->mpuData.q);
-            d->mpu->dmpGetLinearAccel(&d->mpuData.aaReal, &d->mpuData.aa, &d->mpuData.gravity);
-            printf("areal %6d %6d %6d    ", d->mpuData.aaReal.x, d->mpuData.aaReal.y, d->mpuData.aaReal.z);
-        #endif
-
-        #ifdef OUTPUT_READABLE_WORLDACCEL
-            // display initial world-frame acceleration, adjusted to remove gravity
-            // and rotated based on known orientation from quaternion
-            d->mpu->dmpGetQuaternion(&d->mpuData.q, d->mpuData.fifoBuffer);
-            d->mpu->dmpGetAccel(&d->mpuData.aa, d->mpuData.fifoBuffer);
-            d->mpu->dmpGetGravity(&d->mpuData.gravity, &d->mpuData.q);
-            d->mpu->dmpGetLinearAccelInWorld(&d->mpuData.aaWorld, &d->mpuData.aaReal, &d->mpuData.q);
-            printf("aworld %6d %6d %6d    ", d->mpuData.aaWorld.x, d->mpuData.aaWorld.y, d->mpuData.aaWorld.z);
-        #endif
-//        printf("\n");
-    }
-
-    d->towerH = d->mpuData.ypr[0] * 180/M_PI - d->chassisGyroData.x;
-    if (d->towerH < 0) d->towerH += 360;
+    d->imu->readData();
+//    qDebug() << Q_FUNC_INFO << d->imu->pitch() << d->imu->roll() << d->imu->yaw();
+    d->towerH = d->imu->yaw() - d->chassisGyroData.x;
 //    qDebug() << "=========================================" << d->towerH;
 }
 
@@ -305,47 +241,6 @@ void GpioController::Impl::onShotStatusChanged(bool shot)
     gpioWrite(::shotFinishedPin1, shot);
     shotStatusP->publish(shot);
     shoting = shot;
-}
-
-bool GpioController::Impl::initMpu()
-{
-    mpu.reset(new MPU6050);
-    // initialize device
-    printf("Initializing I2C devices...\n");
-    mpu->initialize();
-
-    // verify connection
-    printf("Testing device connections...\n");
-    printf(mpu->testConnection() ? "MPU6050 connection successful\n" : "MPU6050 connection failed\n");
-
-    // load and configure the DMP
-    printf("Initializing DMP...\n");
-    mpuData.devStatus = mpu->dmpInitialize();
-
-    // make sure it worked (returns 0 if so)
-    if (mpuData.devStatus == 0) 
-    {
-        // turn on the DMP, now that it's ready
-        printf("Enabling DMP...\n");
-        mpu->setDMPEnabled(true);
-
-        // set our DMP Ready flag so the main loop() function knows it's okay to use it
-        printf("DMP ready!\n");
-        mpuData.dmpReady = true;
-
-        // get expected DMP packet size for later comparison
-        mpuData.packetSize = mpu->dmpGetFIFOPacketSize();
-        return true;
-    } 
-    else 
-    {
-        // ERROR!
-        // 1 = initial memory load failed
-        // 2 = DMP configuration updates failed
-        // (if it's going to break, usually the code will be 1)
-        printf("DMP Initialization failed (code %d)\n", mpuData.devStatus);
-        return false;
-    }
 }
 
 void GpioController::Impl::onLaserTriggered()

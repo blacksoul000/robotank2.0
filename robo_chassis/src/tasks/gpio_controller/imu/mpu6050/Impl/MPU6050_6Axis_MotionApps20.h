@@ -41,6 +41,11 @@ THE SOFTWARE.
 
 #include "MPU6050.h"
 #include <unistd.h>
+#include <cstring>
+#include <stdio.h>
+#include <stdint.h>
+#include <cmath>
+
 //#include <avr/pgmspace.h>
 
 /* Source is from the InvenSense MotionApps v2 demo code. Original source is
@@ -242,7 +247,7 @@ const prog_uchar dmpMemory[MPU6050_DMP_CODE_SIZE] PROGMEM = {
 // together!
 
 #ifndef DMP_FIFO_RATE
-#define DMP_FIFO_RATE	20
+#define DMP_FIFO_RATE	7
 #endif
 
 const prog_uchar dmpConfig[MPU6050_DMP_CONFIG_SIZE] PROGMEM = {
@@ -628,7 +633,7 @@ uint8_t MPU6050::dmpGetLinearAccel(VectorInt16 *v, VectorInt16 *vRaw, VectorFloa
 uint8_t MPU6050::dmpGetLinearAccelInWorld(VectorInt16 *v, VectorInt16 *vReal, Quaternion *q) {
     // rotate measured 3D acceleration vector into original state
     // frame of reference based on orientation quaternion
-    memcpy(v, vReal, sizeof(VectorInt16));
+    std::memcpy(v, vReal, sizeof(VectorInt16));
     v -> rotate(q);
     return 0;
 }
