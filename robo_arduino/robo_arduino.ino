@@ -20,7 +20,8 @@ const int8_t tower2 = 14;
 const int8_t towerPwm = 10;
 const int8_t shotPwm = 11;
 const int8_t voltagePin = 17; // A3
-const int8_t lightPin = 2;
+const int8_t leftLightPin = 2;
+const int8_t rightLightPin = 16; // A2
 
 const double velocityCoef = 32767.0 / 255;
 const double positionCoef = 360.0 / 32767;
@@ -28,7 +29,7 @@ const double positionCoef = 360.0 / 32767;
 const float vccCoef = 1.07309486781; // 1.098 * 1000 / 1023;
 // 1.098 = (real_vcc * 1023) / (measured_vcc * 1000)
 const float dividerCoef = 10.9710144928;  // 100K and 10K
-const uint16_t minVoltage = 7000; //mV
+const uint16_t minVoltage = 6500; //mV
 
 struct RpiPkg
 {
@@ -104,6 +105,10 @@ void setup() {
   analogReference(INTERNAL);    // set the ADC reference to 1.1V
   burn8Readings(voltagePin);            // make 8 readings but don't use them
 
+  // light
+  pinMode(leftLightPin, OUTPUT);
+  pinMode(rightLightPin, OUTPUT);
+
   // rpi echange indicator  
   pinMode(13, OUTPUT);
  
@@ -118,8 +123,10 @@ void processAccelGyro()
 
     // get current FIFO count
     mpuData.fifoCount = mpu.getFIFOCount();
-    
-    if (mpuData.fifoCount == 1024)
+
+    if (mpuData.fifoCount == 0) return;
+
+    if (mpuData.fifoCount == 1024 || mpuData.fifoCount % mpuData.packetSize != 0)
     {
         // reset so we can continue cleanly
         mpu.resetFIFO();
@@ -127,11 +134,15 @@ void processAccelGyro()
     
     // otherwise, check for DMP data ready interrupt (this should happen frequently)
     }
-    else if (mpuData.fifoCount >= 42)
+    else
     {
-        // read a packet from FIFO
-        mpu.getFIFOBytes(mpuData.fifoBuffer, mpuData.packetSize);
-    
+        while (mpuData.fifoCount >= mpuData.packetSize)
+        {
+            // read a packet from FIFO
+            mpu.getFIFOBytes(mpuData.fifoBuffer, mpuData.packetSize);
+            mpuData.fifoCount -= mpuData.packetSize;
+        }
+
         // display Euler angles in degrees
         mpu.dmpGetQuaternion(&mpuData.q, mpuData.fifoBuffer);
         mpu.dmpGetGravity(&mpuData.gravity, &mpuData.q);
@@ -202,6 +213,9 @@ void sendData()
   Serial.write(prefix.c_str(), prefix.length());
   Serial.write(reinterpret_cast< const unsigned char* >(&pkg), sizeof(pkg));
   
+  digitalWrite(13, ledOn ? HIGH : LOW);  
+  ledOn = !ledOn;
+  
   if (pkg.voltage < minVoltage)
   {
     sleepNow();
@@ -244,13 +258,13 @@ void serialEvent()
 
     RpiPkg pkg = *reinterpret_cast< const RpiPkg* >(buf.c_str() + prefix.length());
     rpiOnline = millis();
-    digitalWrite(13, ledOn ? HIGH : LOW);
-    ledOn = !ledOn;
+
     waitPrefix = true;
     buf.remove(0, packetSize);
 
     digitalWrite(shotPwm, pkg.shot);
-    digitalWrite(lightPin, pkg.light);
+    digitalWrite(leftLightPin, pkg.light);
+    digitalWrite(rightLightPin, pkg.light);
     applySpeed(pkg.leftEngine / velocityCoef, boardL1, boardL2, boardPwmL);
     applySpeed(pkg.rightEngine / velocityCoef, boardR1, boardR2, boardPwmR);
     applySpeed(pkg.towerH / velocityCoef, tower1, tower2, towerPwm);
