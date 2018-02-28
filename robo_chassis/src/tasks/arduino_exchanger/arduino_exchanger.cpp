@@ -59,6 +59,7 @@ public:
     Publisher< PointF3D >* yprP = nullptr;
     Publisher< bool >* arduinoStatusP = nullptr;
     Publisher< quint16 >* voltageP = nullptr;
+    Publisher< bool >* headlightP = nullptr;
 
     void sendData();
     void readData();
@@ -92,6 +93,7 @@ ArduinoExchanger::ArduinoExchanger():
     d->yprP = PubSub::instance()->advertise< PointF3D >("chassis/ypr");
     d->arduinoStatusP = PubSub::instance()->advertise< bool >("arduino/status");
     d->voltageP = PubSub::instance()->advertise< quint16 >("chassis/voltage");
+    d->headlightP = PubSub::instance()->advertise< bool >("chassis/headlight");
 
     PubSub::instance()->subscribe("core/influence", &ArduinoExchanger::onInfluence, this);
     PubSub::instance()->subscribe("joy/buttons", &ArduinoExchanger::onJoyEvent, this);
@@ -107,6 +109,7 @@ ArduinoExchanger::~ArduinoExchanger()
     delete d->yprP;
     delete d->arduinoStatusP;
     delete d->voltageP;
+    delete d->headlightP;
     delete d;
 }
 
@@ -209,4 +212,5 @@ void ArduinoExchanger::Impl::onLightTriggered()
 {
     package.light = !package.light;
     qDebug() << Q_FUNC_INFO << package.light;
+    headlightP->publish(package.light);
 }

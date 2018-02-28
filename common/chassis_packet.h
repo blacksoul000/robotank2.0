@@ -90,7 +90,9 @@ struct ChassisTmi
     int8_t joyStatus: 1;
     int8_t trackerStatus: 1;
     int8_t joyCharging: 1;
-    int8_t reserve: 4;
+    int8_t headlight: 1;
+    int8_t pointer: 1;
+    int8_t reserve: 2;
 
     int16_t gunH = 0;
     int16_t gunV = 0;
