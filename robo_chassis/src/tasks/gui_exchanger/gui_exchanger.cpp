@@ -88,6 +88,9 @@ GuiExchanger::GuiExchanger() :
 
     PubSub::instance()->subscribe("camera/source", &GuiExchanger::onVideoSourceChanged, this);
     PubSub::instance()->subscribe("chassis/voltage", &GuiExchanger::onChassisVoltage, this);
+
+    PubSub::instance()->subscribe("chassis/headlight", &GuiExchanger::onHeadlightChanged, this);
+    PubSub::instance()->subscribe("chassis/pointer", &GuiExchanger::onPointerChanged, this);
 }
 
 GuiExchanger::~GuiExchanger()
@@ -211,6 +214,16 @@ void GuiExchanger::onJoyCapacity(const quint8& capacity)
 void GuiExchanger::onJoyCharging(const bool& charging)
 {
     d->chassis.joyCharging = charging;
+}
+
+void GuiExchanger::onHeadlightChanged(const bool& on)
+{
+	d->chassis.headlight = on;
+}
+
+void GuiExchanger::onPointerChanged(const bool& on)
+{
+	d->chassis.pointer = on;
 }
 
 //------------------------------------------------------------------------------------

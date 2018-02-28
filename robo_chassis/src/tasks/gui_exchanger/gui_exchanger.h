@@ -33,6 +33,8 @@ private:
     void onJoyCapacity(const quint8& capacity);
     void onJoyCharging(const bool& charging);
     void onChassisVoltage(const quint16& voltage);
+    void onHeadlightChanged(const bool& on);
+    void onPointerChanged(const bool& on);
 
 private:
     class Impl;

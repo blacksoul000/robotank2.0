@@ -23,7 +23,7 @@ namespace
     const uint8_t shotFinishedPin2 = 21;
 
     const uint8_t resetPin = 4;
-    const uint8_t laserPin = 26;
+    const uint8_t pointerPin = 26;
 
     const uint8_t gunVPin = 19;
     const uint8_t cameraVPin = 13;
@@ -50,12 +50,13 @@ public:
     Publisher< bool >* shotStatusP = nullptr;
     Publisher< QPointF >* gunPositionP = nullptr;
     Publisher< QPointF >* cameraPositionP = nullptr;
+    Publisher< bool >* pointerP = nullptr;
 
     QScopedPointer< IImu > imu;
 
     bool shoting = false;
     bool shotClosing = false;
-    bool laser = false;
+    bool pointer = false;
 
     double towerH = 0;
     double towerHOffset = 0;
@@ -65,7 +66,7 @@ public:
 
     void onShotStatusChanged(bool shot);
     bool initMpu();
-    void onLaserTriggered();
+    void onPointerTriggered();
 };
 
 GpioController::GpioController():
@@ -75,6 +76,7 @@ GpioController::GpioController():
     d->shotStatusP = PubSub::instance()->advertise< bool >("core/shot");
     d->gunPositionP = PubSub::instance()->advertise< QPointF >("gun/position");
     d->cameraPositionP = PubSub::instance()->advertise< QPointF >("camera/position");
+    d->pointerP = PubSub::instance()->advertise< bool >("chassis/pointer");
 }
 
 GpioController::~GpioController()
@@ -85,6 +87,7 @@ GpioController::~GpioController()
     delete d->gunPositionP;
     delete d->cameraPositionP;
     delete d->shotStatusP;
+    delete d->pointerP;
     delete d;
 }
 
@@ -168,7 +171,7 @@ void GpioController::onJoyEvent(const quint16& joy)
     {
         d->onShotStatusChanged(!d->shoting);
     }
-    if ((joy >> 5) & 1 == 1) d->onLaserTriggered();
+    if ((joy >> 5) & 1 == 1) d->onPointerTriggered();
 }
 
 void GpioController::onInfluence(const Influence& influence)
@@ -243,9 +246,10 @@ void GpioController::Impl::onShotStatusChanged(bool shot)
     shoting = shot;
 }
 
-void GpioController::Impl::onLaserTriggered()
+void GpioController::Impl::onPointerTriggered()
 {
-    laser = !laser;
-    qDebug() << Q_FUNC_INFO << laser;
-    gpioWrite(::laserPin, laser);
+    pointer = !pointer;
+    qDebug() << Q_FUNC_INFO << pointer;
+    gpioWrite(::pointerPin, pointer);
+    pointerP->publish(pointer);
 }
