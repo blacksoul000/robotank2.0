@@ -54,6 +54,11 @@ StatusPresenter::StatusPresenter(domain::RoboModel *model, QObject *parent) :
             this, &StatusPresenter::gamepadStatusChanged);
     connect(d->model, &StatusModel::chassisStatusChanged,
             this, &StatusPresenter::chassisStatusChanged);
+
+    connect(d->model, &StatusModel::headlightStatusChanged,
+            this, &StatusPresenter::headlightStatusChanged);
+    connect(d->model, &StatusModel::pointerStatusChanged,
+            this, &StatusPresenter::pointerStatusChanged);
 }
 
 StatusPresenter::~StatusPresenter()
@@ -129,4 +134,14 @@ bool StatusPresenter::gamepadStatus() const
 bool StatusPresenter::chassisStatus() const
 {
     return d->model->chassisStatus();
+}
+
+bool StatusPresenter::headlightStatus() const
+{
+    return d->model->headlightStatus();
+}
+
+bool StatusPresenter::pointerStatus() const
+{
+    return d->model->pointerStatus();
 }

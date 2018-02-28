@@ -11,7 +11,7 @@ public:
     bool isCharging = false;
     bool isGamepadCharging = false;
     int gamepadBatteryLevel = 0;
-    int robotBatteryLevel = 0;
+    int robotBatteryLevel = 3333; // FIXME
     qreal gunPositionH = 0;
     qreal gunPositionV = 0;
     qreal cameraPositionV = 0;
@@ -21,6 +21,9 @@ public:
     bool arduinoStatus = false;
     bool gamepadStatus = false;
     bool chassisStatus = false;
+
+    bool headlightStatus = false;
+    bool pointerStatus = false;
 };
 
 StatusModel::StatusModel(QObject* parent) :
@@ -215,3 +218,30 @@ bool StatusModel::chassisStatus() const
 {
     return d->chassisStatus;
 }
+
+void StatusModel::setHeadlightStatus(bool on)
+{
+    if (on != d->headlightStatus)
+
+	d->headlightStatus = on;
+    emit headlightStatusChanged(on);
+}
+
+bool StatusModel::headlightStatus() const
+{
+	return d->headlightStatus;
+}
+
+void StatusModel::setPointerStatus(bool on)
+{
+    if (on != d->pointerStatus)
+
+	d->pointerStatus = on;
+    emit pointerStatusChanged(on);
+}
+
+bool StatusModel::pointerStatus() const
+{
+	return d->pointerStatus;
+}
+

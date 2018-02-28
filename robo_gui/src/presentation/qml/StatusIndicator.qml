@@ -5,10 +5,8 @@ Item {
     height: 18
     width: row.childrenRect.width
 
-    property alias image: ico.source
+    property alias image: ico
     property alias text: label.text
-    property alias imageWidth: ico.width
-    property alias imageHeight: ico.height
     property real imageRotation: 0
 
     Row {

@@ -54,6 +54,12 @@ namespace domain
         void setChassisStatus(bool status);
         bool chassisStatus() const;
 
+        void setHeadlightStatus(bool on);
+        bool headlightStatus() const;
+
+        void setPointerStatus(bool on);
+        bool pointerStatus() const;
+
     signals:
         void batteryLevelChanged(int level);
         void isChargingChanged(bool charging);
@@ -69,6 +75,9 @@ namespace domain
         void arduinoStatusChanged(bool status);
         void gamepadStatusChanged(bool status);
         void chassisStatusChanged(bool status);
+
+        void headlightStatusChanged(bool on);
+        void pointerStatusChanged(bool on);
 
     private:
         class Impl;

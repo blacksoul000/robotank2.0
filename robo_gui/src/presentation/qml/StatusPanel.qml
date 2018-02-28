@@ -14,77 +14,86 @@ Item {
         Row {
             spacing: 10
 
-            anchors.fill: parent
-            anchors.margins: 2
+			anchors {
+//				left: parent.left
+//				right: parent.right
+//				verticalCenter: parent.verticalCenter
+            	fill: parent
+				margins: 2
+            }
 
             StatusIndicator {
-                image: "qrc:/icons/azimuth.svg"
-                imageWidth: 60
-                text: presenter.gunPositionH.toFixed(1)
-                anchors.verticalCenter: parent.verticalCenter
-            }
-            StatusIndicator {
-                image: "qrc:/icons/angle.svg"
-                text: presenter.gunPositionV.toFixed(1)
-                anchors.verticalCenter: parent.verticalCenter
-            }
-            StatusIndicator {
-                image: "qrc:/icons/pitch.svg"
-                imageWidth: 60
+                image.source: "qrc:/icons/pitch.svg"
+                image.width: 60
                 imageRotation: presenter.pitch
                 text: presenter.pitch.toFixed(1)
-                anchors.verticalCenter: parent.verticalCenter
+				anchors.verticalCenter: parent.verticalCenter
             }
+            
             StatusIndicator {
-                image: "qrc:/icons/roll.svg"
-                imageWidth: 35
+            	image.source: "qrc:/icons/roll.svg"
+				image.width: 35
                 imageRotation: presenter.roll
                 text: presenter.roll.toFixed(1)
-                anchors.verticalCenter: parent.verticalCenter
+				anchors.verticalCenter: parent.verticalCenter
             }
 
-            BatteryIndicator {
-                width: 45
-                height: parent.height
-                level: presenter.robotBatteryLevel
-                image.source: "qrc:/icons/pitch.svg"
-                anchors.verticalCenter: parent.verticalCenter
+            StatusIndicator {
+				image.source: "qrc:/icons/pitch.svg"
+            	image.width: 60
+                text: (presenter.robotBatteryLevel / 1000.0).toFixed(1) + "V"
+				anchors.verticalCenter: parent.verticalCenter
 
                 ColorOverlay {
-                    x: parent.image.x
-                    y: parent.image.y
-                    width: parent.image.width
-                    height: parent.image.height
                     source: parent.image
                     color: presenter.chassisStatus ? "#00ce00" : "#ce0000"
+					x: parent.image.x
+					y: parent.image.y
+					width: parent.image.width
+					height: parent.image.height
                 }
             }
 
-            BatteryIndicator {
-                width: 30
-                height: parent.height
-                level: presenter.gamepadBatteryLevel
-                charging: presenter.gamepadCharging
-                image.source: "qrc:/icons/gamepad.svg"
-                anchors.verticalCenter: parent.verticalCenter
+            StatusIndicator {
+            	image.source: "qrc:/icons/gamepad.svg"
+            	image.width: 35
+                text: presenter.gamepadBatteryLevel + "%"
+				anchors.verticalCenter: parent.verticalCenter
 
                 ColorOverlay {
-                    x: parent.image.x
-                    y: parent.image.y
-                    width: parent.image.width
-                    height: parent.image.height
                     source: parent.image
                     color: presenter.gamepadStatus ? "#00ce00" : "#ce0000"
+					x: parent.image.x
+					y: parent.image.y
+					width: parent.image.width
+					height: parent.image.height
                 }
             }
-
-            BatteryIndicator {
-                width: 30
-                height: parent.height
-                level: presenter.batteryLevel
-                charging: presenter.isCharging
-                image.source: "qrc:/icons/phone.svg"
-                anchors.verticalCenter: parent.verticalCenter
+            
+            Image {
+            	source: "qrc:/icons/headlight.svg"
+	            width: root.height
+	            height: root.height
+				anchors.verticalCenter: parent.verticalCenter
+				
+                ColorOverlay {
+                    source: parent
+                    color: presenter.headlightStatus ? "#00ce00" : "#000000"
+					anchors.fill: parent
+                }
+            }
+            
+            Image {
+            	source: "qrc:/icons/target.svg"
+	            width: 30
+	            height: 30
+				anchors.verticalCenter: parent.verticalCenter
+				
+                ColorOverlay {
+                    source: parent
+                    color: presenter.pointerStatus ? "#00ce00" : "#000000"
+					anchors.fill: parent
+                }
             }
         }
 

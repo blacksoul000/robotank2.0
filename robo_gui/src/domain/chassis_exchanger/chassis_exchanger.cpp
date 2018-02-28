@@ -250,6 +250,9 @@ void ChassisExchanger::processPacket(const QByteArray& data)
         d->model->status()->setYaw(tmi.yaw * ::positionCoef);
         d->model->status()->setPitch(tmi.pitch * ::positionCoef);
         d->model->status()->setRoll(tmi.roll * ::positionCoef);
+        d->model->status()->setRobotBatteryLevel(tmi.voltage);
+        d->model->status()->setHeadlightStatus(tmi.headlight);
+        d->model->status()->setPointerStatus(tmi.pointer);
 
         emit buttonsUpdated(tmi.buttons);
         break;

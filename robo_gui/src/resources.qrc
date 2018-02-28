@@ -12,6 +12,8 @@
         <file alias="icons/angle.svg">resources/angle.svg</file>
         <file alias="icons/chassis.svg">resources/chassis.svg</file>
         <file alias="icons/tower.svg">resources/tower.svg</file>
+        <file alias="icons/headlight.svg">resources/headlight.svg</file>
+        <file alias="icons/target.svg">resources/target.svg</file>
         <file alias="icons/plus.svg">resources/plus.svg</file>
         <file alias="icons/minus.svg">resources/minus.svg</file>
     </qresource>
