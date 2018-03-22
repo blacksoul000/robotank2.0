@@ -22,6 +22,7 @@ const int8_t shotPwm = 11;
 const int8_t voltagePin = 17; // A3
 const int8_t leftLightPin = 2;
 const int8_t rightLightPin = 16; // A2
+const int8_t enginesPower = 3;
 
 const double velocityCoef = 32767.0 / 255;
 const double positionCoef = 360.0 / 32767;
@@ -111,6 +112,9 @@ void setup() {
 
   // rpi echange indicator  
   pinMode(13, OUTPUT);
+
+  pinMode(enginesPower, OUTPUT);
+  digitalWrite(enginesPower, LOW);
  
 //  Serial.println("Ready!");
   delay(10); 
@@ -224,6 +228,15 @@ void sendData()
 
 void sleepNow()
 {
+  // blink 3 times
+  for (int i = 0; i <= 3; ++i){
+    digitalWrite(13, LOW);
+    delay(500);
+    digitalWrite(13, HIGH);
+    delay(500);
+  }
+  digitalWrite(13, LOW);
+
   power_all_disable();
   LowPower.powerDown(SLEEP_FOREVER, ADC_OFF, BOD_OFF); // POWER OFF
 }
@@ -262,6 +275,7 @@ void serialEvent()
     waitPrefix = true;
     buf.remove(0, packetSize);
 
+    digitalWrite(enginesPower, HIGH);
     digitalWrite(shotPwm, pkg.shot);
     digitalWrite(leftLightPin, pkg.light);
     digitalWrite(rightLightPin, pkg.light);
@@ -284,6 +298,7 @@ void loop()
   }
   if (rpiOnline + 1000 < ms)
   {
+    digitalWrite(enginesPower, LOW);
     digitalWrite(boardPwmL, 0);
     digitalWrite(boardPwmR, 0);
     digitalWrite(towerPwm, 0);
