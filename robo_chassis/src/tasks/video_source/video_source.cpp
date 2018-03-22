@@ -41,6 +41,7 @@ public:
     char** argv;
 
     rtsp_server::RtspServer* rtsp = nullptr;
+    bool started = false;
 
     Publisher< MatPtr >* imageP = nullptr;
     Publisher< QPointF >* dotsPerDegreeP = nullptr;
@@ -75,6 +76,8 @@ VideoSource::~VideoSource()
 
 void VideoSource::start()
 {
+    if (d->localIp().isEmpty()) return;
+
     d->initRtspServer();
     QString path = QString("rtsp://%1:%2/%3")
         .arg(d->localIp())
@@ -82,10 +85,17 @@ void VideoSource::start()
         .arg(QString::fromStdString(d->rtsp->streamName()));
     d->videoSourceP->publish(path);
     d->dotsPerDegreeP->publish(QPointF(::width / ::fieldOfViewH, ::height / ::fieldOfViewV));
+    d->started = true;
 }
 
 void VideoSource::execute()
 {
+    if (!d->started) 
+    {
+        this->start();
+        return;
+    }
+
     d->rtsp->spin();
     auto data = d->rtsp->lastFrame();
     if (!data) return;
@@ -148,4 +158,5 @@ QString VideoSource::Impl::localIp() const
              return address.toString();
         }
     }
+    return QString();
 }

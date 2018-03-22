@@ -48,6 +48,7 @@ bool TaskManager::createTasks()
     this->addTask(ITaskPtr(new VideoSource(d->argc, d->argv)), 100);
     this->addTask(ITaskPtr(new GpioController), 10);
     this->addTask(ITaskPtr(new ConfigHandler), 0); // last one
+    return true;
 }
 
 bool TaskManager::addTask(const ITaskPtr& task, quint64 delay)

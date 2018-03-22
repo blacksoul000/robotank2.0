@@ -135,7 +135,7 @@ void ArduinoExchanger::onInfluence(const Influence& influence)
 
 void ArduinoExchanger::onJoyEvent(const quint16& joy)
 {
-    if ((joy >> 4) & 1 == 1) d->onLightTriggered(); // L1 button
+    if (((joy >> 4) & 1) == 1) d->onLightTriggered(); // L1 button
 }
 
 //------------------------------------------------------------------------------------

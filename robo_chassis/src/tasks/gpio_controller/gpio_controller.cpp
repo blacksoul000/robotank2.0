@@ -167,11 +167,11 @@ void GpioController::readGyroData()
 
 void GpioController::onJoyEvent(const quint16& joy)
 {
-    if (((joy >> 6) & 1 == 1) && ((joy >> 7) & 1 == 1)) // both triggers
+    if ((((joy >> 6) & 1) == 1) && (((joy >> 7) & 1) == 1)) // both triggers
     {
         d->onShotStatusChanged(!d->shoting);
     }
-    if ((joy >> 5) & 1 == 1) d->onPointerTriggered();
+    if (((joy >> 5) & 1) == 1) d->onPointerTriggered();
 }
 
 void GpioController::onInfluence(const Influence& influence)
