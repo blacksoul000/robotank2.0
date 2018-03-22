@@ -17,9 +17,9 @@ namespace
     constexpr double influenceCoef = 90.0 / 32767;
 
     // towerH pid
-    const double Kp = 4.5;
-    const double Ki = 0.1;
-    const double Kd = 0;
+    const double Kp = 1.6;
+    const double Ki = 0.03;
+    const double Kd = 0.02;
     const double dt = 0.1;
     const double minInfluence = -40;
     const double maxInfluence = 40;
@@ -185,14 +185,14 @@ void RoboCore::onTrackerStatusChanged(const bool& status)
     {
         d->requiredTowerH = d->gunPosition.x();
         d->state = State::Track;
-
-        d->influence.gunV = 0;
-        d->influence.cameraV = 0;
     }
     else
     {
         d->state = State::Search;
     }
+    d->influence.gunV = 0;
+    d->influence.cameraV = 0;
+    d->influence.towerH = 0;
     d->hasNewData = true;
 }
 
