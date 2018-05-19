@@ -9,7 +9,8 @@
 class Mpu6050Dmp : public IImu
 {
 public:
-	Mpu6050Dmp();
+	Mpu6050Dmp(int8_t deviceId, int8_t xGyro, int8_t yGyro, int8_t zGyro,
+			int16_t xAccel, int16_t yAccel, int16_t zAccel);
     ~Mpu6050Dmp();
 
     bool init() override;

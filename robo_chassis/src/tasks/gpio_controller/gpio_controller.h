@@ -4,7 +4,6 @@
 #include "i_task.h"
 
 struct JoyButtons;
-struct PointF3D;
 struct Influence;
 struct Empty;
 
@@ -27,8 +26,8 @@ private:
     void onGunCalibrate(const Empty&);
     void onCameraCalibrate(const Empty&);
     void onGyroCalibrate(const Empty&);
-    void onChassisGyro(const PointF3D& ypr);
     void onArduinoStatusChanged(const bool& online);
+
     static void servoTickProxy(void* data);
     void servoTick();
 

@@ -19,6 +19,7 @@
 
 namespace
 {
+    const uint8_t shotPin = 27;
     const uint8_t shotFinishedPin1 = 20;
     const uint8_t shotFinishedPin2 = 21;
 
@@ -47,12 +48,13 @@ public:
         float pulsePerDegree;
     };
 
-    Publisher< bool >* shotStatusP = nullptr;
     Publisher< QPointF >* gunPositionP = nullptr;
     Publisher< QPointF >* cameraPositionP = nullptr;
     Publisher< bool >* pointerP = nullptr;
+    Publisher< PointF3D >* yprP = nullptr;
 
-    QScopedPointer< IImu > imu;
+    QScopedPointer< IImu > towerImu;
+    QScopedPointer< IImu > chassisImu;
 
     bool shoting = false;
     bool shotClosing = false;
@@ -73,10 +75,10 @@ GpioController::GpioController():
     ITask(),
     d(new Impl)
 {
-    d->shotStatusP = PubSub::instance()->advertise< bool >("core/shot");
     d->gunPositionP = PubSub::instance()->advertise< QPointF >("gun/position");
     d->cameraPositionP = PubSub::instance()->advertise< QPointF >("camera/position");
     d->pointerP = PubSub::instance()->advertise< bool >("chassis/pointer");
+    d->yprP = PubSub::instance()->advertise< PointF3D >("chassis/ypr");
 }
 
 GpioController::~GpioController()
@@ -86,17 +88,18 @@ GpioController::~GpioController()
 
     delete d->gunPositionP;
     delete d->cameraPositionP;
-    delete d->shotStatusP;
     delete d->pointerP;
+    delete d->yprP;
     delete d;
 }
 
 void GpioController::start()
 {
 #ifdef ENABLE_GYRO
-    d->imu.reset(new Mpu6050Dmp);
+    d->towerImu.reset(new Mpu6050Dmp(0x69, 14, -53, 25, 825, 304, 1254));
+    d->chassisImu.reset(new Mpu6050Dmp(0x68, 68, -17, -31, -2364, -983, 987));
 
-    if (!d->imu->init())
+    if (!d->towerImu->init() || !d->chassisImu->init())
     {
     	qWarning() << Q_FUNC_INFO << "Failed to init IMU";
     }
@@ -111,6 +114,7 @@ void GpioController::start()
         d->servo.insert(::cameraVPin, {1820, 1990, 1930, 0, 1930, 9.08}); // ~376 pulses = camera field of view(41.41 deg)
 #endif //ENABLE_SERVO
 
+        gpioSetMode(::shotPin, PI_OUTPUT);
         gpioSetMode(::shotFinishedPin1, PI_OUTPUT);
         gpioSetMode(::shotFinishedPin2, PI_INPUT);
     }
@@ -119,7 +123,6 @@ void GpioController::start()
         qWarning() << "Failed to initialize GPIO";
     }
 
-    d->onShotStatusChanged(false);
 
     PubSub::instance()->subscribe("joy/buttons", &GpioController::onJoyEvent, this);
     PubSub::instance()->subscribe("arduino/status", &GpioController::onArduinoStatusChanged, this);
@@ -128,7 +131,6 @@ void GpioController::start()
     PubSub::instance()->subscribe("gun/calibrate", &GpioController::onGunCalibrate, this);
     PubSub::instance()->subscribe("camera/calibrate", &GpioController::onCameraCalibrate, this);
     PubSub::instance()->subscribe("ypr/calibrate", &GpioController::onGyroCalibrate, this);
-    PubSub::instance()->subscribe("chassis/ypr", &GpioController::onChassisGyro, this);
 }
 
 void GpioController::execute()
@@ -150,26 +152,30 @@ void GpioController::execute()
     this->readGyroData();
 #endif //ENABLE_GYRO
 
-    d->gunPositionP->publish(QPointF(d->towerH - d->towerHOffset, 
-                                -1.0 * (d->servo[::gunVPin].pulse - d->servo[::gunVPin].zeroLift) 
+    d->gunPositionP->publish(QPointF(d->towerH - d->towerHOffset,
+                                -1.0 * (d->servo[::gunVPin].pulse - d->servo[::gunVPin].zeroLift)
                                         / d->servo[::gunVPin].pulsePerDegree));
-    d->cameraPositionP->publish(QPointF(0, (d->servo[::cameraVPin].pulse - d->servo[::cameraVPin].zeroLift) 
+    d->cameraPositionP->publish(QPointF(0, (d->servo[::cameraVPin].pulse - d->servo[::cameraVPin].zeroLift)
                                         / d->servo[::cameraVPin].pulsePerDegree));
 }
 
 void GpioController::readGyroData()
 {
-    d->imu->readData();
-//    qDebug() << Q_FUNC_INFO << d->imu->pitch() << d->imu->roll() << d->imu->yaw();
-    d->towerH = d->imu->yaw() - d->chassisGyroData.x;
-//    qDebug() << "=========================================" << d->towerH;
+    d->chassisImu->readData();
+    d->towerImu->readData();
+
+//    qDebug() << d->towerImu->yaw() << d->towerImu->pitch() << d->towerImu->roll();
+
+    // imu is rotated. pitch and roll swapped.
+    d->yprP->publish(PointF3D({d->chassisImu->yaw(), d->chassisImu->roll(), d->chassisImu->pitch()}));
+    d->towerH = d->towerImu->yaw() - d->chassisImu->yaw();
 }
 
 void GpioController::onJoyEvent(const quint16& joy)
 {
     if ((((joy >> 6) & 1) == 1) && (((joy >> 7) & 1) == 1)) // both triggers
     {
-        d->onShotStatusChanged(!d->shoting);
+        d->onShotStatusChanged(!d->shoting); // if we are already shoting - stop!
     }
     if (((joy >> 5) & 1) == 1) d->onPointerTriggered();
 }
@@ -210,12 +216,6 @@ void GpioController::onGyroCalibrate(const Empty&)
     d->towerHOffset = d->towerH;
 }
 
-void GpioController::onChassisGyro(const PointF3D& ypr)
-{
-    d->chassisGyroData = ypr;
-//    printf("ypr2  %7.2f %7.2f %7.2f\n", ypr.x, ypr.y, ypr.z);
-}
-
 void GpioController::onArduinoStatusChanged(const bool& online)
 {
     Q_UNUSED(online)
@@ -242,7 +242,7 @@ void GpioController::Impl::onShotStatusChanged(bool shot)
 {
     qDebug() << Q_FUNC_INFO << shot;
     gpioWrite(::shotFinishedPin1, shot);
-    shotStatusP->publish(shot);
+    gpioWrite(::shotPin, shot);
     shoting = shot;
 }
 

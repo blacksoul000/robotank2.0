@@ -41,7 +41,7 @@ TaskManager::~TaskManager()
 bool TaskManager::createTasks()
 {
     this->addTask(ITaskPtr(new RoboCore), 30);
-    this->addTask(ITaskPtr(new ArduinoExchanger), 0);
+    this->addTask(ITaskPtr(new ArduinoExchanger), 40);
     this->addTask(ITaskPtr(new TrackerTask), 60);
     this->addTask(ITaskPtr(new GamepadController), 30);
     this->addTask(ITaskPtr(new GuiExchanger), 40);

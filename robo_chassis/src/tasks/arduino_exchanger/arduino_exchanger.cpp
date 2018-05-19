@@ -2,13 +2,13 @@
 
 //msgs
 #include "influence.h"
-#include "pointf3d.h"
 #include "empty.h"
 
 #include "pub_sub.h"
 
-#include <QPoint>
-#include <QSerialPort>
+#include "uart.h"
+#include "i2c_master.h"
+
 #include <QElapsedTimer>
 #include <QTimer>
 #include <QDebug>
@@ -18,16 +18,13 @@ namespace
 #pragma pack(push, 1)
     struct ArduinoPkg
     {
-        int16_t yaw = 0;
-        int16_t pitch = 0;
-        int16_t roll = 0;
         int16_t voltage = 0;
     };
     struct RaspberryPkg
     {
         RaspberryPkg(){}
 
-        uint8_t shot: 1;
+        uint8_t powerDown: 1;
         uint8_t light: 1;
         uint8_t reserve: 6;
         int16_t leftEngine = 0;
@@ -36,27 +33,19 @@ namespace
     };
 #pragma pack(pop)
 
-    const int timeout = 500; // ms
-    const int sendInterval = 100; // ms
-    constexpr double positionCoef = 360.0 / 32767;
+    const int timeout = 1500; // ms
 } // namespace
 
 class ArduinoExchanger::Impl
 {
 public:
-    QSerialPort* serial = nullptr;
+    IExchanger* arduino = nullptr;
     QTimer* timer = nullptr;
-    QTimer* sendTimer = nullptr;
-
-    QByteArray buffer;
-    QByteArray prefix = QByteArray(2, 0x55);
-    bool waitPrefix = true;
 
     ArduinoPkg offsets;
     ArduinoPkg lastData;
     RaspberryPkg package;
 
-    Publisher< PointF3D >* yprP = nullptr;
     Publisher< bool >* arduinoStatusP = nullptr;
     Publisher< quint16 >* voltageP = nullptr;
     Publisher< bool >* headlightP = nullptr;
@@ -75,38 +64,30 @@ ArduinoExchanger::ArduinoExchanger():
     ITask(),
     d(new Impl)
 {
-    d->serial = new QSerialPort("/dev/ttyAMA0", this);
-    d->serial->setBaudRate(115200);
-    d->serial->setDataBits(QSerialPort::Data8);
-    d->serial->setParity(QSerialPort::NoParity);
-    d->serial->setStopBits(QSerialPort::OneStop);
-    connect(d->serial, &QSerialPort::readyRead, this, [&](){ d->readData(); });
+//    d->arduino = new Uart("/dev/ttyAMA0", sizeof(::ArduinoPkg), this);
+    d->arduino = new I2CMaster("/dev/i2c-1", sizeof(::ArduinoPkg), this);
+    connect(d->arduino, &IExchanger::dataAvailable, this, &ArduinoExchanger::onNewData);
 
     d->timer = new QTimer(this);
     d->timer->setInterval(::timeout);
     connect(d->timer, &QTimer::timeout, this, [&](){ d->setArduinoOnline(false); });
 
-    d->sendTimer = new QTimer(this);
-    d->sendTimer->setInterval(::sendInterval);
-    connect(d->sendTimer, &QTimer::timeout, this, [&](){ d->sendData(); });
-
-    d->yprP = PubSub::instance()->advertise< PointF3D >("chassis/ypr");
     d->arduinoStatusP = PubSub::instance()->advertise< bool >("arduino/status");
     d->voltageP = PubSub::instance()->advertise< quint16 >("chassis/voltage");
     d->headlightP = PubSub::instance()->advertise< bool >("chassis/headlight");
 
     PubSub::instance()->subscribe("core/influence", &ArduinoExchanger::onInfluence, this);
     PubSub::instance()->subscribe("joy/buttons", &ArduinoExchanger::onJoyEvent, this);
+    PubSub::instance()->subscribe("core/powerDown", &ArduinoExchanger::onPowerDown, this);
 
     d->setArduinoOnline(false);
-    d->package.shot = 0;
+    d->package.powerDown = 0;
     d->package.light = 0;
 }
 
 ArduinoExchanger::~ArduinoExchanger()
 {
-    if (d->serial->isOpen()) d->serial->close();
-    delete d->yprP;
+    if (d->arduino->isOpen()) d->arduino->close();
     delete d->arduinoStatusP;
     delete d->voltageP;
     delete d->headlightP;
@@ -115,22 +96,21 @@ ArduinoExchanger::~ArduinoExchanger()
 
 void ArduinoExchanger::execute()
 {
-    if (!d->serial->isOpen()) d->serial->open(QIODevice::ReadWrite);
-}
+    if (!d->arduino->isOpen() && !d->arduino->open()) return;
+    if (!d->isArduinoOnline()) return;
 
-void ArduinoExchanger::start()
-{
-    d->serial->open(QIODevice::ReadWrite);
-    d->sendTimer->start();
+    d->sendData();
 }
 
 void ArduinoExchanger::onInfluence(const Influence& influence)
 {
     if (!d->isArduinoOnline()) return;
-    d->package.shot = influence.shot;
+
     d->package.leftEngine = influence.leftEngine;
     d->package.rightEngine = influence.rightEngine;
     d->package.towerH = influence.towerH;
+
+    d->sendData();
 }
 
 void ArduinoExchanger::onJoyEvent(const quint16& joy)
@@ -138,47 +118,21 @@ void ArduinoExchanger::onJoyEvent(const quint16& joy)
     if (((joy >> 4) & 1) == 1) d->onLightTriggered(); // L1 button
 }
 
-//------------------------------------------------------------------------------------
-
-void ArduinoExchanger::Impl::readData()
+void ArduinoExchanger::onNewData(const QByteArray& data)
 {
-    QByteArray data = serial->readAll();
-    if (serial->error() != QSerialPort::NoError) return;
+    d->timer->start();
+    d->setArduinoOnline(true);
 
-    buffer.append(data);
-    if (waitPrefix)
-    {
-        if (buffer.size() < prefix.size()) return;
+    ::ArduinoPkg pkg = *reinterpret_cast<const ::ArduinoPkg *>(data.data());
+    d->voltageP->publish(pkg.voltage);
+}
 
-        auto idx = buffer.lastIndexOf(prefix, buffer.count() - sizeof(::ArduinoPkg));
-        if (idx == -1)
-        {
-            buffer.remove(0, buffer.size() - prefix.size());
-            return;
-        }
+void ArduinoExchanger::onPowerDown(const Empty&)
+{
+    if (!d->isArduinoOnline()) return;
 
-        buffer.remove(0, idx);
-        waitPrefix = false;
-    }
-
-    if (!waitPrefix)
-    {
-        const int packetSize = prefix.size() + sizeof(::ArduinoPkg);
-        if (buffer.size() < packetSize) return;
-
-        timer->start();
-        this->setArduinoOnline(true);
-
-        ::ArduinoPkg pkg = *reinterpret_cast<::ArduinoPkg *>(
-                    buffer.mid(prefix.size(), sizeof(::ArduinoPkg)).data());
-        // qDebug() << Q_FUNC_INFO << pkg.yaw << pkg.pitch << pkg.roll << pkg.voltage << buffer.toHex();
-
-        buffer.remove(0, packetSize);
-        waitPrefix = true;
-
-        yprP->publish(PointF3D({pkg.yaw * ::positionCoef, pkg.pitch * ::positionCoef, pkg.roll * ::positionCoef}));
-        voltageP->publish(pkg.voltage);
-    }
+    d->package.powerDown = 1;
+    d->sendData();
 }
 
 void ArduinoExchanger::Impl::setArduinoOnline(bool online)
@@ -187,17 +141,12 @@ void ArduinoExchanger::Impl::setArduinoOnline(bool online)
     qDebug() << (online ? "Arduino online" : "Arduino offline");
     arduinoOnline = online;
     arduinoStatusP->publish(online);
+    if (arduinoOnline) this->sendData();
 }
 
 void ArduinoExchanger::Impl::sendData()
 {
-    if (!serial->isOpen()) return;
-    if (!isArduinoOnline()) return;
-
-    QByteArray data(prefix);
-    data.append(QByteArray(reinterpret_cast<const char *>(&package), sizeof(package)));
-
-    if (serial->write(data) != data.size())
+    if (!arduino->sendData(QByteArray(reinterpret_cast<const char *>(&package), sizeof(package))))
     {
         qDebug() << Q_FUNC_INFO << "Failed to write to the bus.";
     }
@@ -211,6 +160,6 @@ bool ArduinoExchanger::Impl::isArduinoOnline() const
 void ArduinoExchanger::Impl::onLightTriggered()
 {
     package.light = !package.light;
-    qDebug() << Q_FUNC_INFO << package.light;
+    if (arduinoOnline) this->sendData();
     headlightP->publish(package.light);
 }

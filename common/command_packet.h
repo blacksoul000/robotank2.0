@@ -11,18 +11,19 @@ struct CommandPacket
 {
     enum CommandId: uint8_t
     {
-        None,
-        CalibrateGun,
-        CalibrateCamera,
-        CalibrateYpr,
-        ImageSettings,
-        EnginePower,
-        TrackerCode,
-        TrackerRect,
-        BluetoothScan,
-        BluetoothPair,
-        RequestBlutoothStatus,
-        RequestConfig
+        None = 0,
+        CalibrateGun = 1,
+        CalibrateCamera = 2,
+        CalibrateYpr = 3,
+        ImageSettings = 4,
+        EnginePower = 5,
+        TrackerCode = 6,
+        TrackerRect = 7,
+        BluetoothScan = 8,
+        BluetoothPair = 9,
+        RequestBlutoothStatus = 10,
+        RequestConfig = 11,
+        PowerDown = 12
     };
 
     CommandPacket() = default;

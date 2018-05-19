@@ -5,7 +5,6 @@
 
 struct Influence
 {
-    uint8_t shot = 0;
     int16_t gunV = 0;
     int16_t cameraV = 0;
     int16_t leftEngine = 0;

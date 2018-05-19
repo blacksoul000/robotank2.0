@@ -7,13 +7,23 @@
 class Mpu6050Dmp::Impl
 {
 public:
+	Impl(int8_t deviceId) : mpu(deviceId)
+	{}
+
+	int8_t xGyro = 0;
+	int8_t yGyro = 0;
+	int8_t zGyro = 0;
+	int16_t xAccel = 0;
+	int16_t yAccel = 0;
+	int16_t zAccel = 0;
+
 	MPU6050 mpu;
 
 	// MPU control/status vars
 	bool dmpReady = false;  // set true if DMP init was successful
-	uint8_t devStatus;      // return status after each device operation (0 = success, !0 = error)
-	uint16_t packetSize;    // expected DMP packet size (default is 42 bytes)
-	uint16_t fifoCount;     // count of all bytes currently in FIFO
+	uint8_t devStatus = 0;      // return status after each device operation (0 = success, !0 = error)
+	uint16_t packetSize = 0;    // expected DMP packet size (default is 42 bytes)
+	uint16_t fifoCount = 0;     // count of all bytes currently in FIFO
 	uint8_t fifoBuffer[64]; // FIFO storage buffer
 
 	// orientation/motion vars
@@ -25,9 +35,17 @@ public:
 	float ypr[3];           // [yaw, pitch, roll]   yaw/pitch/roll container and gravity vector
 };
 
-Mpu6050Dmp::Mpu6050Dmp() :
-    d(new Impl)
-{}
+Mpu6050Dmp::Mpu6050Dmp(int8_t deviceId, int8_t xGyro, int8_t yGyro, int8_t zGyro,
+		int16_t xAccel, int16_t yAccel, int16_t zAccel) :
+    d(new Impl(deviceId))
+{
+	d->xGyro = xGyro;
+	d->yGyro = yGyro;
+	d->zGyro = zGyro;
+	d->xAccel = xAccel;
+	d->yAccel = yAccel;
+	d->zAccel = zAccel;
+}
 
 Mpu6050Dmp::~Mpu6050Dmp()
 {
@@ -40,12 +58,12 @@ bool Mpu6050Dmp::init()
     d->mpu.initialize();
 
     // supply your own gyro offsets here, scaled for min sensitivity
-    d->mpu.setXGyroOffset(14);
-    d->mpu.setYGyroOffset(-53);
-    d->mpu.setZGyroOffset(25);
-    d->mpu.setXAccelOffset(825);
-    d->mpu.setYAccelOffset(304);
-    d->mpu.setZAccelOffset(1254);
+    d->mpu.setXGyroOffset(d->xGyro);
+    d->mpu.setYGyroOffset(d->yGyro);
+    d->mpu.setZGyroOffset(d->zGyro);
+    d->mpu.setXAccelOffset(d->xAccel);
+    d->mpu.setYAccelOffset(d->yAccel);
+    d->mpu.setZAccelOffset(d->zAccel);
 
     if (!d->mpu.testConnection()) return false;
 

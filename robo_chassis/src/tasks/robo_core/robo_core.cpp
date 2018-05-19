@@ -74,7 +74,6 @@ RoboCore::RoboCore():
     PubSub::instance()->subscribe("camera/dotsPerDegree", &RoboCore::onDotsPerDegreeChanged, this);
     PubSub::instance()->subscribe("core/enginePower", &RoboCore::onEnginePowerChanged, this);
     PubSub::instance()->subscribe("joy/axes", &RoboCore::onJoyEvent, this);
-    PubSub::instance()->subscribe("core/shot", &RoboCore::onFireStatusChanged, this);
     PubSub::instance()->subscribe("gun/position", &RoboCore::onGunPosition, this);
 
     this->onTrackerStatusChanged(false);
@@ -193,12 +192,6 @@ void RoboCore::onTrackerStatusChanged(const bool& status)
     d->influence.gunV = 0;
     d->influence.cameraV = 0;
     d->influence.towerH = 0;
-    d->hasNewData = true;
-}
-
-void RoboCore::onFireStatusChanged(const bool& status)
-{
-    d->influence.shot = status;
     d->hasNewData = true;
 }
 

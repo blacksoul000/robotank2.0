@@ -16,6 +16,7 @@ ThreadController::ThreadController(quint64 interval, QObject* parent) :
     d(new Impl)
 {
     d->thread = new QThread;
+    d->thread->setObjectName(QString("robo_%1").arg(interval));
     d->worker = new TaskWorker(interval);
     d->worker->moveToThread(d->thread);
 }

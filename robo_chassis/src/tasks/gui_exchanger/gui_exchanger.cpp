@@ -39,6 +39,7 @@ public:
     Publisher< Empty >* calibrateYprP = nullptr;
     Publisher< QPoint >* enginePowerP = nullptr;
     Publisher< QString >* videoSourceP = nullptr;
+    Publisher< Empty >* powerDownP = nullptr;
 
     QUdpSocket* sender = nullptr;
     QUdpSocket* receiver = nullptr;
@@ -70,6 +71,7 @@ GuiExchanger::GuiExchanger() :
     d->calibrateYprP = PubSub::instance()->advertise< Empty >("ypr/calibrate");
     d->enginePowerP = PubSub::instance()->advertise< QPoint >("core/enginePower");
     d->videoSourceP = PubSub::instance()->advertise< QString >("camera/source");
+    d->powerDownP = PubSub::instance()->advertise< Empty >("core/powerDown");
 
     PubSub::instance()->subscribe("gun/position", &GuiExchanger::onGunPosition, this);
     PubSub::instance()->subscribe("camera/position", &GuiExchanger::onCameraPosition, this);
@@ -105,6 +107,7 @@ GuiExchanger::~GuiExchanger()
     delete d->calibrateYprP;
     delete d->enginePowerP;
     delete d->videoSourceP;
+    delete d->powerDownP;
     delete d;
 }
 
@@ -334,6 +337,11 @@ void GuiExchanger::Impl::processPacket(const CommandPacket& packet)
         config.videoSource = videoSource;
         sender->writeDatagram(ChassisPacket(config).toByteArray(), ::sendHost, ::sendPort);
         return;
+    }
+    case CommandPacket::CommandId::PowerDown:
+    {
+        powerDownP->publish(Empty());
+        break;
     }
     default:
         break;
