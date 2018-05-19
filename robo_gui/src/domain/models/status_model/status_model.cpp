@@ -11,7 +11,7 @@ public:
     bool isCharging = false;
     bool isGamepadCharging = false;
     int gamepadBatteryLevel = 0;
-    int robotBatteryLevel = 3333; // FIXME
+    int robotBatteryLevel = 0;
     qreal gunPositionH = 0;
     qreal gunPositionV = 0;
     qreal cameraPositionV = 0;
