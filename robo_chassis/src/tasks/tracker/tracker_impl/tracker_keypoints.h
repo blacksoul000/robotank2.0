@@ -11,11 +11,11 @@ namespace va
         TrackerKeypoints(const std::string& algo);
         ~TrackerKeypoints() override;
 
-        void start(const cv::Rect& rect) override;
+        void start(const cv::Rect2d& rect) override;
         void stop() override;
         bool isTracking() const override;
         void track(const cv::Mat& image) override;
-        cv::Rect target() const override;
+        cv::Rect2d target() const override;
 
     private:
         class Impl;

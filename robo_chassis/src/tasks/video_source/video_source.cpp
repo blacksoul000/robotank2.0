@@ -11,6 +11,7 @@
 #include <QHostAddress>
 #include <QNetworkInterface>
 #include <QSharedPointer>
+#include <QDateTime>
 
 #include <opencv2/highgui/highgui.hpp>
 #include "opencv2/imgproc/imgproc.hpp"
@@ -24,9 +25,13 @@ namespace
     const int width = 640;
     const int height = 480;
 
+//    const int width = 1296;
+//    const int height = 730;
+
 #ifdef PICAM
     const double fieldOfViewH = 53.5; // +/- 0.13 degrees
-    const double fieldOfViewV = 41.41; // +/- 0.11 degress
+//    const double fieldOfViewV = 41.41; // +/- 0.11 degress
+    const double fieldOfViewV = 40; // +/- 0.11 degress
 #else
     // set proper values for used camera
     const double fieldOfViewH = 53.5; // +/- 0.13 degrees
@@ -37,9 +42,6 @@ namespace
 class VideoSource::Impl
 {
 public:
-    int& argc;
-    char** argv;
-
     rtsp_server::RtspServer* rtsp = nullptr;
     bool started = false;
 
@@ -51,12 +53,10 @@ public:
     void setBrightness(int brightness);
     void setContrast(int contrast);
     QString localIp() const;
-
-    Impl(int& argc, char** argv) : argc(argc), argv(argv) {}
 };
 
-VideoSource::VideoSource(int& argc, char** argv) :
-    d(new Impl(argc, argv))
+VideoSource::VideoSource() :
+    d(new Impl)
 {
     d->imageP = PubSub::instance()->advertise< MatPtr >("camera/image");
     d->dotsPerDegreeP = PubSub::instance()->advertise< QPointF >("camera/dotsPerDegree");
@@ -79,6 +79,8 @@ void VideoSource::start()
     if (d->localIp().isEmpty()) return;
 
     d->initRtspServer();
+    d->rtsp->setDataCallback(std::bind(&VideoSource::onNewFrame, this, std::placeholders::_1, std::placeholders::_2));
+
     QString path = QString("rtsp://%1:%2/%3")
         .arg(d->localIp())
         .arg(d->rtsp->port())
@@ -88,20 +90,12 @@ void VideoSource::start()
     d->started = true;
 }
 
-void VideoSource::execute()
+void VideoSource::onNewFrame(const void* data, int size)
 {
-    if (!d->started) 
-    {
-        this->start();
-        return;
-    }
-
-    d->rtsp->spin();
-    auto data = d->rtsp->lastFrame();
-    if (!data) return;
-
-    MatPtr mat = MatPtr::create(cv::Size(::width, ::height), CV_8UC3);
-    memcpy(mat->data, data, mat->total() * mat->elemSize());
+    auto ts = QDateTime::currentDateTime().toString("hh.mm.ss.zzz");
+    MatPtr mat = MatPtr::create(::height, ::width, CV_8UC1);
+    memcpy(mat->data, data, ::height * ::width); // read only Y from YUV420.
+//    cv::putText(*mat, ts.toStdString(), cvPoint(30,300), cv::FONT_HERSHEY_COMPLEX_SMALL, 4, cv::Scalar(100,200,250), 1, CV_AA);
     d->imageP->publish(mat);
 }
 
@@ -124,27 +118,15 @@ void VideoSource::Impl::setContrast(int contrast)
 
 void VideoSource::Impl::initRtspServer()
 {
-//    rpicamsrc sensor-mode=5 bitrate=2097152 do-timestamp=true ! video/x-h264,width=1024,height=768,framerate=30/1
-//             ! tee name=t t. ! queue ! rtph264pay name=pay0 pt=96 t. ! queue ! h264parse
-//             ! omxh264dec ! videoconvert ! fakesink name=internal
-
-    rtsp = new rtsp_server::RtspServer(argc, argv,
-               QString("rpicamsrc sensor-mode=5 bitrate=%1 do-timestamp=true ! "
-                       "video/x-h264,width=%2,height=%3,framerate=%4/1 ! "
-                       "tee name=t t. ! queue ! rtph264pay name=pay0 pt=96 t. ! queue ! "
-                       "h264parse ! omxh264dec ! videoconvert ! videorate ! "
-                       "video/x-raw,framerate=10/1,format=BGR ! fakesink name=internal ")
-
-//               QString("rpicamsrc sensor-mode=5 bitrate=%1 do-timestamp=true ! "
-//                       "video/x-h264,width=%2,height=%3,framerate=%4/1 ! "
-//                       "rtph264pay name=pay0 pt=96 ! h264parse ! omxh264dec ! "
-//                       "videoconvert ! fakesink name=internal ")
-                                       .arg(2097152)
+    rtsp = new rtsp_server::RtspServer(
+               QString("rpicamsrc do-timestamp=true name=src ! "
+                       "video/x-raw,width=%1,height=%2,framerate=%3/1,format=I420 ! queue ! "
+                       "omxh264enc ! video/x-h264,profile=high,quality=2 ! "
+                       "rtph264pay name=pay0 pt=96")
                                        .arg(::width)
                                        .arg(::height)
-                                       .arg(25)
+                                       .arg(60)
                                        .toStdString());
-
     rtsp->start();
 }
 

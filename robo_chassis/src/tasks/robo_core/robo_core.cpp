@@ -17,9 +17,9 @@ namespace
     constexpr double influenceCoef = 90.0 / 32767;
 
     // towerH pid
-    const double Kp = 1.6;
-    const double Ki = 0.03;
-    const double Kd = 0.02;
+    const double Kp = 5.5;
+    const double Ki = 0.2;
+    const double Kd = 1.0;
     const double dt = 0.1;
     const double minInfluence = -40;
     const double maxInfluence = 40;
@@ -57,7 +57,7 @@ public:
     JoyAxes joy;
 
     Publisher< Influence >* influenceP = nullptr;
-    Publisher< QPointF >* deviationVP = nullptr;
+    Publisher< double >* deviationVP = nullptr;
 
     double smooth(double value, double maxInputValue, double maxOutputValue) const;
 };
@@ -67,7 +67,7 @@ RoboCore::RoboCore():
     d(new Impl)
 {
     d->influenceP = PubSub::instance()->advertise< Influence >("core/influence");
-    d->deviationVP = PubSub::instance()->advertise< QPointF >("core/deviationV");
+    d->deviationVP = PubSub::instance()->advertise< double >("core/deviationV");
 
     PubSub::instance()->subscribe("tracker/status", &RoboCore::onTrackerStatusChanged, this);
     PubSub::instance()->subscribe("tracker/deviation", &RoboCore::onTrackerDeviation, this);
@@ -116,8 +116,7 @@ void RoboCore::onJoyEvent(const JoyAxes& joy)
             short x = d->smooth(joy.axes[Axes::X2], SHRT_MAX, SHRT_MAX);
             short y = d->smooth(joy.axes[Axes::Y2], SHRT_MAX, SHRT_MAX);
 
-            // Y axis is inverted. Up is negative, down is positive
-            d->influence.gunV = d->influence.cameraV = -y;
+            d->influence.gunV = y;
             d->influence.towerH = x;
 //            qDebug() << Q_FUNC_INFO << d->influence.gunV << d->influence.towerH << joy.axes;
             d->joy.axes[Axes::X2] = joy.axes[Axes::X2];
@@ -159,12 +158,13 @@ void RoboCore::onTrackerDeviation(const QPointF& deviation)
 
     d->requiredTowerH = d->gunPosition.x() + (deviation.x() / d->dotsPerDegree.x());
 
-    double gunV = (deviation.y() / d->dotsPerDegree.y());
-//    qDebug() << Q_FUNC_INFO << d->dotsPerDegree << deviation
+    double gunV = d->gunPosition.y() - qMin((deviation.y() / d->dotsPerDegree.y()), 1.0);
+    qDebug() << Q_FUNC_INFO << d->gunPosition.y() << deviation.y() << d->dotsPerDegree.y() << gunV << (deviation.y() / d->dotsPerDegree.y());
+//    qDebug() << Q_FUNC_INFO << d->dotsPerDegree << deviation.y() << (deviation.y() / d->dotsPerDegree.y());
 //             << QPointF((deviation.x() / d->dotsPerDegree.x()), (deviation.y() / d->dotsPerDegree.y()))
 //            << d->influence.towerH << gunV;
 
-    d->deviationVP->publish(QPointF(gunV, gunV));
+    d->deviationVP->publish(gunV);
 }
 
 void RoboCore::onEnginePowerChanged(const QPoint& enginePower)
@@ -190,7 +190,6 @@ void RoboCore::onTrackerStatusChanged(const bool& status)
         d->state = State::Search;
     }
     d->influence.gunV = 0;
-    d->influence.cameraV = 0;
     d->influence.towerH = 0;
     d->hasNewData = true;
 }

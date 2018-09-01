@@ -29,7 +29,7 @@ TldAdapter::~TldAdapter()
     delete d;
 }
 
-void TldAdapter::start(const cv::Rect& rect)
+void TldAdapter::start(const cv::Rect2d& rect)
 {
     d->tracking = true;
     d->target = BoundingBox(rect);
@@ -45,7 +45,7 @@ bool TldAdapter::isTracking() const
     return d->tracking;
 }
 
-cv::Rect TldAdapter::target() const
+cv::Rect2d TldAdapter::target() const
 {
     return d->target;
 }
@@ -53,8 +53,7 @@ cv::Rect TldAdapter::target() const
 void TldAdapter::track(const cv::Mat& image)
 {
     cv::Mat gray;
-    cvtColor(image, gray, CV_BGR2GRAY);
-    flip(gray, gray, 1);
+    flip(image, gray, 1);
 
     if (!d->inited)
     {

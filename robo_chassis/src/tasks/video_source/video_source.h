@@ -8,11 +8,12 @@ struct ImageSettings;
 class VideoSource : public ITask
 {
 public:
-    VideoSource(int& argc, char** argv);
+    VideoSource();
     ~VideoSource();
 
     void start() override;
-    void execute() override;
+
+    void onNewFrame(const void* data, int size);
 
 private:
     void onImageSettingsChanged(const ImageSettings& settings);

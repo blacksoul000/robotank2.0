@@ -37,7 +37,7 @@ TrackerKeypoints::~TrackerKeypoints()
     delete d;
 }
 
-void TrackerKeypoints::start(const cv::Rect& rect)
+void TrackerKeypoints::start(const cv::Rect2d& rect)
 {
     d->tracking = true;
     d->target = cv::Rect2d(rect);
@@ -53,9 +53,9 @@ bool TrackerKeypoints::isTracking() const
     return d->tracking;
 }
 
-cv::Rect TrackerKeypoints::target() const
+cv::Rect2d TrackerKeypoints::target() const
 {
-    return cv::Rect(d->target);
+    return d->target;
 }
 
 void TrackerKeypoints::track(const cv::Mat& image)

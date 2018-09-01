@@ -9,7 +9,10 @@ public:
     virtual ~ITask() = default;
 
     virtual void start() {}
-    virtual void execute() = 0;
+    virtual void execute() {}
+
+protected:
+    ITask() = default;
 };
 
 using ITaskPtr = QSharedPointer< ITask >;

@@ -1,6 +1,5 @@
 #include "tracker_factory.h"
 
-#include "tracker_camshift.h"
 #include "tracker_keypoints.h"
 #include "tld_adapter.h"
 #include "opentld_adapter.h"
@@ -11,7 +10,7 @@ ITracker* TrackerFactory::makeTracker(TrackerCode code)
 {
     switch (code)
     {
-        case TrackerCode::CamShift: return new va::TrackerCamshift();
+        case TrackerCode::Kcf: return new va::TrackerKeypoints("KCF");
         case TrackerCode::Boosting: return new va::TrackerKeypoints("BOOSTING");
         case TrackerCode::MedianFlow: return new va::TrackerKeypoints("MEDIANFLOW");
         case TrackerCode::Mil: return new va::TrackerKeypoints("MIL");
@@ -21,5 +20,5 @@ ITracker* TrackerFactory::makeTracker(TrackerCode code)
         case TrackerCode::Unknown:
         default: break;
     }
-    return new va::TrackerCamshift();
+    return new va::TrackerKeypoints("MEDIANFLOW");
 }

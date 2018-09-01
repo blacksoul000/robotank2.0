@@ -10,17 +10,20 @@ namespace cv
     class Mat;
 }
 
+class QPointF;
 class TrackerTask : public ITask
 {
 public:
     TrackerTask();
     ~TrackerTask();
 
+    void start() override;
     void execute() override;
 
     void onToggleRequest(const QRectF& rect);
     void onSwitchTrackerRequest(const quint8& code);
     void onNewFrame(const QSharedPointer< cv::Mat >& frame);
+    void onGunPosition(const QPointF& position);
 
 private:
     class Impl;

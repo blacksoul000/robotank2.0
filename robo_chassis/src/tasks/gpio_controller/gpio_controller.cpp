@@ -26,12 +26,11 @@ namespace
     const uint8_t resetPin = 4;
     const uint8_t pointerPin = 26;
 
-    const uint8_t gunVPin = 19;
-    const uint8_t cameraVPin = 13;
+    const uint8_t gunVPin = 13;
+//    const uint8_t cameraVPin = 19;
 
-    const int tickInterval = 100;
+    const int tickInterval = 10;
     constexpr double gunTickCoef = 60.0 / SHRT_MAX;
-    constexpr double cameraTickCoef = 20.0 / SHRT_MAX;
     constexpr double positionCoef = 360.0 / 32767;
 }
 
@@ -43,13 +42,13 @@ public:
         uint16_t minPulse;
         uint16_t maxPulse;
         uint16_t pulse;
+        uint16_t realPulse;
         int8_t tick;
         uint16_t zeroLift;
         float pulsePerDegree;
     };
 
     Publisher< QPointF >* gunPositionP = nullptr;
-    Publisher< QPointF >* cameraPositionP = nullptr;
     Publisher< bool >* pointerP = nullptr;
     Publisher< PointF3D >* yprP = nullptr;
 
@@ -76,7 +75,6 @@ GpioController::GpioController():
     d(new Impl)
 {
     d->gunPositionP = PubSub::instance()->advertise< QPointF >("gun/position");
-    d->cameraPositionP = PubSub::instance()->advertise< QPointF >("camera/position");
     d->pointerP = PubSub::instance()->advertise< bool >("chassis/pointer");
     d->yprP = PubSub::instance()->advertise< PointF3D >("chassis/ypr");
 }
@@ -87,7 +85,6 @@ GpioController::~GpioController()
     gpioTerminate();
 
     delete d->gunPositionP;
-    delete d->cameraPositionP;
     delete d->pointerP;
     delete d->yprP;
     delete d;
@@ -110,8 +107,8 @@ void GpioController::start()
 #ifdef ENABLE_SERVO
         gpioSetTimerFuncEx(0, ::tickInterval, servoTickProxy, this);
 
-        d->servo.insert(::gunVPin, {900, 1400, 1300, 0, 1300, 18});
-        d->servo.insert(::cameraVPin, {1820, 1990, 1930, 0, 1930, 9.08}); // ~376 pulses = camera field of view(41.41 deg)
+        d->servo.insert(::gunVPin, {1200, 1670, 1600, 0, 0, 1600, 33.3201});
+//        d->servo.insert(::gunVPin, {900, 1400, 1300, 0, 1300, 18});
 #endif //ENABLE_SERVO
 
         gpioSetMode(::shotPin, PI_OUTPUT);
@@ -129,7 +126,6 @@ void GpioController::start()
     PubSub::instance()->subscribe("core/influence", &GpioController::onInfluence, this);
     PubSub::instance()->subscribe("core/deviationV", &GpioController::onDeviation, this);
     PubSub::instance()->subscribe("gun/calibrate", &GpioController::onGunCalibrate, this);
-    PubSub::instance()->subscribe("camera/calibrate", &GpioController::onCameraCalibrate, this);
     PubSub::instance()->subscribe("ypr/calibrate", &GpioController::onGyroCalibrate, this);
 }
 
@@ -152,11 +148,10 @@ void GpioController::execute()
     this->readGyroData();
 #endif //ENABLE_GYRO
 
-    d->gunPositionP->publish(QPointF(d->towerH - d->towerHOffset,
-                                -1.0 * (d->servo[::gunVPin].pulse - d->servo[::gunVPin].zeroLift)
-                                        / d->servo[::gunVPin].pulsePerDegree));
-    d->cameraPositionP->publish(QPointF(0, (d->servo[::cameraVPin].pulse - d->servo[::cameraVPin].zeroLift)
-                                        / d->servo[::cameraVPin].pulsePerDegree));
+    const auto gunPosition = QPointF(d->towerH - d->towerHOffset,
+                                ((d->servo[::gunVPin].maxPulse - d->servo[::gunVPin].realPulse) / d->servo[::gunVPin].pulsePerDegree));
+//    qDebug() << Q_FUNC_INFO << gunPosition.y() << d->servo[::gunVPin].realPulse << d->servo[::gunVPin].maxPulse;
+    d->gunPositionP->publish(gunPosition);
 }
 
 void GpioController::readGyroData()
@@ -182,33 +177,20 @@ void GpioController::onJoyEvent(const quint16& joy)
 
 void GpioController::onInfluence(const Influence& influence)
 {
-    d->servo[::gunVPin].tick = -std::ceil(influence.gunV * ::gunTickCoef);
-    d->servo[::cameraVPin].tick = -std::ceil(influence.cameraV * ::cameraTickCoef);
+    d->servo[::gunVPin].tick = std::ceil(influence.gunV * ::gunTickCoef);
 //    qDebug() << Q_FUNC_INFO << __LINE__ << influence.gunV << ::tickCoef << d->servo[::gunVPin].tick << d->servo[::gunVPin].pulse;
-//    qDebug() << Q_FUNC_INFO << __LINE__ << influence.cameraV << ::cameraTickCoef << d->servo[::cameraVPin].tick << d->servo[::cameraVPin].pulse;
 }
 
-void GpioController::onDeviation(const QPointF& point)
+void GpioController::onDeviation(const double& value)
 {
-//    qDebug() << Q_FUNC_INFO << __LINE__ << point
-//             << (d->servo[::cameraVPin].pulsePerDegree * point.y())
-//             << d->servo[::cameraVPin].pulse;
-
     d->servo[::gunVPin].tick = 0;
-    d->servo[::cameraVPin].tick = 0;
-
-//    d->servo[::gunVPin].pulse += d->servo[::gunVPin].pulsePerDegree * point.x();
-    d->servo[::cameraVPin].pulse += 1.0 * point.y();
+    d->servo[::gunVPin].pulse = d->servo[::gunVPin].maxPulse - value * d->servo[::gunVPin].pulsePerDegree;
+    qDebug() << Q_FUNC_INFO << __LINE__ << value << ((d->servo[::gunVPin].maxPulse - d->servo[::gunVPin].pulse) / d->servo[::gunVPin].pulsePerDegree);
 }
 
 void GpioController::onGunCalibrate(const Empty&)
 {
     d->servo[::gunVPin].zeroLift = d->servo[::gunVPin].pulse;
-}
-
-void GpioController::onCameraCalibrate(const Empty&)
-{
-    d->servo[::cameraVPin].zeroLift = d->servo[::cameraVPin].pulse;
 }
 
 void GpioController::onGyroCalibrate(const Empty&)
@@ -231,9 +213,9 @@ void GpioController::servoTick()
 {
     for (auto it = d->servo.begin(), end = d->servo.end(); it != end; ++it)
     {
-        it.value().pulse = qBound< uint16_t >(it.value().minPulse, it.value().pulse + it.value().tick, it.value().maxPulse);
-//        qDebug() << it.key() << it.value().pulse << it.value().minPulse << it.value().maxPulse;
-        gpioServo(it.key(), it.value().pulse);
+        it.value().realPulse = qBound< uint16_t >(it.value().minPulse, it.value().pulse + it.value().tick, it.value().maxPulse);
+//        qDebug() << it.key() << it.value().pulse << it.value().minPulse << it.value().maxPulse << ((it.value().maxPulse - it.value().pulse) / it.value().pulsePerDegree);
+        gpioServo(it.key(), it.value().realPulse);
     }
 }
 

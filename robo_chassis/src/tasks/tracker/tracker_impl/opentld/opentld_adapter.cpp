@@ -33,7 +33,7 @@ OpenTldAdapter::~OpenTldAdapter()
     delete d;
 }
 
-void OpenTldAdapter::start(const cv::Rect& rect)
+void OpenTldAdapter::start(const cv::Rect2d& rect)
 {
     d->tracking = true;
     d->target = rect;
@@ -49,7 +49,7 @@ bool OpenTldAdapter::isTracking() const
     return d->tracking;
 }
 
-cv::Rect OpenTldAdapter::target() const
+cv::Rect2d OpenTldAdapter::target() const
 {
     return d->target;
 }
@@ -59,14 +59,12 @@ void OpenTldAdapter::track(const cv::Mat& image)
     if (!d->inited)
     {
         std::cout <<  std::endl << "INIT" << std::endl;
-        cv::Mat gray;
-        cvtColor(image, gray, CV_BGR2GRAY);
         d->tracker = new tld::TLD();
         d->tracker->learningEnabled = false;
 
-        d->tracker->detectorCascade->imgWidth = gray.cols;
-        d->tracker->detectorCascade->imgHeight = gray.rows;
-        d->tracker->detectorCascade->imgWidthStep = gray.step;
+        d->tracker->detectorCascade->imgWidth = image.cols;
+        d->tracker->detectorCascade->imgHeight = image.rows;
+        d->tracker->detectorCascade->imgWidthStep = image.step;
         d->tracker->detectorCascade->useShift = true;
         d->tracker->detectorCascade->shift = 0.1;
         d->tracker->detectorCascade->minScale = -10;
@@ -77,7 +75,7 @@ void OpenTldAdapter::track(const cv::Mat& image)
         d->tracker->detectorCascade->nnClassifier->thetaTP = 0.65;
         d->tracker->detectorCascade->nnClassifier->thetaFP = 0.5;
 
-        d->tracker->selectObject(gray, &d->target);
+        d->tracker->selectObject(image, &d->target);
         d->inited = true;
         d->tracker->learningEnabled = true;
     }
