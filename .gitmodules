@@ -1,6 +1,6 @@
 [submodule "robo_chassis/3rdparty/OpenTLD"]
 	path = robo_chassis/3rdparty/OpenTLD
-	url = https://github.com/gnebehay/OpenTLD.git
+	url = https://github.com/blacksoul000/OpenTLD.git
 [submodule "robo_chassis/3rdparty/gst-rtsp-server"]
 	path = robo_chassis/3rdparty/gst-rtsp-server
 	url = https://github.com/GStreamer/gst-rtsp-server.git
