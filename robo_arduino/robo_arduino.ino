@@ -39,6 +39,7 @@ struct RpiPkg
     int16_t leftEngine = 0;
     int16_t rightEngine = 0;
     int16_t towerH = 0;
+    uint16_t crc = 0;
 };
 
 void setup() {
@@ -96,7 +97,7 @@ void receiveData(int byteCount)
 {
   if (byteCount == sizeof(RpiPkg))
   {
-	processRpiData();
+	  processRpiData();
   }
   else
   {
@@ -115,17 +116,18 @@ void processRpiData()
     ++i;
   }
 
-  RpiPkg pkg = *reinterpret_cast< const RpiPkg* >(data);
+  const RpiPkg* pkg = reinterpret_cast< const RpiPkg* >(data);
+  if (!isValid(pkg)) return;
   rpiOnline = millis();
   
   digitalWrite(enginesPower, HIGH);
-  digitalWrite(shotPwm, pkg.shot);
-  digitalWrite(leftLightPin, pkg.light);
-  digitalWrite(rightLightPin, pkg.light);
+  digitalWrite(shotPwm, pkg->shot);
+  digitalWrite(leftLightPin, pkg->light);
+  digitalWrite(rightLightPin, pkg->light);
   
-  applySpeed(pkg.leftEngine / velocityCoef, boardL1, boardL2, boardPwmL);
-  applySpeed(pkg.rightEngine / velocityCoef, boardR1, boardR2, boardPwmR);
-  applySpeed(pkg.towerH / velocityCoef, tower1, tower2, towerPwm);
+  applySpeed(pkg->leftEngine / velocityCoef, boardL1, boardL2, boardPwmL);
+  applySpeed(pkg->rightEngine / velocityCoef, boardR1, boardR2, boardPwmR);
+  applySpeed(pkg->towerH / velocityCoef, tower1, tower2, towerPwm);
 }
 
 void applySpeed(int16_t speed, int8_t pin1, int8_t pin2, int8_t pinPwm)
@@ -154,11 +156,13 @@ void sendData()
   struct ArduinoPkg
   {
       int16_t voltage = 0;
+      uint16_t crc = 0;
   } pkg;
 
   uint16_t batteryValue = analogRead(voltagePin);    // read actual value
   uint16_t vcc = batteryValue * vccCoef;
   pkg.voltage = vcc * dividerCoef; // mV
+  pkg.crc = crc16(reinterpret_cast< unsigned char* >(&pkg), sizeof(ArduinoPkg) - sizeof(pkg.crc));
   
   Wire.write(reinterpret_cast< const unsigned char* >(&pkg), sizeof(pkg));
   
@@ -206,4 +210,23 @@ void burn8Readings(int pin)
   {
     analogRead(pin);
   }
+}
+
+uint16_t crc16(const unsigned char* data, unsigned short len)
+{
+    unsigned short crc = 0xFFFF;
+    unsigned char i;
+
+    while (len--)
+    {
+        crc ^= *data++ << 8;
+
+        for (i = 0; i < 8; i++)
+            crc = crc & 0x8000 ? (crc << 1) ^ 0x1021 : crc << 1;
+    }
+    return crc;
+}
+
+bool isValid(const RpiPkg* pkg) {
+  return pkg->crc == crc16(reinterpret_cast< const unsigned char* > (pkg), sizeof(RpiPkg) - sizeof(pkg->crc));
 }

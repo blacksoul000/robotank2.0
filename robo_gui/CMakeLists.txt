@@ -5,7 +5,6 @@ add_definitions(-std=c++11)
 SET(CMAKE_BUILD_TYPE Debug)
 
 if(ANDROID)
-    set (ENV{JAVA_HOME} /usr/lib/jvm/java-8-openjdk-amd64)
     set (QT_ANDROID_ANT /usr/bin/ant)
     set (PYTHON_EXECUTABLE /usr/bin/python)
     set (ANDROID_COMPILER_VERSION 4.9)
@@ -65,5 +64,6 @@ if(ANDROID)
                         NAME "Robotank"
                         PACKAGE_NAME "vitaliy.bondar.robotank"
                         PACKAGE_SOURCES ${CMAKE_SOURCE_DIR}/android
+                        BUILDTOOLS_REVISION "25.0.0"
 )
 endif()

@@ -267,7 +267,6 @@ void ChassisExchanger::processPacket(const QByteArray& data)
         d->model->settings()->setEnginePower(SettingsModel::Engine::Right, config.rightEngine);
         d->model->settings()->setTracker(config.selectedTracker);
         d->model->settings()->setVideoSource(config.videoSource);
-
         d->removeQueueId(config.id);
 
         break;

@@ -92,7 +92,6 @@ quint8 SettingsModel::enginePower(SettingsModel::Engine engine) const
 
 void SettingsModel::setVideoSource(const QString& source)
 {
-    return;
     if (d->videoSource == source) return;
     d->videoSource = source;
     emit videoSourceChanged(source);

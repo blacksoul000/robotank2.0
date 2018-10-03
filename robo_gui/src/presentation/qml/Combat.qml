@@ -1,11 +1,12 @@
 import QtQuick 2.0
 import QtMultimedia 5.0
 import QtQuick.Controls 1.4
+import QtQuick.Window 2.2
 //import QtSystemInfo 5.0
 
 Item {
     id: page
-
+    
     property QtObject trackPresenter: factory.trackPresenter()
     property QtObject statusPresenter: factory.statusPresenter()
     property QtObject settingsPresenter: factory.settingsPresenter()
@@ -13,6 +14,14 @@ Item {
     property double scaleY: video.sourceRect.height / page.height
 
     property bool hasVideo: (video.sourceRect.width > 0 && video.sourceRect.height > 0)
+    
+    onVisibleChanged: visible = true // Always visible
+
+    Timer {
+        id: restartTimer
+        interval: 1000; running: false; repeat: false
+        onTriggered: player.play();
+    }
 
     MediaPlayer {
         id: player
@@ -22,7 +31,7 @@ Item {
         onErrorChanged: {
             if (error === MediaPlayer.NetworkError || error === MediaPlayer.ResourceError)
             {
-                player.play();
+                restartTimer.running = true
             }
             else if (error !== MediaPlayer.NoError)
             {
@@ -99,61 +108,25 @@ Item {
 
         imageSource: "qrc:/icons/settings.svg"
         onClicked: {
-            if (!settingsLoader.isLoaded)
-            {
-                settingsLoader.isLoaded = true
-                settingsLoader.source = "qrc:/qml/Settings.qml"
-            }
-            if (settingsLoader.isHidden)
-            {
-                settingsLoader.isHidden = false
-                settingsShow.start()
-            }
-            else
-            {
-                settingsLoader.isHidden = true
-                settingsHide.start()
-            }
+//             var component = Qt.createComponent(Qt.resolvedUrl("qrc:/qml/Settings.qml"))
+//             var res = component.createObject(stackView, { presenter: settingsPresenter, 
+//                                                        statusPresenter: statusPresenter
+//                                                      })
+//             console.log(res.height, res.width, stackView.height, stackView.width)
+//             stackView.height = res.height
+//             stackView.width = res.width
+//             console.log(res.height, res.width, stackView.height, stackView.width)
+//             stackView.push(res)
+        
+        
+            stackView.push({
+                item: Qt.resolvedUrl("qrc:/qml/Settings.qml"), 
+                properties:{ presenter: settingsPresenter, 
+                             statusPresenter: statusPresenter
+                            }})
         }
     }
 
-    Loader {
-        property int hidden: 0
-        property int showed: 0
-        property bool isLoaded: false
-        property bool isHidden: true
-
-        id: settingsLoader
-        x: hidden
-        anchors.top: panel.bottom
-        anchors.bottom: parent.bottom
-
-        PropertyAnimation {
-            id: settingsShow
-            target: settingsLoader
-            property: "x"
-            to: settingsLoader.showed
-            duration: 200
-        }
-        PropertyAnimation {
-            id: settingsHide
-            target: settingsLoader
-            property: "x"
-            to: settingsLoader.hidden
-            duration: 200
-        }
-
-        onLoaded: {
-            item.presenter = settingsPresenter
-            item.statusPresenter = statusPresenter
-            item.widthChanged.connect(updateHidden)
-            updateHidden()
-        }
-
-        function updateHidden() {
-            hidden = -item.width;
-        }
-    }
 /*
     ScreenSaver {
         screenSaverEnabled: false;
@@ -166,15 +139,5 @@ Item {
         rect.width *= page.scaleX
         rect.height *= page.scaleY
         return rect
-    }
-
-    Keys.onReleased: {
-        if (settingsLoader.isHidden) return
-        if (event.key === Qt.Key_Back || event.key === Qt.Key_Escape) {
-            settingsLoader.isHidden = true
-            settingsHide.start()
-
-            event.accepted = true;
-        }
     }
 }
