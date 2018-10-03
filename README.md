@@ -1,17 +1,7 @@
 # robotank
 
 Rpi:
-* Enable camera in raspi-config
-
-* Disable serial console.
-  sudo systemctl disable serial-getty@ttyAMA0.service
-  In file /boot/cmdline.txt remove options referring to the serial port options referring to the serial port.
-  So, this
-    dwc_otg.lpm_enable=0 console=ttyAMA0,115200 kgdboc=ttyAMA0,115200 console=tty1 root=/dev/mmcblk0p2 rootfstype=ext4 elevator=deadline rootwait
-  becomes this
-    dwc_otg.lpm_enable=0 console=tty1 root=/dev/mmcblk0p2 rootfstype=ext4 elevator=deadline rootwait
-
-  Reboot.
+* Enable camera and i2c in raspi-config
 
 * Install opencv-3 with contrib modules https://github.com/Itseez/opencv_contrib
 
@@ -37,5 +27,4 @@ Testing:
   QT_DEBUG_PLUGINS=1 <application>
 
 TODO
-- add KCF tracker
 

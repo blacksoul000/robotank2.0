@@ -15,23 +15,22 @@ namespace
     const uint16_t port = 8554;
 } // namespace
 
+static GstPadProbeReturn bufferProbeProxy(GstPad* pad, GstPadProbeInfo* info, gpointer obj);
+
 class RtspServer::Impl
 {
 public:
     GstRTSPServer* server = nullptr;
     GstRTSPMediaFactory* factory = nullptr;
-    GstBaseSink* sink = nullptr;
-    GstSample* sample = nullptr;
-    GstBuffer* buffer = nullptr;
-    GstMapInfo map;
-
     guint gstServerId = 0;
+
+    std::function< void(const void* data, int size) > callback;
 };
 
-RtspServer::RtspServer(int& argc, char** argv, const std::string& pipeline) :
+RtspServer::RtspServer(const std::string& pipeline) :
     d(new Impl)
 {
-    gst_init(&argc, &argv);
+    gst_init_check(nullptr, nullptr, nullptr);
 
     /* create a server instance */
     d->server = gst_rtsp_server_new ();
@@ -68,9 +67,6 @@ RtspServer::~RtspServer()
 
     gst_object_unref(d->factory);
     gst_object_unref(d->server);
-    if (d->sample) gst_sample_unref (d->sample);
-    if (d->buffer) gst_buffer_unmap (d->buffer, &d->map);
-
     gst_deinit();
     delete d;
 }
@@ -92,48 +88,46 @@ gboolean RtspServer::onTimeout()
 void RtspServer::mediaConfigureProxy(GstRTSPMediaFactory* factory, GstRTSPMedia* media,
                                      gpointer obj)
 {
-    return reinterpret_cast< RtspServer* >(obj)->mediaConfigure(factory, media);
+    reinterpret_cast< RtspServer* >(obj)->mediaConfigure(factory, media);
 }
 
 void RtspServer::mediaConfigure(GstRTSPMediaFactory*, GstRTSPMedia* media)
 {
     GstElement* element = gst_rtsp_media_get_element(media);
 
-    /* get our sink, we named it 'internal' with the name property */
-    d->sink = reinterpret_cast< GstBaseSink* >(
-                gst_bin_get_by_name_recurse_up (GST_BIN (element), "internal"));
+    GstElement* src = gst_bin_get_by_name_recurse_up (GST_BIN (element), "src");
     gst_object_unref(element);
 
-    if (!d->sink)
+    if (!src)
     {
-        std::cerr << "Failed to get sink with 'name=internal' property set.";
+        std::cerr << "Failed to get source with 'name=src' property set.";
         return;
     }
 
-    g_object_set (d->sink, "enable-last-sample", TRUE, NULL);
+    GstPad* pad = gst_element_get_static_pad (src, "src");
+    gst_object_unref(src);
+
+    gst_pad_add_probe (pad, GST_PAD_PROBE_TYPE_BUFFER, bufferProbeProxy, this, nullptr);
+    gst_object_unref(pad);
 }
 
-void RtspServer::spin()
+int RtspServer::bufferProbe(GstPad* pad, GstPadProbeInfo* info)
 {
-    g_main_context_iteration(g_main_context_default(), FALSE);
-}
-
-unsigned char* RtspServer::lastFrame() const
-{
-    if (!d->sink) return nullptr;
-    if (d->buffer) gst_buffer_unmap (d->buffer, &d->map);
-    if (d->sample) gst_sample_unref (d->sample);
-    g_object_get (d->sink, "last-sample", &d->sample, NULL);
-    if (!d->sample) 
+    GstBuffer* buffer = GST_PAD_PROBE_INFO_BUFFER (info);
+    if (buffer)
     {
-        d->buffer = nullptr;
-        return nullptr;
+        GstMapInfo map;
+        gst_buffer_map (buffer, &map, GST_MAP_READ);
+        d->callback(map.data, map.size);
+        gst_buffer_unmap (buffer, &map);
     }
 
-    d->buffer = gst_sample_get_buffer (d->sample);
-    gst_buffer_map (d->buffer, &d->map, GST_MAP_READ);
+    return GST_PAD_PROBE_OK;
+}
 
-    return d->map.data;
+void RtspServer::setDataCallback(const std::function< void(const void* data, int size) >& cb)
+{
+    d->callback = cb;
 }
 
 void RtspServer::start()
@@ -148,7 +142,6 @@ void RtspServer::start()
 void RtspServer::stop()
 {
     if (!d->gstServerId == 0) return;
-    gst_object_unref(d->sink);
     g_source_remove(d->gstServerId);
 }
 
@@ -160,4 +153,9 @@ uint16_t RtspServer::port() const
 std::string RtspServer::streamName() const
 {
     return ::streamName;
+}
+
+GstPadProbeReturn bufferProbeProxy(GstPad* pad, GstPadProbeInfo* info, gpointer obj)
+{
+    return (GstPadProbeReturn)reinterpret_cast< RtspServer* >(obj)->bufferProbe(pad, info);
 }

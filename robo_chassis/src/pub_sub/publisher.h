@@ -25,6 +25,7 @@ public:
             }
             else
             {
+                qApp->removePostedEvents(sub, CallEvent< T >::CallBack);
                 qApp->postEvent(sub, new CallEvent< T >(msg));
             }
         }

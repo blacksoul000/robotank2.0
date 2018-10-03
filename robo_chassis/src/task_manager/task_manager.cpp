@@ -19,17 +19,12 @@
 class TaskManager::Impl
 {
 public:
-    int& argc;
-    char** argv;
-
     QMap< quint64, ThreadControllerPtr > threads;
     QList < ITaskPtr > untreaded;
-
-    Impl(int& argc, char** argv) : argc(argc), argv(argv) {}
 };
 
-TaskManager::TaskManager(int& argc, char** argv) :
-    d(new Impl(argc, argv))
+TaskManager::TaskManager() :
+    d(new Impl)
 {
 }
 
@@ -42,10 +37,10 @@ bool TaskManager::createTasks()
 {
     this->addTask(ITaskPtr(new RoboCore), 30);
     this->addTask(ITaskPtr(new ArduinoExchanger), 40);
-    this->addTask(ITaskPtr(new TrackerTask), 60);
     this->addTask(ITaskPtr(new GamepadController), 30);
     this->addTask(ITaskPtr(new GuiExchanger), 40);
-    this->addTask(ITaskPtr(new VideoSource(d->argc, d->argv)), 100);
+    this->addTask(ITaskPtr(new VideoSource), 100);
+    this->addTask(ITaskPtr(new TrackerTask), 100);
     this->addTask(ITaskPtr(new GpioController), 10);
     this->addTask(ITaskPtr(new ConfigHandler), 0); // last one
     return true;

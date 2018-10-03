@@ -6,7 +6,7 @@
 class TaskManager
 {
 public:
-    TaskManager(int &argc, char **argv);
+    TaskManager();
     ~TaskManager();
 
     bool createTasks();

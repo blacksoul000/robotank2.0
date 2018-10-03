@@ -74,7 +74,6 @@ GuiExchanger::GuiExchanger() :
     d->powerDownP = PubSub::instance()->advertise< Empty >("core/powerDown");
 
     PubSub::instance()->subscribe("gun/position", &GuiExchanger::onGunPosition, this);
-    PubSub::instance()->subscribe("camera/position", &GuiExchanger::onCameraPosition, this);
     PubSub::instance()->subscribe("chassis/ypr", &GuiExchanger::onYpr, this);
     PubSub::instance()->subscribe("arduino/status", &GuiExchanger::onArduinoStatus, this);
     PubSub::instance()->subscribe("joy/buttons", &GuiExchanger::onJoyButtons, this);
@@ -144,10 +143,6 @@ void GuiExchanger::onGunPosition(const QPointF& position)
 {
     d->chassis.gunH = position.x() / ::positionCoef;
     d->chassis.gunV = position.y() / ::positionCoef;
-}
-
-void GuiExchanger::onCameraPosition(const QPointF& position)
-{
     d->chassis.cameraH = position.x() / ::positionCoef;
     d->chassis.cameraV = position.y() / ::positionCoef;
 }

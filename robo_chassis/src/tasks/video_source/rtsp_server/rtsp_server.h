@@ -2,10 +2,14 @@
 #define RTSP_SERVER_H
 
 #include <string>
+#include <functional>
 
 typedef struct _GstRTSPMediaFactory GstRTSPMediaFactory;
 typedef struct _GstRTSPMedia GstRTSPMedia;
 typedef struct _GstElement GstElement;
+typedef struct _GstPad GstPad;
+typedef struct _GstPadProbeInfo GstPadProbeInfo;
+
 typedef void* gpointer;
 typedef unsigned int guint;
 typedef int    gint;
@@ -16,21 +20,22 @@ namespace rtsp_server
     class RtspServer
     {
     public:
-        RtspServer(int& argc, char** argv, const std::string& pipeline);
+        RtspServer(const std::string& pipeline);
         ~RtspServer();
 
         void start();
         void stop();
-        void spin();
+
         uint16_t port() const;
         std::string streamName() const;
-
-        unsigned char* lastFrame() const;
 
         static void mediaConfigureProxy(GstRTSPMediaFactory* factory, GstRTSPMedia* media,
                                         gpointer obj);
 
         static gboolean onTimeoutProxy(gpointer obj);
+        int bufferProbe(GstPad* pad, GstPadProbeInfo* info);
+
+        void setDataCallback(const std::function< void(const void* data, int size) >& cb);
 
     private:
         void mediaConfigure(GstRTSPMediaFactory* factory, GstRTSPMedia* media);
