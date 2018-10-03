@@ -43,5 +43,5 @@ void BluetoothModel::setDevices(const QVector< DeviceInfo >& devices)
 
 QVector< DeviceInfo > BluetoothModel::devices() const
 {
-    d->devices;
+    return d->devices;
 }

@@ -5,343 +5,337 @@ import QtQuick.Controls.Styles 1.2
 
 import Robotank 1.0
 
-Rectangle {
+Item {
     id: root
-    anchors.top: parent.top
-    anchors.right: parent.right
-    width: flow.width + 5
-    color: roboPalette.backgroundColor
-
+    
     property int rowSpacing: 10
     property int columnSpacing: 30
     property QtObject presenter
     property QtObject statusPresenter
 
-    ListModel {
-        id: trackersModel
-        ListElement {
-            name: "Camshift"
-            code: 1
-        }
-        ListElement {
-            name: "MedianFlow"
-            code: 2
-        }
-        ListElement {
-            name: "Boosting"
-            code: 3
-        }
-        ListElement {
-            name: "Mil"
-            code: 4
-        }
-        ListElement {
-            name: "Tld"
-            code: 5
-        }
-        ListElement {
-            name: "CustomTld"
-            code: 6
-        }
-        ListElement {
-            name: "OpenTld"
-            code: 7
-        }
-    }
-
-    Component {
-        id: trackerDelegate
-        Item {
-            property int offset: 10;
-            width: label.width + box.width + offset
-            height: 20
-            Row {
-                id: itemRow
-                anchors.fill: parent
-                spacing: offset
-                Rectangle {
-                    id: box
-                    width: 20
-                    height: 20
-
-                    anchors.verticalCenter: parent.verticalCenter
-
-                    property bool checked: presenter.trackerCode === code
-
-                    border.color: "white"
-                    Image {
-                        anchors.fill: parent
-                        source: "qrc:/icons/ok.svg"
-                        visible: box.checked
-                    }
-
-                    MouseArea {
-                        anchors.fill: parent
-                        onClicked: {
-                            if (box.checked) return;
-                            presenter.trackerCode = code
-                        }
-                    }
-                }
-                Text {
-                    id: label
-                    color: roboPalette.textColor
-                    font.pixelSize: roboPalette.textSize
-                    anchors.verticalCenter: parent.verticalCenter
-                    text: name
-                }
-            }
-        }
-    }
-
-    Flickable {
-        id: flow
+    Rectangle {
         anchors.top: parent.top
         anchors.bottom: parent.bottom
-        width: col.width
-        contentHeight: col.height
-
-        Column {
-            id: col
-            spacing: root.rowSpacing
-
-            GroupBox {
-                Layout.fillHeight: true
-                Layout.fillWidth: true
-                title: qsTr("Gamepad")
-    //            label: Text {
-    //                color: roboPalette.textColor
-    //                font.pixelSize: roboPalette.captionTextSize / 2
-    //                text: qsTr("Gamepad")
-    //            }
-
-                Column {
+        width: 360
+        color: roboPalette.backgroundColor
+        
+        ListModel {
+            id: trackersModel
+            ListElement {
+                name: "Kcf"
+                code: 1
+            }
+            ListElement {
+                name: "MedianFlow"
+                code: 2
+            }
+            ListElement {
+                name: "Boosting"
+                code: 3
+            }
+            ListElement {
+                name: "Mil"
+                code: 4
+            }
+            ListElement {
+                name: "Tld"
+                code: 5
+            }
+            ListElement {
+                name: "CustomTld"
+                code: 6
+            }
+            ListElement {
+                name: "OpenTld"
+                code: 7
+            }
+        }
+    
+        Component {
+            id: trackerDelegate
+            Item {
+                property int offset: 10;
+                width: label.width + box.width + offset
+                height: 20
+                Row {
+                    id: itemRow
                     anchors.fill: parent
-                    spacing: root.rowSpacing
-
-                    Row {
-                        spacing: root.columnSpacing
-
-                        Text {
-                            color: roboPalette.textColor
-                            font.pixelSize: roboPalette.textSize
-                            text: qsTr("Status") + ":"
+                    spacing: offset
+                    Rectangle {
+                        id: box
+                        width: 20
+                        height: 20
+    
+                        anchors.verticalCenter: parent.verticalCenter
+    
+                        property bool checked: presenter.trackerCode === code
+    
+                        border.color: "white"
+                        Image {
+                            anchors.fill: parent
+                            source: "qrc:/icons/ok.svg"
+                            visible: box.checked
                         }
-                        Text {
-                            color: roboPalette.textColor
-                            font.pixelSize: roboPalette.textSize
-                            text: statusPresenter.gamepadStatus ? qsTr("Connected")
-                                                                : qsTr("Unconnected")
+    
+                        MouseArea {
+                            anchors.fill: parent
+                            onClicked: {
+                                if (box.checked) return;
+                                presenter.trackerCode = code
+                            }
                         }
                     }
-
-                    Button {
-                        anchors.horizontalCenter: parent.horizontalCenter
-                        style: ButtonStyle {
-                            label: Text {
-                                renderType: Text.NativeRendering
-                                verticalAlignment: Text.AlignVCenter
-                                horizontalAlignment: Text.AlignHCenter
-                                font.pixelSize: roboPalette.textSize
-                                color: roboPalette.backgroundColor
-                                text: qsTr("Manage")
-                            }
-                        }
-                        onClicked: {
-                            if (bluetoothManagerLoader.item)
-                            {
-                                bluetoothManagerLoader.item.open()
-                            }
-                            else
-                            {
-                                bluetoothManagerLoader.source = "qrc:/qml/BluetoothManager.qml"
-                            }
-                        }
+                    Text {
+                        id: label
+                        color: roboPalette.textColor
+                        font.pixelSize: roboPalette.textSize
+                        anchors.verticalCenter: parent.verticalCenter
+                        text: name
                     }
                 }
             }
-
-            GroupBox {
-                Layout.fillHeight: true
-                Layout.fillWidth: true
-                title: qsTr("Video")
-    //            label: Text {
-    //                color: roboPalette.textColor
-    //                font.pixelSize: roboPalette.captionTextSize / 2
-    //                text: qsTr("Video")
-    //            }
-
-                GridLayout {
-                    anchors.fill: parent
-                    rowSpacing: root.rowSpacing
-                    columnSpacing: root.columnSpacing
-                    columns: 2
-
-                    Text {
-                        id: brightnessLabel
-                        color: roboPalette.textColor
-                        font.pixelSize: roboPalette.textSize
-                        text: "Brightness"
-                    }
-                    RSpinBox {
-                        height: brightnessLabel.height
-                        anchors.right: parent.right
-                        inputValue: presenter.brightness
-                        onValueChanged: presenter.brightness = value
-                    }
-
-                    Text {
-                        id: contrastLabel
-                        color: roboPalette.textColor
-                        font.pixelSize: roboPalette.textSize
-                        text: "Contrast"
-                    }
-                    RSpinBox {
-                        height: contrastLabel.height
-                        anchors.right: parent.right
-                        inputValue: presenter.contrast
-                        onValueChanged: presenter.contrast = value
-                    }
-                }
-            }
-
-            GroupBox {
-                Layout.fillHeight: true
-                Layout.fillWidth: true
-                title: qsTr("Trackers")
-    //            label: Text {
-    //                color: roboPalette.textColor
-    //                font.pixelSize: roboPalette.captionTextSize / 2
-    //                text: qsTr("Trackers")
-    //            }
-
-                GridLayout {
-                    rowSpacing: root.rowSpacing
-                    columnSpacing: root.columnSpacing
-                    anchors.fill: parent
-                    columns: 2
-
-                    Repeater {
+        }
+    
+        Flickable {
+            id: flow
+            anchors.top: parent.top
+            anchors.bottom: parent.bottom
+            width: col.width
+            contentHeight: col.height
+            clip: true
+    
+            Column {
+                id: col
+                spacing: root.rowSpacing
+    
+                GroupBox {
+                    Layout.fillHeight: true
+                    Layout.fillWidth: true
+                    title: qsTr("Gamepad")
+        //            label: Text {
+        //                color: roboPalette.textColor
+        //                font.pixelSize: roboPalette.captionTextSize / 2
+        //                text: qsTr("Gamepad")
+        //            }
+    
+                    Column {
                         anchors.fill: parent
-                        model: trackersModel
-                        delegate: trackerDelegate
+                        spacing: root.rowSpacing
+    
+                        Row {
+                            spacing: root.columnSpacing
+    
+                            Text {
+                                color: roboPalette.textColor
+                                font.pixelSize: roboPalette.textSize
+                                text: qsTr("Status") + ":"
+                            }
+                            Text {
+                                color: roboPalette.textColor
+                                font.pixelSize: roboPalette.textSize
+                                text: statusPresenter.gamepadStatus ? qsTr("Connected")
+                                                                    : qsTr("Unconnected")
+                            }
+                        }
+    
+                        Button {
+                            anchors.horizontalCenter: parent.horizontalCenter
+                            style: ButtonStyle {
+                                label: Text {
+                                    renderType: Text.NativeRendering
+                                    verticalAlignment: Text.AlignVCenter
+                                    horizontalAlignment: Text.AlignHCenter
+                                    font.pixelSize: roboPalette.textSize
+                                    color: roboPalette.backgroundColor
+                                    text: qsTr("Manage")
+                                }
+                            }
+                            onClicked: {
+                                stackView.push({
+                                    item: Qt.resolvedUrl("qrc:/qml/BluetoothManager.qml"), 
+                                    properties:{}})
+                            }
+                        }
                     }
                 }
-            }
-
-            GroupBox {
-                Layout.fillHeight: true
-                Layout.fillWidth: true
-                title: qsTr("Engine power") + ", %"
-    //            label: Text {
-    //                color: roboPalette.textColor
-    //                font.pixelSize: roboPalette.captionTextSize / 2
-    //                text: qsTr("Engine power") + ", %"
-    //            }
-
-                GridLayout {
-                    rowSpacing: root.rowSpacing
-                    columnSpacing: root.columnSpacing
-                    anchors.fill: parent
-                    columns: 2
-
-                    Text {
-                        id: leftEngineLabel
-                        color: roboPalette.textColor
-                        font.pixelSize: roboPalette.textSize
-                        text: "Left"
-                    }
-                    RSpinBox {
-                        id: leftEngine
-                        height: leftEngineLabel.height
-                        anchors.right: parent.right
-                        onValueChanged: presenter.setEnginePower(Engine.Left, value)
-                    }
-
-                    Text {
-                        id: rightEngineLabel
-                        color: roboPalette.textColor
-                        font.pixelSize: roboPalette.textSize
-                        text: "Right"
-                    }
-                    RSpinBox {
-                        id: rightEngine
-                        height: rightEngineLabel.height
-                        anchors.right: parent.right
-                        onValueChanged: presenter.setEnginePower(Engine.Right, value)
+    
+                GroupBox {
+                    Layout.fillHeight: true
+                    Layout.fillWidth: true
+                    title: qsTr("Video")
+        //            label: Text {
+        //                color: roboPalette.textColor
+        //                font.pixelSize: roboPalette.captionTextSize / 2
+        //                text: qsTr("Video")
+        //            }
+    
+                    GridLayout {
+                        anchors.fill: parent
+                        rowSpacing: root.rowSpacing
+                        columnSpacing: root.columnSpacing
+                        columns: 2
+    
+                        Text {
+                            id: brightnessLabel
+                            color: roboPalette.textColor
+                            font.pixelSize: roboPalette.textSize
+                            text: "Brightness"
+                        }
+                        RSpinBox {
+                            height: brightnessLabel.height
+                            Layout.alignment: Qt.AlignRight
+                            inputValue: presenter.brightness
+                            onValueChanged: presenter.brightness = value
+                        }
+    
+                        Text {
+                            id: contrastLabel
+                            color: roboPalette.textColor
+                            font.pixelSize: roboPalette.textSize
+                            text: "Contrast"
+                        }
+                        RSpinBox {
+                            height: contrastLabel.height
+                            Layout.alignment: Qt.AlignRight
+                            inputValue: presenter.contrast
+                            onValueChanged: presenter.contrast = value
+                        }
                     }
                 }
-            }
-
-            GroupBox {
-                Layout.fillHeight: true
-                Layout.fillWidth: true
-                title: qsTr("Sensors calibration")
-    //            label: Text {
-    //                color: roboPalette.textColor
-    //                font.pixelSize: roboPalette.captionTextSize / 2
-    //                text: qsTr("Sensors calibration")
-    //            }
-
-                GridLayout {
-                    rowSpacing: root.rowSpacing
-                    columnSpacing: root.columnSpacing
-                    anchors.fill: parent
-
-                    Button {
-                        style: ButtonStyle {
-                            label: Text {
-                                renderType: Text.NativeRendering
-                                verticalAlignment: Text.AlignVCenter
-                                horizontalAlignment: Text.AlignHCenter
-                                font.pixelSize: roboPalette.textSize
-                                color: roboPalette.backgroundColor
-                                text: qsTr("Gun")
-                            }
-                        }
-                        onClicked: {
-                            presenter.calibrateGun()
+    
+                GroupBox {
+                    Layout.fillHeight: true
+                    Layout.fillWidth: true
+                    title: qsTr("Trackers")
+        //            label: Text {
+        //                color: roboPalette.textColor
+        //                font.pixelSize: roboPalette.captionTextSize / 2
+        //                text: qsTr("Trackers")
+        //            }
+    
+                    GridLayout {
+                        rowSpacing: root.rowSpacing
+                        columnSpacing: root.columnSpacing
+                        anchors.fill: parent
+                        columns: 2
+    
+                        Repeater {
+                            model: trackersModel
+                            delegate: trackerDelegate
                         }
                     }
-                    Button {
-                        style: ButtonStyle {
-                            label: Text {
-                                renderType: Text.NativeRendering
-                                verticalAlignment: Text.AlignVCenter
-                                horizontalAlignment: Text.AlignHCenter
-                                font.pixelSize: roboPalette.textSize
-                                color: roboPalette.backgroundColor
-                                text: qsTr("Camera")
-                            }
+                }
+    
+                GroupBox {
+                    Layout.fillHeight: true
+                    Layout.fillWidth: true
+                    title: qsTr("Engine power") + ", %"
+        //            label: Text {
+        //                color: roboPalette.textColor
+        //                font.pixelSize: roboPalette.captionTextSize / 2
+        //                text: qsTr("Engine power") + ", %"
+        //            }
+    
+                    GridLayout {
+                        rowSpacing: root.rowSpacing
+                        columnSpacing: root.columnSpacing
+                        anchors.fill: parent
+                        columns: 2
+    
+                        Text {
+                            id: leftEngineLabel
+                            color: roboPalette.textColor
+                            font.pixelSize: roboPalette.textSize
+                            text: "Left"
                         }
-                        onClicked: {
-                            presenter.calibrateCamera()
+                        RSpinBox {
+                            id: leftEngine
+                            height: leftEngineLabel.height
+                            Layout.alignment: Qt.AlignRight
+                            onValueChanged: presenter.setEnginePower(Engine.Left, value)
+                        }
+    
+                        Text {
+                            id: rightEngineLabel
+                            color: roboPalette.textColor
+                            font.pixelSize: roboPalette.textSize
+                            text: "Right"
+                        }
+                        RSpinBox {
+                            id: rightEngine
+                            height: rightEngineLabel.height
+                            Layout.alignment: Qt.AlignRight
+                            onValueChanged: presenter.setEnginePower(Engine.Right, value)
                         }
                     }
-                    Button {
-                        style: ButtonStyle {
-                            label: Text {
-                                renderType: Text.NativeRendering
-                                verticalAlignment: Text.AlignVCenter
-                                horizontalAlignment: Text.AlignHCenter
-                                font.pixelSize: roboPalette.textSize
-                                color: roboPalette.backgroundColor
-                                text: qsTr("Gyro")
+                }
+    
+                GroupBox {
+                    Layout.fillHeight: true
+                    Layout.fillWidth: true
+                    title: qsTr("Sensors calibration")
+        //            label: Text {
+        //                color: roboPalette.textColor
+        //                font.pixelSize: roboPalette.captionTextSize / 2
+        //                text: qsTr("Sensors calibration")
+        //            }
+    
+                    GridLayout {
+                        rowSpacing: root.rowSpacing
+                        columnSpacing: root.columnSpacing
+                        anchors.fill: parent
+    
+                        Button {
+                            style: ButtonStyle {
+                                label: Text {
+                                    renderType: Text.NativeRendering
+                                    verticalAlignment: Text.AlignVCenter
+                                    horizontalAlignment: Text.AlignHCenter
+                                    font.pixelSize: roboPalette.textSize
+                                    color: roboPalette.backgroundColor
+                                    text: qsTr("Gun")
+                                }
+                            }
+                            onClicked: {
+                                presenter.calibrateGun()
                             }
                         }
-                        onClicked: {
-                            presenter.calibrateGyro()
+                        Button {
+                            style: ButtonStyle {
+                                label: Text {
+                                    renderType: Text.NativeRendering
+                                    verticalAlignment: Text.AlignVCenter
+                                    horizontalAlignment: Text.AlignHCenter
+                                    font.pixelSize: roboPalette.textSize
+                                    color: roboPalette.backgroundColor
+                                    text: qsTr("Camera")
+                                }
+                            }
+                            onClicked: {
+                                presenter.calibrateCamera()
+                            }
+                        }
+                        Button {
+                            style: ButtonStyle {
+                                label: Text {
+                                    renderType: Text.NativeRendering
+                                    verticalAlignment: Text.AlignVCenter
+                                    horizontalAlignment: Text.AlignHCenter
+                                    font.pixelSize: roboPalette.textSize
+                                    color: roboPalette.backgroundColor
+                                    text: qsTr("Gyro")
+                                }
+                            }
+                            onClicked: {
+                                presenter.calibrateGyro()
+                            }
                         }
                     }
                 }
             }
         }
     }
-
-    Loader {
-        id: bluetoothManagerLoader
-    }
-
+    
     onPresenterChanged: {
         if (presenter) {
             updateEnginePower()

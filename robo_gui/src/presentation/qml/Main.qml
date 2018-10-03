@@ -24,9 +24,10 @@ Item {
 
     StackView {
         id: stackView
-        width: 60
-        height: 60
-        anchors.fill: parent
+        x: 0
+        y: 0
+        width: parent.width
+        height: parent.height
         // Implements back key navigation
         focus: true
         initialItem: Qt.resolvedUrl("qrc:/qml/Combat.qml")
@@ -41,33 +42,31 @@ Item {
             }
         }
         onCurrentItemChanged: {
-            if (currentItem) {
-                currentItem.focus = true
-            }
+            if (currentItem)  currentItem.focus = true
         }
 
         delegate: StackViewDelegate {
-            function transitionFinished(properties)
-            {
-                properties.exitItem.opacity = 1
-            }
+//             function transitionFinished(properties){
+//                 if(exitItem == initialItem) properties.exitItem.visible = true
+//             }
 
             pushTransition: StackViewTransition {
                 PropertyAnimation {
                     target: enterItem
-                    property: "opacity"
-                    from: 0
-                    to: 1
-                    duration: 10
-                }
-                PropertyAnimation {
-                    target: exitItem
-                    property: "opacity"
-                    from: 1
+                    property: "x"
+                    from: -enterItem.width
                     to: 0
-                    duration: 10
+                    duration: 200
                 }
             }
+            popTransition: StackViewTransition {
+	            PropertyAnimation {
+	                target: exitItem
+	                property: "x"
+	                to: -exitItem.width
+                    duration: 200
+	            }
+	        }
         }
     }
 }

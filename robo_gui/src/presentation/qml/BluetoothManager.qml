@@ -5,35 +5,37 @@ import QtQuick.Controls.Styles 1.2
 
 import Robotank 1.0
 
-Dialog {
-    visible: true
-    title: qsTr("Bluetooth manager")
-
+Item {
+    id: root
+    
     property QtObject presenter: factory.bluetoothPresenter()
-
-    contentItem: Rectangle {
-        id: root
+    
+    Rectangle {
+        id: rect
         color: roboPalette.backgroundColor
-        implicitWidth: 500
-        implicitHeight: 400
-
+        anchors.top: parent.top
+        anchors.bottom: parent.bottom
+        width: 360
+        
+    //     title: qsTr("Bluetooth manager")
+    
         ListView {
             id: view
             anchors.fill: parent
             model: presenter.devices
             delegate: itemDelegate
         }
-
+    
         Component {
             id: itemDelegate
             Rectangle {
                 color: roboPalette.backgroundColor
                 border.color: roboPalette.textColor
                 border.width: 1
-
-                width: root.width
+    
+                width: rect.width
                 height: 60
-
+    
                 Column {
                     anchors.fill: parent
                     anchors.margins: 5
@@ -48,12 +50,12 @@ Dialog {
                         font.pixelSize: roboPalette.textSize / 2
                     }
                 }
-
+    
                 Button {
                     anchors.right: parent.right
                     anchors.verticalCenter: parent.verticalCenter
                     anchors.rightMargin: 10
-                    width: 180
+                    width: 100
                     style: ButtonStyle {
                         label: Text {
                             renderType: Text.NativeRendering
@@ -61,7 +63,7 @@ Dialog {
                             horizontalAlignment: Text.AlignHCenter
                             font.pixelSize: roboPalette.textSize
                             color: roboPalette.backgroundColor
-                            text: modelData.isPaired ? qsTr("Unconnect") : qsTr("Connect")
+                            text: modelData.isPaired ? qsTr("Disc.") : qsTr("Conn.")
                         }
                     }
                     onClicked: {
@@ -70,56 +72,36 @@ Dialog {
                 }
             }
         }
-
-        Row {
-            id: buttonBox
-            anchors.bottom: parent.bottom
-            anchors.horizontalCenter: parent.horizontalCenter
-            anchors.margins: 5
-            spacing: 10
-
-            Button {
-                style: ButtonStyle {
-                    label: Text {
-                        renderType: Text.NativeRendering
-                        verticalAlignment: Text.AlignVCenter
-                        horizontalAlignment: Text.AlignHCenter
-                        font.pixelSize: roboPalette.textSize
-                        color: roboPalette.backgroundColor
-                        text: qsTr("Scan")
-                    }
-                }
-                onClicked: {
-                    presenter.requestScan()
+    
+        Button {
+            anchors {
+                margins: 5
+                bottom: parent.bottom
+                horizontalCenter: parent.horizontalCenter
+            }
+            
+            style: ButtonStyle {
+                label: Text {
+                    renderType: Text.NativeRendering
+                    verticalAlignment: Text.AlignVCenter
+                    horizontalAlignment: Text.AlignHCenter
+                    font.pixelSize: roboPalette.textSize
+                    color: roboPalette.backgroundColor
+                    text: qsTr("Scan")
                 }
             }
-            Button {
-                style: ButtonStyle {
-                    label: Text {
-                        renderType: Text.NativeRendering
-                        verticalAlignment: Text.AlignVCenter
-                        horizontalAlignment: Text.AlignHCenter
-                        font.pixelSize: roboPalette.textSize
-                        color: roboPalette.backgroundColor
-                        text: qsTr("Close")
-                    }
-                }
-                onClicked: {
-                    presenter.stop()
-                    close()
-                }
+            
+            BusyIndicator {
+                anchors.fill: parent
+                running: presenter.scanStatus
             }
-        }
-
-        ProgressBar {
-            anchors.left: buttonBox.right
-            anchors.right: parent.right
-            anchors.verticalCenter: buttonBox.verticalCenter
-            anchors.margins: 5
-            indeterminate: true
-            visible: presenter.scanStatus
+            
+            onClicked: {
+                presenter.requestScan()
+            }
         }
     }
 
     Component.onCompleted: presenter.start()
+    Component.onDestruction: presenter.stop()
 }

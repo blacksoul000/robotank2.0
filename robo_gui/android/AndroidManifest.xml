@@ -1,6 +1,6 @@
 <?xml version="1.0"?>
 <manifest android:versionName="0.1" package="vitaliy.bondar.robotank" android:installLocation="auto" xmlns:android="http://schemas.android.com/apk/res/android" android:versionCode="0">
-    <application android:label="Robotank" android:name="org.qtproject.qt5.android.bindings.QtApplication">
+    <application android:label="Robotank" android:name="org.qtproject.qt5.android.bindings.QtApplication" android:hardwareAccelerated="true">
 		<activity android:label="Robotank" android:name="org.qtproject.qt5.android.bindings.QtActivity" android:screenOrientation="landscape" android:configChanges="orientation|uiMode|screenLayout|screenSize|smallestScreenSize|locale|fontScale|keyboard|keyboardHidden|navigation">
 			<intent-filter>
 				<action android:name="android.intent.action.MAIN"/>
