@@ -5,12 +5,12 @@
 #include "image_settings.h"
 
 #include "pub_sub.h"
+#include "network_helper.h"
 
 #include <QPointF>
 #include <QSize>
-#include <QHostAddress>
-#include <QNetworkInterface>
 #include <QSharedPointer>
+#include <QHostAddress>
 #include <QDateTime>
 
 #include <opencv2/highgui/highgui.hpp>
@@ -52,7 +52,6 @@ public:
     void initRtspServer();
     void setBrightness(int brightness);
     void setContrast(int contrast);
-    QString localIp() const;
 };
 
 VideoSource::VideoSource() :
@@ -76,15 +75,17 @@ VideoSource::~VideoSource()
 
 void VideoSource::start()
 {
-    if (d->localIp().isEmpty()) return;
+    QHostAddress localIp = common::localIp();
+    if (localIp.isNull()) return;
 
     d->initRtspServer();
     d->rtsp->setDataCallback(std::bind(&VideoSource::onNewFrame, this, std::placeholders::_1, std::placeholders::_2));
 
     QString path = QString("rtsp://%1:%2/%3")
-        .arg(d->localIp())
+        .arg(localIp.toString())
         .arg(d->rtsp->port())
         .arg(QString::fromStdString(d->rtsp->streamName()));
+    qDebug() << "Stream path:" << path;
     d->videoSourceP->publish(path);
     d->dotsPerDegreeP->publish(QPointF(::width / ::fieldOfViewH, ::height / ::fieldOfViewV));
     d->started = true;
@@ -120,25 +121,13 @@ void VideoSource::Impl::initRtspServer()
 {
     rtsp = new rtsp_server::RtspServer(
                QString("rpicamsrc do-timestamp=true name=src ! "
-                       "video/x-raw,width=%1,height=%2,framerate=%3/1,format=I420 ! queue ! "
-                       "omxh264enc ! video/x-h264,profile=high,quality=2 ! "
+                       "video/x-raw,width=%1,height=%2,framerate=%3/1,format=I420 ! "
+//                       "omxh264enc ! video/x-h264,profile=baseline,quality=1,low-latency=true,key-int-max=1,speed-preset=ultrafast,control-rate=3 ! "
+                       "omxh264enc ! video/x-h264,profile=baseline,speed-preset=ultrafast,tune=zerolatency ! "
                        "rtph264pay name=pay0 pt=96")
                                        .arg(::width)
                                        .arg(::height)
-                                       .arg(60)
+                                       .arg(25)
                                        .toStdString());
     rtsp->start();
-}
-
-QString VideoSource::Impl::localIp() const
-{
-    for (const QHostAddress& address: QNetworkInterface::allAddresses()) 
-    {
-        if (address.protocol() == QAbstractSocket::IPv4Protocol 
-            && address != QHostAddress(QHostAddress::LocalHost))
-        {
-             return address.toString();
-        }
-    }
-    return QString();
 }

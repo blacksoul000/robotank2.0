@@ -19,7 +19,9 @@ namespace
     struct ArduinoPkg
     {
         int16_t voltage = 0;
+        uint16_t crc = 0;
     };
+
     struct RaspberryPkg
     {
         RaspberryPkg(){}
@@ -30,6 +32,7 @@ namespace
         int16_t leftEngine = 0;
         int16_t rightEngine = 0;
         int16_t towerH = 0;
+        uint16_t crc = 0;
     };
 #pragma pack(pop)
 
@@ -56,6 +59,9 @@ public:
     bool isArduinoOnline() const;
     void onLightTriggered();
 
+    bool isValid(const ArduinoPkg* pkg) const;
+    uint16_t crc16(const unsigned char* data, unsigned short len) const;
+
 private:
     bool arduinoOnline = true;
 };
@@ -64,7 +70,6 @@ ArduinoExchanger::ArduinoExchanger():
     ITask(),
     d(new Impl)
 {
-//    d->arduino = new Uart("/dev/ttyAMA0", sizeof(::ArduinoPkg), this);
     d->arduino = new I2CMaster("/dev/i2c-1", sizeof(::ArduinoPkg), this);
     connect(d->arduino, &IExchanger::dataAvailable, this, &ArduinoExchanger::onNewData);
 
@@ -123,8 +128,9 @@ void ArduinoExchanger::onNewData(const QByteArray& data)
     d->timer->start();
     d->setArduinoOnline(true);
 
-    ::ArduinoPkg pkg = *reinterpret_cast<const ::ArduinoPkg *>(data.data());
-    d->voltageP->publish(pkg.voltage);
+    const ::ArduinoPkg* pkg = reinterpret_cast<const ::ArduinoPkg *>(data.data());
+    if (!d->isValid(pkg)) return;
+    d->voltageP->publish(pkg->voltage);
 }
 
 void ArduinoExchanger::onPowerDown(const Empty&)
@@ -146,6 +152,8 @@ void ArduinoExchanger::Impl::setArduinoOnline(bool online)
 
 void ArduinoExchanger::Impl::sendData()
 {
+    package.crc = this->crc16(reinterpret_cast< unsigned char* >(&package), sizeof(RaspberryPkg) - sizeof(package.crc));
+  
     if (!arduino->sendData(QByteArray(reinterpret_cast<const char *>(&package), sizeof(package))))
     {
         qDebug() << Q_FUNC_INFO << "Failed to write to the bus.";
@@ -162,4 +170,24 @@ void ArduinoExchanger::Impl::onLightTriggered()
     package.light = !package.light;
     if (arduinoOnline) this->sendData();
     headlightP->publish(package.light);
+}
+
+uint16_t ArduinoExchanger::Impl::crc16(const unsigned char* data, unsigned short len) const
+{
+    unsigned short crc = 0xFFFF;
+    unsigned char i;
+
+    while (len--)
+    {
+        crc ^= *data++ << 8;
+
+        for (i = 0; i < 8; i++)
+            crc = crc & 0x8000 ? (crc << 1) ^ 0x1021 : crc << 1;
+    }
+    return crc;
+}
+
+bool ArduinoExchanger::Impl::isValid(const ArduinoPkg* pkg) const
+{
+    return pkg->crc == crc16(reinterpret_cast< const unsigned char* > (pkg), sizeof(ArduinoPkg) - sizeof(pkg->crc));
 }

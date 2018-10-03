@@ -10,6 +10,7 @@
 #include "command_packet.h"
 
 #include "bluetooth_manager.h"
+#include "network_helper.h"
 
 #include <QPoint>
 #include <QUdpSocket>
@@ -20,7 +21,6 @@ namespace
 {
     const quint16 sendPort = 56001;
     const quint16 receivePort = 56002;
-    const QHostAddress sendHost = QHostAddress::Broadcast;
 
     constexpr double positionCoef = 360.0 / 32767;
 }
@@ -53,6 +53,8 @@ public:
 
     QString videoSource;
     decltype(CommandPacket::id) id = 0;
+
+    QHostAddress sendHost;
 
     void processPacket(const CommandPacket& packet);
 };
@@ -121,11 +123,14 @@ void GuiExchanger::start()
     d->bluetooth->start();
 
     bzero(&d->chassis, sizeof(ChassisPacket));
+
+    d->sendHost = common::localNetwork();
 }
 
 void GuiExchanger::execute()
 {
-    d->sender->writeDatagram(ChassisPacket(d->chassis).toByteArray(), ::sendHost, ::sendPort);
+    if (d->sendHost.isNull()) return;
+    d->sender->writeDatagram(ChassisPacket(d->chassis).toByteArray(), d->sendHost, ::sendPort);
 }
 
 void GuiExchanger::onReadyRead()
@@ -227,9 +232,9 @@ void GuiExchanger::onPointerChanged(const bool& on)
 //------------------------------------------------------------------------------------
 void GuiExchanger::Impl::processPacket(const CommandPacket& packet)
 {
-    if (id >= packet.id && id - packet.id < 20) return;
+    const decltype(id) currentId = id;
     id = packet.id;
-
+    if (currentId > packet.id && currentId - packet.id < 20) return;
     switch (packet.commandId)
     {
     case CommandPacket::CommandId::CalibrateGun:
@@ -316,7 +321,7 @@ void GuiExchanger::Impl::processPacket(const CommandPacket& packet)
         bt.id = packet.id;
         bt.status.scanStatus = bluetooth->isScanning();
         bt.devices = bluetooth->devices();
-        sender->writeDatagram(ChassisPacket(bt).toByteArray(), ::sendHost, ::sendPort);
+        sender->writeDatagram(ChassisPacket(bt).toByteArray(), this->sendHost, ::sendPort);
         return;
     }
     case CommandPacket::CommandId::RequestConfig:
@@ -330,7 +335,7 @@ void GuiExchanger::Impl::processPacket(const CommandPacket& packet)
         config.rightEngine = enginePower.y();
         config.selectedTracker = selectedTracker;
         config.videoSource = videoSource;
-        sender->writeDatagram(ChassisPacket(config).toByteArray(), ::sendHost, ::sendPort);
+        sender->writeDatagram(ChassisPacket(config).toByteArray(), this->sendHost, ::sendPort);
         return;
     }
     case CommandPacket::CommandId::PowerDown:
@@ -345,5 +350,5 @@ void GuiExchanger::Impl::processPacket(const CommandPacket& packet)
     ChassisResponse response;
     response.id = packet.id;
     response.status = 0xAA;
-    sender->writeDatagram(ChassisPacket(response).toByteArray(), ::sendHost, ::sendPort);
+    sender->writeDatagram(ChassisPacket(response).toByteArray(), this->sendHost, ::sendPort);
 }

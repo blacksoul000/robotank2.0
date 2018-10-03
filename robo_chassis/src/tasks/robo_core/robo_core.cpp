@@ -159,11 +159,7 @@ void RoboCore::onTrackerDeviation(const QPointF& deviation)
     d->requiredTowerH = d->gunPosition.x() + (deviation.x() / d->dotsPerDegree.x());
 
     double gunV = d->gunPosition.y() - qMin((deviation.y() / d->dotsPerDegree.y()), 1.0);
-    qDebug() << Q_FUNC_INFO << d->gunPosition.y() << deviation.y() << d->dotsPerDegree.y() << gunV << (deviation.y() / d->dotsPerDegree.y());
-//    qDebug() << Q_FUNC_INFO << d->dotsPerDegree << deviation.y() << (deviation.y() / d->dotsPerDegree.y());
-//             << QPointF((deviation.x() / d->dotsPerDegree.x()), (deviation.y() / d->dotsPerDegree.y()))
-//            << d->influence.towerH << gunV;
-
+//    qDebug() << Q_FUNC_INFO << d->gunPosition.y() << deviation.y() << d->dotsPerDegree.y() << gunV << (deviation.y() / d->dotsPerDegree.y());
     d->deviationVP->publish(gunV);
 }
 

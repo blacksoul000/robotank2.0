@@ -185,7 +185,7 @@ void GpioController::onDeviation(const double& value)
 {
     d->servo[::gunVPin].tick = 0;
     d->servo[::gunVPin].pulse = d->servo[::gunVPin].maxPulse - value * d->servo[::gunVPin].pulsePerDegree;
-    qDebug() << Q_FUNC_INFO << __LINE__ << value << ((d->servo[::gunVPin].maxPulse - d->servo[::gunVPin].pulse) / d->servo[::gunVPin].pulsePerDegree);
+//    qDebug() << Q_FUNC_INFO << __LINE__ << value << ((d->servo[::gunVPin].maxPulse - d->servo[::gunVPin].pulse) / d->servo[::gunVPin].pulsePerDegree);
 }
 
 void GpioController::onGunCalibrate(const Empty&)
