@@ -3,7 +3,7 @@
 
 namespace common
 {
-    static QHostAddress localIp()
+    inline QHostAddress localIp()
     {
         for (const QHostAddress& address: QNetworkInterface::allAddresses())
         {
@@ -16,7 +16,7 @@ namespace common
         return QHostAddress();
     }
 
-    static QHostAddress localNetwork()
+    inline QHostAddress localNetwork()
     {
         QHostAddress localIp = common::localIp();
         if (localIp.isNull()) return QHostAddress();

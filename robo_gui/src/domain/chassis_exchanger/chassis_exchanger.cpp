@@ -2,6 +2,7 @@
 
 #include "chassis_packet.h"
 #include "command_packet.h"
+#include "network_helper.h"
 
 #include "robo_model.h"
 #include "track_model.h"
@@ -21,7 +22,6 @@ namespace
 {
     const quint16 receivePort = 56001;
     const quint16 sendPort = 56002;
-    const QHostAddress sendHost = QHostAddress::Broadcast;
 
     constexpr double positionCoef = 360.0 / 32767;
 
@@ -49,6 +49,8 @@ public:
     quint8 nextId = 1;
     QList< CommandInfo > queue;
     ChassisPacket last;
+
+    QHostAddress sendHost = common::localNetwork();
 
     QList< CommandInfo >::Iterator findQueueId(quint8 id);
     void appendPacket(const CommandPacketPtr& packet);
@@ -112,6 +114,7 @@ ChassisExchanger::~ChassisExchanger()
 
 void ChassisExchanger::send()
 {
+    if (d->sendHost.isNull()) return;
     qint64 currentTime = QDateTime::currentMSecsSinceEpoch();
     for (auto it = d->queue.begin(); it != d->queue.end();)
     {
@@ -122,7 +125,7 @@ void ChassisExchanger::send()
         }
         else
         {
-            d->sender->writeDatagram(it->packet->toByteArray(), ::sendHost, ::sendPort);
+            d->sender->writeDatagram(it->packet->toByteArray(), d->sendHost, ::sendPort);
             ++it;
         }
     }
