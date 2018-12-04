@@ -46,11 +46,7 @@ I2CMaster::~I2CMaster()
 bool I2CMaster::open()
 {
 	d->fd = ::open(d->device.toStdString().c_str(), O_RDWR | O_NONBLOCK);
-	if (d->fd < 0)
-	{
-		qDebug() << Q_FUNC_INFO << "Failed to open";
-		return false;
-	}
+	if (d->fd < 0) return false;
 
 	if (ioctl(d->fd, I2C_SLAVE, ::arduinoAddress) < 0)
 	{

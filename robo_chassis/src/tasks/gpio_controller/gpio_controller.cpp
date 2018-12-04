@@ -10,7 +10,6 @@
 
 #include <pigpio.h>
 
-#include <QtMath>
 #include <QPoint>
 #include <QDebug>
 

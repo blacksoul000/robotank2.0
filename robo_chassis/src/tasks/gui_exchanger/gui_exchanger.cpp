@@ -148,8 +148,6 @@ void GuiExchanger::onGunPosition(const QPointF& position)
 {
     d->chassis.gunH = position.x() / ::positionCoef;
     d->chassis.gunV = position.y() / ::positionCoef;
-    d->chassis.cameraH = position.x() / ::positionCoef;
-    d->chassis.cameraV = position.y() / ::positionCoef;
 }
 
 void GuiExchanger::onYpr(const PointF3D& ypr)

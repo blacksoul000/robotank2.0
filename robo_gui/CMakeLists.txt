@@ -41,10 +41,10 @@ file(GLOB_RECURSE SOURCES ${CMAKE_SOURCE_DIR}/src src/*.cpp)
 
 HEADER_DIRECTORIES(${CMAKE_SOURCE_DIR}/src DIRS)
 include_directories(${DIRS})
-include_directories(${CMAKE_SOURCE_DIR}/../common)
 
 file(GLOB_RECURSE QRC ${CMAKE_SOURCE_DIR}/src src/*.qrc)
 qt5_add_resources(RESOURCES ${QRC})
+set_property(SOURCE ${RESOURCES} PROPERTY SKIP_AUTOMOC ON)
 
 if(ANDROID)
     include_directories(${ANDROID_SYSROOT}/usr/include)
@@ -54,6 +54,7 @@ else(ANDROID)
     add_executable(${PROJECT_NAME} ${SOURCES} ${RESOURCES})
 endif()
 
+add_subdirectory(${CMAKE_SOURCE_DIR}/../common common)
 target_link_libraries(${PROJECT_NAME} ${LIBS})
 
 if(ANDROID)

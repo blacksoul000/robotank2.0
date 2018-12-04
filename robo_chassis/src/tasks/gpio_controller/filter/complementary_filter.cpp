@@ -3,6 +3,8 @@
 // Qt
 #include <QtGlobal>
 
+#include <cmath>
+
 namespace
 {
     float filterConstant = 0.40; // Complementary filter constant

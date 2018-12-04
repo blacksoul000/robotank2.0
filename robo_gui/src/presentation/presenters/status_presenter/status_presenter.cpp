@@ -41,9 +41,6 @@ StatusPresenter::StatusPresenter(domain::RoboModel *model, QObject *parent) :
     connect(d->model, &StatusModel::gunPositionVChanged,
             this, &StatusPresenter::gunPositionVChanged);
 
-    connect(d->model, &StatusModel::cameraPositionVChanged,
-            this, &StatusPresenter::cameraPositionVChanged);
-
     connect(d->model, &StatusModel::yawChanged, this, &StatusPresenter::yawChanged);
     connect(d->model, &StatusModel::pitchChanged, this, &StatusPresenter::pitchChanged);
     connect(d->model, &StatusModel::rollChanged, this, &StatusPresenter::rollChanged);
@@ -99,11 +96,6 @@ qreal StatusPresenter::gunPositionH() const
 qreal StatusPresenter::gunPositionV() const
 {
     return d->model->gunPositionV();
-}
-
-qreal StatusPresenter::cameraPositionV() const
-{
-    return d->model->cameraPositionV();
 }
 
 qreal StatusPresenter::yaw() const

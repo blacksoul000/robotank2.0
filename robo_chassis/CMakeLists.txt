@@ -15,7 +15,7 @@ ExternalProject_Add(OpenTLD
                     CMAKE_ARGS -DWITH_OPENMP=ON
                     INSTALL_COMMAND "")
 
-#include(${CMAKE_SOURCE_DIR}/../cmake/FindOpenCV.cmake)
+include(${CMAKE_SOURCE_DIR}/../cmake/FindOpenCV.cmake)
 include(${CMAKE_SOURCE_DIR}/../cmake/RecurseDirs.cmake)
 
 find_package(OpenCV 3)
@@ -52,7 +52,6 @@ endif(PICAM)
 set(CMAKE_AUTOMOC ON)
 
 HEADER_DIRECTORIES(src DIRS)
-include_directories(${CMAKE_SOURCE_DIR}/../common)
 include_directories(${DIRS})
 include_directories(${OpenTLD_DIR}/src)
 include_directories(${OpenCV_INCLUDE_DIRS})
@@ -61,5 +60,7 @@ include_directories(${GSTRTSP_INCLUDE_DIRS})
 file(GLOB_RECURSE SOURCES src src/*.cpp)
 add_executable(${PROJECT_NAME} ${SOURCES})
 add_dependencies(${PROJECT_NAME} OpenTLD)
+
+add_subdirectory(${CMAKE_SOURCE_DIR}/../common common)
 
 target_link_libraries(${PROJECT_NAME} ${LIBS})

@@ -248,7 +248,6 @@ void ChassisExchanger::processPacket(const QByteArray& data)
 
         d->model->status()->setGunPositionH(tmi.gunH * ::positionCoef);
         d->model->status()->setGunPositionV(tmi.gunV * ::positionCoef);
-        d->model->status()->setCameraPositionV(tmi.cameraV * ::positionCoef);
 
         d->model->status()->setYaw(tmi.yaw * ::positionCoef);
         d->model->status()->setPitch(tmi.pitch * ::positionCoef);

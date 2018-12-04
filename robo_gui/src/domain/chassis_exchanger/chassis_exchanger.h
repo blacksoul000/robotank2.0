@@ -11,7 +11,7 @@ namespace domain
     {
         Q_OBJECT
     public:
-        explicit ChassisExchanger(RoboModel* model, QObject* parent = 0);
+        explicit ChassisExchanger(RoboModel* model, QObject* parent = nullptr);
         ~ChassisExchanger();
 
     signals:

@@ -97,9 +97,6 @@ struct ChassisTmi
     int16_t gunH = 0;
     int16_t gunV = 0;
 
-    int16_t cameraH = 0;
-    int16_t cameraV = 0;
-
     int16_t yaw = 0;
     int16_t pitch = 0;
     int16_t roll = 0;

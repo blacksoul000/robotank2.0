@@ -10,6 +10,7 @@
 #include <QPointF>
 
 #include <limits>
+#include <cmath>
 
 namespace
 {

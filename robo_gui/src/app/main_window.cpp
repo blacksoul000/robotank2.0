@@ -6,7 +6,8 @@
 #include "settings_model.h"
 #include "status_model.h"
 #include "presenter_factory.h"
-#include "chassis_exchanger.h"
+//#include "chassis_exchanger.h"
+#include "mavlink_exchanger.h"
 
 //Qt
 #include <QCoreApplication>
@@ -23,7 +24,8 @@
 #endif
 
 using robo::MainWindow;
-using domain::ChassisExchanger;
+//using domain::ChassisExchanger;
+using domain::MavlinkExchanger;
 
 namespace
 {
@@ -36,7 +38,8 @@ class MainWindow::Impl
 public:
     domain::RoboModel* model = nullptr;
     QQuickView* viewer = nullptr;
-    ChassisExchanger* exchanger = nullptr;
+//    ChassisExchanger* exchanger = nullptr;
+    MavlinkExchanger* exchanger = nullptr;
 
     quint16 buttonsState = 0;
 
@@ -57,7 +60,10 @@ MainWindow::MainWindow() :
     d(new Impl)
 {
     d->model = new domain::RoboModel;
-    d->exchanger = new ChassisExchanger(d->model, this);
+//    d->exchanger = new ChassisExchanger(d->model, this);
+    d->exchanger = new MavlinkExchanger(d->model, this);
+    d->exchanger->start();
+
     d->viewer = new QQuickView;
     d->viewer->rootContext()->setContextProperty("factory",
                         new presentation::PresenterFactory(d->model, this));
@@ -65,7 +71,7 @@ MainWindow::MainWindow() :
     d->viewer->showFullScreen();
     d->viewer->requestActivate();
 
-    connect(d->exchanger, &ChassisExchanger::buttonsUpdated, this, &MainWindow::onButtonsUpdated);
+//    connect(d->exchanger, &ChassisExchanger::buttonsUpdated, this, &MainWindow::onButtonsUpdated);
 
 
 #ifdef ANDROID
@@ -106,7 +112,7 @@ void MainWindow::onButtonsUpdated(quint16 buttons)
         {
             QRectF r = d->model->track()->isTracking()
                     ? QRectF() : d->model->track()->captureRect();
-            d->exchanger->onTrackToggle(r);
+//            d->exchanger->onTrackToggle(r);
         }
     }
     if (trianglePressed != d->isBitSet(d->buttonsState, Button::Triangle))
