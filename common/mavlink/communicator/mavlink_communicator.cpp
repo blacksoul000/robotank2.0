@@ -15,6 +15,7 @@
 #include "endpoint.h"
 #include "vehicle.h"
 #include "vehicle_registry.h"
+#include "command_service.h"
 
 using namespace domain;
 using data_source::AbstractLink;
@@ -24,7 +25,6 @@ class MavLinkCommunicator::Impl
 {
 public:
     data_source::AbstractLink* lastReceivedLink = nullptr;
-    data_source::Endpoint lastSender;
 
     quint8 systemId = 255;
     quint8 componentId = 0;
@@ -32,6 +32,7 @@ public:
 
     QMap< data_source::AbstractLink*, quint8 > linkChannels;
     VehicleRegistryPtr vehicleRegistry;
+    CommandServicePtr commandService;
 
     QList< quint8 > avalibleChannels;
 
@@ -45,6 +46,7 @@ MavLinkCommunicator::MavLinkCommunicator(QObject* parent):
 {
     qRegisterMetaType < mavlink_message_t > ("mavlink_message_t");
     d->vehicleRegistry = VehicleRegistryPtr::create();
+    d->commandService = CommandServicePtr::create();
 
     for (quint8 channel = 0; channel < MAVLINK_COMM_NUM_BUFFERS; ++channel)
     {
@@ -83,11 +85,6 @@ quint8 MavLinkCommunicator::linkChannel(data_source::AbstractLink* link) const
     return d->linkChannels.value(link, 0);
 }
 
-data_source::Endpoint MavLinkCommunicator::lastSender() const
-{
-    return d->lastSender;
-}
-
 data_source::AbstractLink* MavLinkCommunicator::lastReceivedLink() const
 {
     return d->lastReceivedLink;
@@ -104,6 +101,11 @@ data_source::AbstractLink* MavLinkCommunicator::mavSystemLink(quint8 systemId)
 VehicleRegistryPtr MavLinkCommunicator::vehicleRegistry() const
 {
     return d->vehicleRegistry;
+}
+
+CommandServicePtr MavLinkCommunicator::commandService() const
+{
+    return d->commandService;
 }
 
 void MavLinkCommunicator::addHeartbeatLink(data_source::AbstractLink* link)
@@ -192,7 +194,7 @@ void MavLinkCommunicator::sendMessage(mavlink_message_t& message, AbstractLink* 
     link->sendData(QByteArray((const char*)buffer, lenght));
 }
 
-void MavLinkCommunicator::onDataReceived(const QByteArray& data, const Endpoint& sender)
+void MavLinkCommunicator::onDataReceived(const QByteArray& data)
 {
     AbstractLink* link = qobject_cast< AbstractLink* >(this->sender());
     if (!link) return;
@@ -207,8 +209,6 @@ void MavLinkCommunicator::onDataReceived(const QByteArray& data, const Endpoint&
         if (message.sysid == d->systemId) continue;
 
         d->lastReceivedLink = link;
-        d->lastSender = sender;
-
 //        mavlink_status_t* channelStatus = mavlink_get_channel_status(channel);
 //        info->protocol = (channelStatus->flags & MAVLINK_STATUS_FLAG_IN_MAVLINK1)
 //                             ? ProtocolVersion::MavLink1 : ProtocolVersion::MavLink2;

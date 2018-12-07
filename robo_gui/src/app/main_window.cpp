@@ -71,7 +71,8 @@ MainWindow::MainWindow() :
     d->viewer->showFullScreen();
     d->viewer->requestActivate();
 
-//    connect(d->exchanger, &ChassisExchanger::buttonsUpdated, this, &MainWindow::onButtonsUpdated);
+    connect(d->model->status(), &domain::StatusModel::buttonsChanged,
+            this, &MainWindow::onButtonsUpdated);
 
 
 #ifdef ANDROID
@@ -112,7 +113,7 @@ void MainWindow::onButtonsUpdated(quint16 buttons)
         {
             QRectF r = d->model->track()->isTracking()
                     ? QRectF() : d->model->track()->captureRect();
-//            d->exchanger->onTrackToggle(r);
+            d->exchanger->onTrackToggle(r);
         }
     }
     if (trianglePressed != d->isBitSet(d->buttonsState, Button::Triangle))

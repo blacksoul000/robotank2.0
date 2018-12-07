@@ -4,6 +4,7 @@
 #include "abstract_mavlink_handler.h"
 
 #include <QScopedPointer>
+#include <QPointF>
 #include <QObject>
 
 struct PointF3D;
@@ -18,6 +19,8 @@ namespace domain
 
     protected:
         void onYpr(const PointF3D& ypr);
+        void onGunPosition(const QPointF& position);
+
         void timerEvent(QTimerEvent *event) override;
 
     private:

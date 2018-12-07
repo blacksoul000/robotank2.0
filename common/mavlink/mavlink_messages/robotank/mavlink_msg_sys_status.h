@@ -6,8 +6,8 @@
 MAVPACKED(
 typedef struct __mavlink_sys_status_t {
  uint16_t voltage; /*<  chassis voltage*/
- int16_t gamepad_buttons; /*<  gamepad buttons state*/
- int8_t system_state; /*<  system state*/
+ uint16_t gamepad_buttons; /*<  gamepad buttons state*/
+ uint8_t system_state; /*<  system state*/
  uint8_t gamepad_capacity; /*<  gamepad capacity*/
 }) mavlink_sys_status_t;
 
@@ -16,8 +16,8 @@ typedef struct __mavlink_sys_status_t {
 #define MAVLINK_MSG_ID_151_LEN 6
 #define MAVLINK_MSG_ID_151_MIN_LEN 6
 
-#define MAVLINK_MSG_ID_SYS_STATUS_CRC 219
-#define MAVLINK_MSG_ID_151_CRC 219
+#define MAVLINK_MSG_ID_SYS_STATUS_CRC 222
+#define MAVLINK_MSG_ID_151_CRC 222
 
 
 
@@ -26,20 +26,20 @@ typedef struct __mavlink_sys_status_t {
     151, \
     "SYS_STATUS", \
     4, \
-    {  { "system_state", NULL, MAVLINK_TYPE_INT8_T, 0, 4, offsetof(mavlink_sys_status_t, system_state) }, \
+    {  { "system_state", NULL, MAVLINK_TYPE_UINT8_T, 0, 4, offsetof(mavlink_sys_status_t, system_state) }, \
          { "voltage", NULL, MAVLINK_TYPE_UINT16_T, 0, 0, offsetof(mavlink_sys_status_t, voltage) }, \
          { "gamepad_capacity", NULL, MAVLINK_TYPE_UINT8_T, 0, 5, offsetof(mavlink_sys_status_t, gamepad_capacity) }, \
-         { "gamepad_buttons", NULL, MAVLINK_TYPE_INT16_T, 0, 2, offsetof(mavlink_sys_status_t, gamepad_buttons) }, \
+         { "gamepad_buttons", NULL, MAVLINK_TYPE_UINT16_T, 0, 2, offsetof(mavlink_sys_status_t, gamepad_buttons) }, \
          } \
 }
 #else
 #define MAVLINK_MESSAGE_INFO_SYS_STATUS { \
     "SYS_STATUS", \
     4, \
-    {  { "system_state", NULL, MAVLINK_TYPE_INT8_T, 0, 4, offsetof(mavlink_sys_status_t, system_state) }, \
+    {  { "system_state", NULL, MAVLINK_TYPE_UINT8_T, 0, 4, offsetof(mavlink_sys_status_t, system_state) }, \
          { "voltage", NULL, MAVLINK_TYPE_UINT16_T, 0, 0, offsetof(mavlink_sys_status_t, voltage) }, \
          { "gamepad_capacity", NULL, MAVLINK_TYPE_UINT8_T, 0, 5, offsetof(mavlink_sys_status_t, gamepad_capacity) }, \
-         { "gamepad_buttons", NULL, MAVLINK_TYPE_INT16_T, 0, 2, offsetof(mavlink_sys_status_t, gamepad_buttons) }, \
+         { "gamepad_buttons", NULL, MAVLINK_TYPE_UINT16_T, 0, 2, offsetof(mavlink_sys_status_t, gamepad_buttons) }, \
          } \
 }
 #endif
@@ -57,13 +57,13 @@ typedef struct __mavlink_sys_status_t {
  * @return length of the message in bytes (excluding serial stream start sign)
  */
 static inline uint16_t mavlink_msg_sys_status_pack(uint8_t system_id, uint8_t component_id, mavlink_message_t* msg,
-                               int8_t system_state, uint16_t voltage, uint8_t gamepad_capacity, int16_t gamepad_buttons)
+                               uint8_t system_state, uint16_t voltage, uint8_t gamepad_capacity, uint16_t gamepad_buttons)
 {
 #if MAVLINK_NEED_BYTE_SWAP || !MAVLINK_ALIGNED_FIELDS
     char buf[MAVLINK_MSG_ID_SYS_STATUS_LEN];
     _mav_put_uint16_t(buf, 0, voltage);
-    _mav_put_int16_t(buf, 2, gamepad_buttons);
-    _mav_put_int8_t(buf, 4, system_state);
+    _mav_put_uint16_t(buf, 2, gamepad_buttons);
+    _mav_put_uint8_t(buf, 4, system_state);
     _mav_put_uint8_t(buf, 5, gamepad_capacity);
 
         memcpy(_MAV_PAYLOAD_NON_CONST(msg), buf, MAVLINK_MSG_ID_SYS_STATUS_LEN);
@@ -95,13 +95,13 @@ static inline uint16_t mavlink_msg_sys_status_pack(uint8_t system_id, uint8_t co
  */
 static inline uint16_t mavlink_msg_sys_status_pack_chan(uint8_t system_id, uint8_t component_id, uint8_t chan,
                                mavlink_message_t* msg,
-                                   int8_t system_state,uint16_t voltage,uint8_t gamepad_capacity,int16_t gamepad_buttons)
+                                   uint8_t system_state,uint16_t voltage,uint8_t gamepad_capacity,uint16_t gamepad_buttons)
 {
 #if MAVLINK_NEED_BYTE_SWAP || !MAVLINK_ALIGNED_FIELDS
     char buf[MAVLINK_MSG_ID_SYS_STATUS_LEN];
     _mav_put_uint16_t(buf, 0, voltage);
-    _mav_put_int16_t(buf, 2, gamepad_buttons);
-    _mav_put_int8_t(buf, 4, system_state);
+    _mav_put_uint16_t(buf, 2, gamepad_buttons);
+    _mav_put_uint8_t(buf, 4, system_state);
     _mav_put_uint8_t(buf, 5, gamepad_capacity);
 
         memcpy(_MAV_PAYLOAD_NON_CONST(msg), buf, MAVLINK_MSG_ID_SYS_STATUS_LEN);
@@ -157,13 +157,13 @@ static inline uint16_t mavlink_msg_sys_status_encode_chan(uint8_t system_id, uin
  */
 #ifdef MAVLINK_USE_CONVENIENCE_FUNCTIONS
 
-static inline void mavlink_msg_sys_status_send(mavlink_channel_t chan, int8_t system_state, uint16_t voltage, uint8_t gamepad_capacity, int16_t gamepad_buttons)
+static inline void mavlink_msg_sys_status_send(mavlink_channel_t chan, uint8_t system_state, uint16_t voltage, uint8_t gamepad_capacity, uint16_t gamepad_buttons)
 {
 #if MAVLINK_NEED_BYTE_SWAP || !MAVLINK_ALIGNED_FIELDS
     char buf[MAVLINK_MSG_ID_SYS_STATUS_LEN];
     _mav_put_uint16_t(buf, 0, voltage);
-    _mav_put_int16_t(buf, 2, gamepad_buttons);
-    _mav_put_int8_t(buf, 4, system_state);
+    _mav_put_uint16_t(buf, 2, gamepad_buttons);
+    _mav_put_uint8_t(buf, 4, system_state);
     _mav_put_uint8_t(buf, 5, gamepad_capacity);
 
     _mav_finalize_message_chan_send(chan, MAVLINK_MSG_ID_SYS_STATUS, buf, MAVLINK_MSG_ID_SYS_STATUS_MIN_LEN, MAVLINK_MSG_ID_SYS_STATUS_LEN, MAVLINK_MSG_ID_SYS_STATUS_CRC);
@@ -200,13 +200,13 @@ static inline void mavlink_msg_sys_status_send_struct(mavlink_channel_t chan, co
   is usually the receive buffer for the channel, and allows a reply to an
   incoming message with minimum stack space usage.
  */
-static inline void mavlink_msg_sys_status_send_buf(mavlink_message_t *msgbuf, mavlink_channel_t chan,  int8_t system_state, uint16_t voltage, uint8_t gamepad_capacity, int16_t gamepad_buttons)
+static inline void mavlink_msg_sys_status_send_buf(mavlink_message_t *msgbuf, mavlink_channel_t chan,  uint8_t system_state, uint16_t voltage, uint8_t gamepad_capacity, uint16_t gamepad_buttons)
 {
 #if MAVLINK_NEED_BYTE_SWAP || !MAVLINK_ALIGNED_FIELDS
     char *buf = (char *)msgbuf;
     _mav_put_uint16_t(buf, 0, voltage);
-    _mav_put_int16_t(buf, 2, gamepad_buttons);
-    _mav_put_int8_t(buf, 4, system_state);
+    _mav_put_uint16_t(buf, 2, gamepad_buttons);
+    _mav_put_uint8_t(buf, 4, system_state);
     _mav_put_uint8_t(buf, 5, gamepad_capacity);
 
     _mav_finalize_message_chan_send(chan, MAVLINK_MSG_ID_SYS_STATUS, buf, MAVLINK_MSG_ID_SYS_STATUS_MIN_LEN, MAVLINK_MSG_ID_SYS_STATUS_LEN, MAVLINK_MSG_ID_SYS_STATUS_CRC);
@@ -232,9 +232,9 @@ static inline void mavlink_msg_sys_status_send_buf(mavlink_message_t *msgbuf, ma
  *
  * @return  system state
  */
-static inline int8_t mavlink_msg_sys_status_get_system_state(const mavlink_message_t* msg)
+static inline uint8_t mavlink_msg_sys_status_get_system_state(const mavlink_message_t* msg)
 {
-    return _MAV_RETURN_int8_t(msg,  4);
+    return _MAV_RETURN_uint8_t(msg,  4);
 }
 
 /**
@@ -262,9 +262,9 @@ static inline uint8_t mavlink_msg_sys_status_get_gamepad_capacity(const mavlink_
  *
  * @return  gamepad buttons state
  */
-static inline int16_t mavlink_msg_sys_status_get_gamepad_buttons(const mavlink_message_t* msg)
+static inline uint16_t mavlink_msg_sys_status_get_gamepad_buttons(const mavlink_message_t* msg)
 {
-    return _MAV_RETURN_int16_t(msg,  2);
+    return _MAV_RETURN_uint16_t(msg,  2);
 }
 
 /**

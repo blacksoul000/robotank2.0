@@ -1,18 +1,20 @@
-#ifndef ATTITUDE_HANDLER_H
-#define ATTITUDE_HANDLER_H
+#ifndef TRACKING_TARGET_HANDLER_H
+#define TRACKING_TARGET_HANDLER_H
 
 #include "abstract_mavlink_handler.h"
 
 #include <QScopedPointer>
 
+struct PointF3D;
+
 namespace domain
 {
     class RoboModel;
 
-    class AttitudeHandler: public AbstractMavLinkHandler
+    class TrackingTargetHandler: public AbstractMavLinkHandler
     {
     public:
-        AttitudeHandler(MavLinkCommunicator* communicator, domain::RoboModel* model);
+        TrackingTargetHandler(MavLinkCommunicator* communicator, domain::RoboModel* model);
         void processMessage(const mavlink_message_t& message) override;
 
     private:
@@ -21,4 +23,4 @@ namespace domain
     };
 }
 
-#endif // ATTITUDE_HANDLER_H
+#endif // TRACKING_TARGET_HANDLER_H

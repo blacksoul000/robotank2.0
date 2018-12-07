@@ -13,6 +13,7 @@
 #include <mavlink.h>
 
 // Qt
+#include <QPointF>
 #include <QDebug>
 
 namespace
@@ -26,6 +27,7 @@ using data_source::AbstractLink;
 struct SendAttitudeHandler::Impl
 {
     PointF3D ypr;
+    QPointF gunPosition;
 };
 
 SendAttitudeHandler::SendAttitudeHandler(MavLinkCommunicator* communicator):
@@ -34,11 +36,17 @@ SendAttitudeHandler::SendAttitudeHandler(MavLinkCommunicator* communicator):
 {
     this->startTimer(40); // 25 Hz
     PubSub::instance()->subscribe("chassis/ypr", &SendAttitudeHandler::onYpr, this);
+    PubSub::instance()->subscribe("gun/position", &SendAttitudeHandler::onGunPosition, this);
 }
 
 void SendAttitudeHandler::onYpr(const PointF3D& ypr)
 {
     d->ypr = ypr;
+}
+
+void SendAttitudeHandler::onGunPosition(const QPointF& position)
+{
+    d->gunPosition = position;
 }
 
 void SendAttitudeHandler::processMessage(const mavlink_message_t& message)
@@ -59,6 +67,12 @@ void SendAttitudeHandler::timerEvent(QTimerEvent* event)
     attitude.yaw = data_source::encodeYpr(d->ypr.x);
     attitude.pitch = data_source::encodeYpr(d->ypr.y);
     attitude.roll = data_source::encodeYpr(d->ypr.z);
+    // TODO - encode
+    attitude.gunH = d->gunPosition.x();
+    attitude.gunV = d->gunPosition.y();
+
+//    d->chassis.gunH = position.x() / ::positionCoef;
+//    d->chassis.gunV = position.y() / ::positionCoef;
 
     mavlink_msg_attitude_encode(m_communicator->systemId(),
                                 m_communicator->componentId(),

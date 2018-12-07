@@ -1,3 +1,5 @@
+#include "attitude_handler.h"
+
 #include <mavlink.h>
 
 #include "robo_model.h"
@@ -5,7 +7,6 @@
 
 // Internal
 #include "mavlink_communicator.h"
-#include "attitude_handler.h"
 #include "mavlink_protocol_helpers.h"
 
 // Qt
@@ -37,6 +38,12 @@ void AttitudeHandler::processMessage(const mavlink_message_t& message)
     status->setYaw(data_source::decodeYpr(attitude.yaw));
     status->setPitch(data_source::decodeYpr(attitude.pitch));
     status->setRoll(data_source::decodeYpr(attitude.roll));
-//    qDebug() << Q_FUNC_INFO << status->yaw() << status->pitch() << status->roll();
+
+    // TODO - decode
+    status->setGunPositionH(attitude.gunH);
+    status->setGunPositionV(attitude.gunV);
+//    qDebug() << Q_FUNC_INFO << message.sysid << status->yaw()
+//              << status->pitch() << status->roll()
+//              << status->gunPositionH() << status->gunPositionV();
 }
 

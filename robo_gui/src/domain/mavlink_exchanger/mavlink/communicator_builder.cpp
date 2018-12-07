@@ -2,6 +2,10 @@
 
 #include "heartbeat_handler.h"
 #include "attitude_handler.h"
+#include "tracking_target_handler.h"
+#include "sys_status_handler.h"
+#include "mavlink_command_handler.h"
+#include "settings_handler.h"
 
 struct CommunicatorBuilder::Impl
 {
@@ -25,5 +29,9 @@ void CommunicatorBuilder::buildHandlers()
     using namespace domain;
 
     new HeartbeatHandler(m_communicator);
+    new MavLinkCommandHandler(m_communicator);
     new AttitudeHandler(m_communicator, d->model);
+    new TrackingTargetHandler(m_communicator, d->model);
+    new SysStatusHandler(m_communicator, d->model);
+    new SettingsHandler(m_communicator, d->model);
 }

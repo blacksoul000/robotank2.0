@@ -38,7 +38,6 @@ public:
     Publisher< Empty >* calibrateCameraP = nullptr;
     Publisher< Empty >* calibrateYprP = nullptr;
     Publisher< QPoint >* enginePowerP = nullptr;
-    Publisher< QString >* videoSourceP = nullptr;
     Publisher< Empty >* powerDownP = nullptr;
 
     QUdpSocket* sender = nullptr;
@@ -72,7 +71,6 @@ GuiExchanger::GuiExchanger() :
     d->calibrateCameraP = PubSub::instance()->advertise< Empty >("camera/calibrate");
     d->calibrateYprP = PubSub::instance()->advertise< Empty >("ypr/calibrate");
     d->enginePowerP = PubSub::instance()->advertise< QPoint >("core/enginePower");
-    d->videoSourceP = PubSub::instance()->advertise< QString >("camera/source");
     d->powerDownP = PubSub::instance()->advertise< Empty >("core/powerDown");
 
     PubSub::instance()->subscribe("gun/position", &GuiExchanger::onGunPosition, this);
@@ -107,7 +105,6 @@ GuiExchanger::~GuiExchanger()
     delete d->calibrateCameraP;
     delete d->calibrateYprP;
     delete d->enginePowerP;
-    delete d->videoSourceP;
     delete d->powerDownP;
     delete d;
 }

@@ -242,6 +242,130 @@
         <description>Onboard FLARM collision avoidance system</description>
       </entry>
     </enum>
+        <enum name="MAV_CMD">
+      <description>Commands to be executed by the MAV. They can be executed on user request, or as part of a mission script. If the action is used in a mission, the parameter mapping to the waypoint/mission message is as follows: Param 1, Param 2, Param 3, Param 4, X: Param 5, Y:Param 6, Z:Param 7. This command list is similar what ARINC 424 is for commercial aircraft: A data format how to interpret waypoint/mission data.</description>
+      <entry value="16" name="MAV_CMD_SET_TRACKER_CODE">
+        <description>Tracker code</description>
+        <param index="1">Hold selected tracker code</param>
+        <param index="2">Empty</param>
+        <param index="3">Empty</param>
+        <param index="4">Empty</param>
+        <param index="5">Empty</param>
+        <param index="6">Empty</param>
+        <param index="7">Empty</param>
+      </entry>
+      <entry value="17" name="MAV_CMD_TRACK">
+        <description>Rect geometry. If rect is null - disable tracking</description>
+        <param index="1">x</param>
+        <param index="2">y</param>
+        <param index="3">width</param>
+        <param index="4">height</param>
+        <param index="5">Empty</param>
+        <param index="6">Empty</param>
+        <param index="7">Empty</param>
+      </entry>
+      <entry value="18" name="MAV_CMD_BLUETOOTH_SCAN">
+        <description>Start bluetooth scan</description>
+        <param index="1">Empty</param>
+        <param index="2">Empty</param>
+        <param index="3">Empty</param>
+        <param index="4">Empty</param>
+        <param index="5">Empty</param>
+        <param index="6">Empty</param>
+        <param index="7">Empty</param>
+      </entry>
+      <entry value="19" name="MAV_CMD_BLUETOOTH_PAIR">
+        <description>Pair/unpair bluetooth device</description>
+        <param index="1">address</param>
+        <param index="2">paired</param>
+        <param index="3">Empty</param>
+        <param index="4">Empty</param>
+        <param index="5">Empty</param>
+        <param index="6">Empty</param>
+        <param index="7">Empty</param>
+      </entry>
+      <entry value="20" name="MAV_CMD_ENGINE_POWER">
+        <description>Engine power in persents</description>
+        <param index="1">left</param>
+        <param index="2">right</param>
+        <param index="3">Empty</param>
+        <param index="4">Empty</param>
+        <param index="5">Empty</param>
+        <param index="6">Empty</param>
+        <param index="7">Empty</param>
+      </entry>
+      <entry value="21" name="MAV_CMD_CALIBRATE_GUN">
+        <description>Calibrate gun position</description>
+        <param index="1">Empty</param>
+        <param index="2">Empty</param>
+        <param index="3">Empty</param>
+        <param index="4">Empty</param>
+        <param index="5">Empty</param>
+        <param index="6">Empty</param>
+        <param index="7">Empty</param>
+      </entry>
+      <entry value="22" name="MAV_CMD_CALIBRATE_YPR">
+        <description>Calibrate gyro sensors</description>
+        <param index="1">Empty</param>
+        <param index="2">Empty</param>
+        <param index="3">Empty</param>
+        <param index="4">Empty</param>
+        <param index="5">Empty</param>
+        <param index="6">Empty</param>
+        <param index="7">Empty</param>
+      </entry>
+      <entry value="23" name="MAV_CMD_POWER_DOWN">
+        <description>Power down</description>
+        <param index="1">Empty</param>
+        <param index="2">Empty</param>
+        <param index="3">Empty</param>
+        <param index="4">Empty</param>
+        <param index="5">Empty</param>
+        <param index="6">Empty</param>
+        <param index="7">Empty</param>
+      </entry>
+      <entry value="24" name="MAV_CMD_IMAGE_SETTINGS">
+        <description>Video image parameters</description>
+        <param index="1">quality</param>
+        <param index="2">brightness</param>
+        <param index="3">contrast</param>
+        <param index="4">Empty</param>
+        <param index="5">Empty</param>
+        <param index="6">Empty</param>
+        <param index="7">Empty</param>
+      </entry>
+      <entry value="25" name="MAV_CMD_REQUEST_SETTINGS">
+        <description>Request onboard settings</description>
+        <param index="1">Empty</param>
+        <param index="2">Empty</param>
+        <param index="3">Empty</param>
+        <param index="4">Empty</param>
+        <param index="5">Empty</param>
+        <param index="6">Empty</param>
+        <param index="7">Empty</param>
+      </entry>
+    </enum>
+    <enum name="MAV_RESULT">
+      <description>result from a mavlink command</description>
+      <entry value="0" name="MAV_RESULT_ACCEPTED">
+        <description>Command ACCEPTED and EXECUTED</description>
+      </entry>
+      <entry value="1" name="MAV_RESULT_TEMPORARILY_REJECTED">
+        <description>Command TEMPORARY REJECTED/DENIED</description>
+      </entry>
+      <entry value="2" name="MAV_RESULT_DENIED">
+        <description>Command PERMANENTLY DENIED</description>
+      </entry>
+      <entry value="3" name="MAV_RESULT_UNSUPPORTED">
+        <description>Command UNKNOWN/UNSUPPORTED</description>
+      </entry>
+      <entry value="4" name="MAV_RESULT_FAILED">
+        <description>Command executed, but failed</description>
+      </entry>
+      <entry value="5" name="MAV_RESULT_IN_PROGRESS">
+        <description>WIP: Command being executed</description>
+      </entry>
+    </enum>
   </enums>
   <messages>
     <message id="0" name="HEARTBEAT">
@@ -270,10 +394,10 @@
     </message>
     <message id="151" name="SYS_STATUS">
       <description>Overall system status.</description>
-      <field type="int8_t" name="system_state" enum="MAV_SYSTEM_STATE" display="bitmask">system state</field>
+      <field type="uint8_t" name="system_state" enum="MAV_SYSTEM_STATE" display="bitmask">system state</field>
       <field type="uint16_t" name="voltage">chassis voltage</field>
       <field type="uint8_t" name="gamepad_capacity">gamepad capacity</field>
-      <field type="int16_t" name="gamepad_buttons">gamepad buttons state</field>
+      <field type="uint16_t" name="gamepad_buttons">gamepad buttons state</field>
     </message>
     <message id="152" name="ATTITUDE">
       <description>Chassis attitude.</description>
@@ -285,10 +409,10 @@
     </message>
     <message id="153" name="TRACKING_TARGET_RECT">
       <description>Tracking target rect.</description>
-      <field type="float" name="target_rect_top">target rect top</field>
-      <field type="float" name="target_rect_left">target rect left</field>
-      <field type="float" name="target_rect_width">target rect width</field>
-      <field type="float" name="target_rect_height">target rect height</field>
+      <field type="float" name="x">x</field>
+      <field type="float" name="y">y</field>
+      <field type="float" name="width">width</field>
+      <field type="float" name="height">height</field>
     </message>
     <message id="154" name="BLUETOOTH_DEVICES">
       <description>Bluetooth device list.</description>
@@ -305,6 +429,46 @@
       <field type="uint8_t" name="right_engine_power">right engine power</field>
       <field type="uint8_t" name="selected_tracker">selected tracker</field>
       <field type="char[249]" name="video_source">video source path</field>
+    </message>
+    <message id="75" name="COMMAND_INT">
+      <description>Message encoding a command with parameters as scaled integers. Scaling depends on the actual command value.</description>
+      <field type="uint8_t" name="target_system">System ID</field>
+      <field type="uint8_t" name="target_component">Component ID</field>
+      <field type="uint8_t" name="frame" enum="MAV_FRAME">The coordinate system of the COMMAND.</field>
+      <field type="uint16_t" name="command" enum="MAV_CMD">The scheduled action for the mission item.</field>
+      <field type="uint8_t" name="current">false:0, true:1</field>
+      <field type="uint8_t" name="autocontinue">autocontinue to next wp</field>
+      <field type="float" name="param1">PARAM1, see MAV_CMD enum</field>
+      <field type="float" name="param2">PARAM2, see MAV_CMD enum</field>
+      <field type="float" name="param3">PARAM3, see MAV_CMD enum</field>
+      <field type="float" name="param4">PARAM4, see MAV_CMD enum</field>
+      <field type="int32_t" name="x">PARAM5 / local: x position in meters * 1e4, global: latitude in degrees * 10^7</field>
+      <field type="int32_t" name="y">PARAM6 / local: y position in meters * 1e4, global: longitude in degrees * 10^7</field>
+      <field type="float" name="z">PARAM7 / z position: global: altitude in meters (relative or absolute, depending on frame).</field>
+    </message>
+    <message id="76" name="COMMAND_LONG">
+      <description>Send a command with up to seven parameters to the MAV</description>
+      <field type="uint8_t" name="target_system">System which should execute the command</field>
+      <field type="uint8_t" name="target_component">Component which should execute the command, 0 for all components</field>
+      <field type="uint16_t" name="command" enum="MAV_CMD">Command ID (of command to send).</field>
+      <field type="uint8_t" name="confirmation">0: First transmission of this command. 1-255: Confirmation transmissions (e.g. for kill command)</field>
+      <field type="float" name="param1">Parameter 1 (for the specific command).</field>
+      <field type="float" name="param2">Parameter 2 (for the specific command).</field>
+      <field type="float" name="param3">Parameter 3 (for the specific command).</field>
+      <field type="float" name="param4">Parameter 4 (for the specific command).</field>
+      <field type="float" name="param5">Parameter 5 (for the specific command).</field>
+      <field type="float" name="param6">Parameter 6 (for the specific command).</field>
+      <field type="float" name="param7">Parameter 7 (for the specific command).</field>
+    </message>
+    <message id="77" name="COMMAND_ACK">
+      <description>Report status of a command. Includes feedback whether the command was executed.</description>
+      <field type="uint16_t" name="command" enum="MAV_CMD">Command ID (of acknowledged command).</field>
+      <field type="uint8_t" name="result" enum="MAV_RESULT">Result of command.</field>
+      <extensions/>
+      <field type="uint8_t" name="progress">WIP: Also used as result_param1, it can be set with a enum containing the errors reasons of why the command was denied or the progress percentage or 255 if unknown the progress when result is MAV_RESULT_IN_PROGRESS.</field>
+      <field type="int32_t" name="result_param2">WIP: Additional parameter of the result, example: which parameter of MAV_CMD_NAV_WAYPOINT caused it to be denied.</field>
+      <field type="uint8_t" name="target_system">WIP: System which requested the command to be executed</field>
+      <field type="uint8_t" name="target_component">WIP: Component which requested the command to be executed</field>
     </message>
   </messages>
 </mavlink>

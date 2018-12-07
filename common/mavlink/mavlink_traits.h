@@ -12,8 +12,14 @@ namespace domain
     class Vehicle;
     using VehiclePtr = QSharedPointer< Vehicle >;
 
+    class Command;
+    using CommandPtr = QSharedPointer< Command >;
+
     class VehicleRegistry;
     using VehicleRegistryPtr = QSharedPointer< VehicleRegistry >;
+
+    class CommandService;
+    using CommandServicePtr = QSharedPointer< CommandService >;
 }  // namespace domain
 
 #endif // MAVLINK_TRAITS_H

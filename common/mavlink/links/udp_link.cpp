@@ -19,6 +19,11 @@ UdpLink::UdpLink(const Endpoint& send, const Endpoint& receive):
             this, &AbstractLink::onSocketError);
 }
 
+UdpLink::~UdpLink()
+{
+    qDebug() << Q_FUNC_INFO << this;
+}
+
 bool UdpLink::isConnected() const
 {
     return m_socket->state() == QAbstractSocket::BoundState;
@@ -32,11 +37,6 @@ bool UdpLink::waitData(int timeout)
 AbstractLink* UdpLink::clone(const Endpoint& send, const Endpoint& receive)
 {
     return new UdpLink(send, receive);
-}
-
-Endpoint UdpLink::local() const
-{
-    return Endpoint(m_sendSocket->localAddress(), m_sendSocket->localPort());
 }
 
 void UdpLink::connectLink()
@@ -74,7 +74,6 @@ void UdpLink::onReadyRead()
     while (m_socket->hasPendingDatagrams())
     {
         QNetworkDatagram datagram = m_socket->receiveDatagram();
-        Endpoint sender(datagram.senderAddress(), datagram.senderPort());
-        this->receiveData(datagram.data(), sender);
+        this->receiveData(datagram.data());
     }
 }

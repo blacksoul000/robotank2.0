@@ -16,11 +16,11 @@ namespace data_source
 
     public:
         UdpLink(const Endpoint& send, const Endpoint& receive);
+        ~UdpLink();
 
         bool isConnected() const override;
         bool waitData(int timeout = 5000) override;
 
-        Endpoint local() const override;
         AbstractLink* clone(const Endpoint& send, const Endpoint& receive) override;
 
     public slots:

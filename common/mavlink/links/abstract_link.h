@@ -40,14 +40,14 @@ namespace data_source
     signals:
         void connectedChanged(bool connected);
         void errored(QString error);
-        void dataReceived(QByteArray data, Endpoint sender);
+        void dataReceived(QByteArray data);
         void dataSent();
 
     protected:
         virtual bool sendDataImpl(const QByteArray& data) = 0;
 
     protected slots:
-        void receiveData(const QByteArray& data, const Endpoint& sender);
+        void receiveData(const QByteArray& data);
 
     public slots: // QOverload require public
         void onSocketError(int error);

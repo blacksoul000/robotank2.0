@@ -14,7 +14,6 @@ public:
     int robotBatteryLevel = 0;
     qreal gunPositionH = 0;
     qreal gunPositionV = 0;
-    qreal cameraPositionV = 0;
     qreal yaw = 0;
     qreal pitch = 0;
     qreal roll = 0;
@@ -24,6 +23,8 @@ public:
 
     bool headlightStatus = false;
     bool pointerStatus = false;
+
+    quint16 buttons = 0;
 };
 
 StatusModel::StatusModel(QObject* parent) :
@@ -126,19 +127,6 @@ void StatusModel::setGunPositionV(qreal position)
 qreal StatusModel::gunPositionV() const
 {
     return d->gunPositionV;
-}
-
-void StatusModel::setCameraPositionV(qreal position)
-{
-    if (qFuzzyCompare(d->cameraPositionV, position)) return;
-
-    d->cameraPositionV = position;
-    emit cameraPositionVChanged(position);
-}
-
-qreal StatusModel::cameraPositionV() const
-{
-    return d->cameraPositionV;
 }
 
 void StatusModel::setYaw(qreal yaw)
@@ -245,3 +233,15 @@ bool StatusModel::pointerStatus() const
 	return d->pointerStatus;
 }
 
+void StatusModel::setButtons(quint16 buttons)
+{
+    if (buttons != d->buttons)
+
+    d->buttons = buttons;
+    emit buttonsChanged(buttons);
+}
+
+quint16 StatusModel::buttons() const
+{
+    return d->buttons;
+}

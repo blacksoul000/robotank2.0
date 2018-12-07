@@ -33,9 +33,6 @@ namespace domain
         void setGunPositionV(qreal position);
         qreal gunPositionV() const;
 
-        void setCameraPositionV(qreal position);
-        qreal cameraPositionV() const;
-
         void setYaw(qreal yaw);
         qreal yaw() const;
 
@@ -60,6 +57,9 @@ namespace domain
         void setPointerStatus(bool on);
         bool pointerStatus() const;
 
+        void setButtons(quint16 buttons);
+        quint16 buttons() const;
+
     signals:
         void batteryLevelChanged(int level);
         void isChargingChanged(bool charging);
@@ -68,7 +68,6 @@ namespace domain
         void robotBatteryLevelChanged(int level);
         void gunPositionHChanged(int position);
         void gunPositionVChanged(int position);
-        void cameraPositionVChanged(int position);
         void yawChanged(qreal yaw);
         void pitchChanged(qreal pitch);
         void rollChanged(qreal roll);
@@ -78,6 +77,8 @@ namespace domain
 
         void headlightStatusChanged(bool on);
         void pointerStatusChanged(bool on);
+
+        void buttonsChanged(quint16 buttons);
 
     private:
         class Impl;

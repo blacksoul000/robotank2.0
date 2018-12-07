@@ -43,6 +43,8 @@ namespace domain
         data_source::AbstractLink* mavSystemLink(quint8 systemId);
 
         VehicleRegistryPtr vehicleRegistry() const;
+        CommandServicePtr commandService() const;
+
         QList< data_source::AbstractLink* > heartbeatLinks() const;
 
         void addHeartbeatLink(data_source::AbstractLink* link);
@@ -66,7 +68,7 @@ namespace domain
         void mavTypeChanged(quint8 mavType);
 
     protected slots:
-        void onDataReceived(const QByteArray& data, const data_source::Endpoint& sender) override;
+        void onDataReceived(const QByteArray& data) override;
 
     protected:
         virtual void finalizeMessage(mavlink_message_t& message);

@@ -87,7 +87,6 @@ void HeartbeatHandler::processMessage(const mavlink_message_t& message)
 
     if (message.sysid == m_communicator->systemId() || message.sysid == 0) return;
 
-
     domain::VehiclePtr vehicle = d->registry->vehicle(message.sysid);
     if (!vehicle)
     {
@@ -95,15 +94,13 @@ void HeartbeatHandler::processMessage(const mavlink_message_t& message)
         vehicle = d->registry->addVehicle(message.sysid, nullptr);
     }
 
-    if (!vehicle->link())
+    if (!vehicle->isOnline())
     {
-        auto lastLink = m_communicator->lastReceivedLink();
-        if (!lastLink->local().isValid()) return;
-
-        auto lastSender = m_communicator->lastSender();
+        const auto lastLink = m_communicator->lastReceivedLink();
         auto link = lastLink->clone(
-                Endpoint(lastSender.address(), lastSender.port() + 1),
-                Endpoint(lastLink->local().address(), lastLink->local().port() + 1));
+                Endpoint(lastLink->send().address(), lastLink->send().port() + m_communicator->systemId()),
+                Endpoint(QHostAddress::Any, lastLink->send().port() + message.sysid));
+
         link->connectLink();
         m_communicator->addLink(link);
 

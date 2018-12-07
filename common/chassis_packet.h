@@ -86,25 +86,25 @@ struct ChassisTmi
 {
     const uint8_t type = PacketType::Tmi;
 
-    int8_t arduinoStatus: 1;
-    int8_t joyStatus: 1;
-    int8_t trackerStatus: 1;
-    int8_t joyCharging: 1;
-    int8_t headlight: 1;
-    int8_t pointer: 1;
-    int8_t reserve: 2;
+    int8_t arduinoStatus: 1; //
+    int8_t joyStatus: 1; //
+    int8_t trackerStatus: 1; //
+    int8_t joyCharging: 1; //
+    int8_t headlight: 1; //
+    int8_t pointer: 1; //
+    int8_t reserve: 2; //
 
-    int16_t gunH = 0;
-    int16_t gunV = 0;
+    int16_t gunH = 0; //
+    int16_t gunV = 0; //
 
-    int16_t yaw = 0;
-    int16_t pitch = 0;
-    int16_t roll = 0;
+    int16_t yaw = 0; //
+    int16_t pitch = 0; //
+    int16_t roll = 0; //
 
-    QRectF target;
-    int16_t buttons = 0;
-    uint8_t joyCapacity = 0;
-    uint16_t voltage = 0;
+    QRectF target; //
+    int16_t buttons = 0; //
+    uint8_t joyCapacity = 0; //
+    uint16_t voltage = 0; //
 
     QByteArray toByteArray() const
     {
@@ -122,8 +122,8 @@ struct ChassisBluetoothStatus
     uint8_t id = 0;
     struct Status
     {
-        uint8_t scanStatus: 1;
-        uint8_t reserve: 7;
+        uint8_t scanStatus: 1; //
+        uint8_t reserve: 7; //
     } status;
 
     QVector< DeviceInfo > devices;

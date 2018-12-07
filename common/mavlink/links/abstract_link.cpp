@@ -61,12 +61,12 @@ void AbstractLink::sendData(const QByteArray& data)
     emit dataSent();
 }
 
-void AbstractLink::receiveData(const QByteArray& data, const Endpoint& sender)
+void AbstractLink::receiveData(const QByteArray& data)
 {
     m_lastReceivedData = data;
     m_bytesReceived += data.size();
 
-    emit dataReceived(data, sender);
+    emit dataReceived(data);
 }
 
 void AbstractLink::onSocketError(int error)

@@ -33,7 +33,7 @@ namespace domain
         void linkRemoved(data_source::AbstractLink* link);
 
     protected slots:
-        virtual void onDataReceived(const QByteArray& data, const data_source::Endpoint& sender) = 0;
+        virtual void onDataReceived(const QByteArray& data) = 0;
 
     private:
         QList< data_source::AbstractLink* > m_links;
