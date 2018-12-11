@@ -38,6 +38,8 @@ Item {
                 console.log("Video error: ", errorString);
             }
         }
+        
+        onSourceChanged: console.log("Video source:", source)
     }
 
     VideoOutput {

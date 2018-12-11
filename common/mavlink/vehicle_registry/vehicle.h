@@ -29,6 +29,8 @@ namespace domain
             UnknownType = 0,
             Auto = 1,
 
+            GCS = 2,
+
             FixedWing = 10,
             FlyingWing = 11,
 
@@ -44,7 +46,9 @@ namespace domain
 
             Airship = 60,
             Kite = 61,
-            Ornithopter = 62
+            Ornithopter = 62,
+
+            Rover = 70,
         };
 
         int sysId() const;

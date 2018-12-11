@@ -35,7 +35,7 @@ void SettingsModel::setQuality(quint8 quality)
 {
     if (d->quality == quality) return;
     d->quality = quality;
-    emit qualityChanged(quality);
+    emit qualityChanged();
 }
 
 quint8 SettingsModel::quality() const
@@ -47,7 +47,7 @@ void SettingsModel::setTracker(quint8 tracker)
 {
     if (d->tracker == tracker) return;
     d->tracker = tracker;
-    emit trackerChanged(tracker);
+    emit trackerChanged();
 }
 
 quint8 SettingsModel::tracker() const
@@ -59,7 +59,7 @@ void SettingsModel::setBrightness(quint8 brightness)
 {
     if (d->brightness == brightness) return;
     d->brightness = brightness;
-    emit brightnessChanged(brightness);
+    emit brightnessChanged();
 }
 
 quint8 SettingsModel::brightness() const
@@ -71,7 +71,7 @@ void SettingsModel::setContrast(quint8 contrast)
 {
     if (d->contrast == contrast) return;
     d->contrast = contrast;
-    emit contrastChanged(contrast);
+    emit contrastChanged();
 }
 
 quint8 SettingsModel::contrast() const
@@ -94,10 +94,28 @@ void SettingsModel::setVideoSource(const QString& source)
 {
     if (d->videoSource == source) return;
     d->videoSource = source;
-    emit videoSourceChanged(source);
+    emit videoSourceChanged();
 }
 
 QString SettingsModel::videoSource() const
 {
     return d->videoSource;
+}
+
+void SettingsModel::setImageSettings(quint8 quality, quint8 brightness, quint8 contrast)
+{
+    qDebug() << Q_FUNC_INFO;
+    d->quality = quality;
+    d->brightness = brightness;
+    d->contrast = contrast;
+
+    emit imageSettingsChanged();
+}
+
+void SettingsModel::setEnginePower(quint8 left, quint8 right)
+{
+    qDebug() << Q_FUNC_INFO;
+    d->enginePower[SettingsModel::Engine::Left] = left;
+    d->enginePower[SettingsModel::Engine::Right] = right;
+    emit enginePowerChanged();
 }

@@ -18,7 +18,7 @@ namespace domain
         void start();
 
     public slots:
-        void onSelectedTrackerChanged(quint8 code);
+        void onSelectedTrackerChanged();
         void onTrackToggle(const QRectF& rect);
         void onRequestScan();
         void onRequestPair(quint64 address, bool paired);

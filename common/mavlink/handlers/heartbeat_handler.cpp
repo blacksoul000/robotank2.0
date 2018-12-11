@@ -23,36 +23,36 @@ using data_source::Endpoint;
 
 namespace
 {
-/*
-    dto::Vehicle::Type decodeType(quint8 type)
+    Vehicle::Type decodeType(quint8 type)
     {
         switch (type) //TODO: other vehicles
         {
-        case MAV_TYPE_FIXED_WING: return dto::Vehicle::FixedWing;
-        case MAV_TYPE_TRICOPTER: return dto::Vehicle::Tricopter;
-        case MAV_TYPE_QUADROTOR: return dto::Vehicle::Quadcopter;
-        case MAV_TYPE_HEXAROTOR: return dto::Vehicle::Hexcopter;
-        case MAV_TYPE_OCTOROTOR: return dto::Vehicle::Octocopter;
-        case MAV_TYPE_COAXIAL: return dto::Vehicle::Coaxial;
-        case MAV_TYPE_HELICOPTER: return dto::Vehicle::Helicopter;
-        case MAV_TYPE_VTOL_DUOROTOR:
-        case MAV_TYPE_VTOL_QUADROTOR:
-        case MAV_TYPE_VTOL_TILTROTOR:
-        case MAV_TYPE_VTOL_RESERVED2:
-        case MAV_TYPE_VTOL_RESERVED3:
-        case MAV_TYPE_VTOL_RESERVED4:
-        case MAV_TYPE_VTOL_RESERVED5: return dto::Vehicle::Vtol;
-        case MAV_TYPE_AIRSHIP:
-        case MAV_TYPE_FREE_BALLOON: return dto::Vehicle::Airship;
-        case MAV_TYPE_KITE: return dto::Vehicle::Kite;
-        case MAV_TYPE_FLAPPING_WING: return dto::Vehicle::Ornithopter;
-        case MAV_TYPE_GROUND_ROVER: return dto::Vehicle::Rover;
-        case MAV_TYPE_GENERIC:
-        default: return dto::Vehicle::UnknownType;
+            case MAV_TYPE_FIXED_WING: return Vehicle::FixedWing;
+            case MAV_TYPE_TRICOPTER: return Vehicle::Tricopter;
+            case MAV_TYPE_QUADROTOR: return Vehicle::Quadcopter;
+            case MAV_TYPE_HEXAROTOR: return Vehicle::Hexcopter;
+            case MAV_TYPE_OCTOROTOR: return Vehicle::Octocopter;
+            case MAV_TYPE_COAXIAL: return Vehicle::Coaxial;
+            case MAV_TYPE_HELICOPTER: return Vehicle::Helicopter;
+            case MAV_TYPE_VTOL_DUOROTOR:
+            case MAV_TYPE_VTOL_QUADROTOR:
+            case MAV_TYPE_VTOL_TILTROTOR:
+            case MAV_TYPE_VTOL_RESERVED2:
+            case MAV_TYPE_VTOL_RESERVED3:
+            case MAV_TYPE_VTOL_RESERVED4:
+            case MAV_TYPE_VTOL_RESERVED5: return Vehicle::Vtol;
+            case MAV_TYPE_AIRSHIP:
+            case MAV_TYPE_FREE_BALLOON: return Vehicle::Airship;
+            case MAV_TYPE_KITE: return Vehicle::Kite;
+            case MAV_TYPE_FLAPPING_WING: return Vehicle::Ornithopter;
+            case MAV_TYPE_GROUND_ROVER: return Vehicle::Rover;
+            case MAV_TYPE_GCS: return Vehicle::GCS;
+            case MAV_TYPE_GENERIC:
+            default: return Vehicle::UnknownType;
         }
     }
-*/
 
+    const int heartbeatInterval = 1000; // ms
     const int systemOfflineTimeout = 3000; // ms
 }  // namespace
 
@@ -71,7 +71,7 @@ HeartbeatHandler::HeartbeatHandler(MavLinkCommunicator* communicator):
     d(new Impl)
 {
     d->registry = communicator->vehicleRegistry();
-    d->sendTimer = this->startTimer(1000);
+    d->sendTimer = this->startTimer(::heartbeatInterval);
 }
 
 HeartbeatHandler::~HeartbeatHandler()
@@ -82,10 +82,9 @@ HeartbeatHandler::~HeartbeatHandler()
 void HeartbeatHandler::processMessage(const mavlink_message_t& message)
 {
     if (message.msgid != MAVLINK_MSG_ID_HEARTBEAT) return;
+
     mavlink_heartbeat_t heartbeat;
     mavlink_msg_heartbeat_decode(&message, &heartbeat);
-
-    if (message.sysid == m_communicator->systemId() || message.sysid == 0) return;
 
     domain::VehiclePtr vehicle = d->registry->vehicle(message.sysid);
     if (!vehicle)
@@ -105,6 +104,7 @@ void HeartbeatHandler::processMessage(const mavlink_message_t& message)
         m_communicator->addLink(link);
 
         vehicle->setLink(link);
+        vehicle->setType(::decodeType(heartbeat.type));
         vehicle->setOnline(true);
 
         auto timer = new QBasicTimer();

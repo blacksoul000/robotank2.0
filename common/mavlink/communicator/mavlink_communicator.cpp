@@ -206,7 +206,7 @@ void MavLinkCommunicator::onDataReceived(const QByteArray& data)
     for (int pos = 0; pos < data.length(); ++pos)
     {
         if (!mavlink_parse_char(channel, (quint8)data[pos], &message, &status)) continue;
-        if (message.sysid == d->systemId) continue;
+        if (message.sysid == d->systemId || message.sysid == 0) continue;
 
         d->lastReceivedLink = link;
 //        mavlink_status_t* channelStatus = mavlink_get_channel_status(channel);

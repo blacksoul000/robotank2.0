@@ -138,14 +138,14 @@ void MavlinkExchanger::onVehicleOnlineChanged(bool online)
     }
 }
 
-void MavlinkExchanger::onSelectedTrackerChanged(quint8 code)
+void MavlinkExchanger::onSelectedTrackerChanged()
 {
     if (!d->vehicle) return;
 
     domain::CommandPtr command = domain::CommandPtr::create();
     command->setType(MAVLINK_MSG_ID_COMMAND_LONG);
     command->setCommandId(MAV_CMD_SET_TRACKER_CODE);
-    command->addArgument(code);
+    command->addArgument(d->model->settings()->tracker());
 
     d->communicator->commandService()->executeCommand(d->vehicle->sysId(), command);
 }
@@ -231,11 +231,13 @@ void MavlinkExchanger::onImageSettingsChanged()
 
     domain::CommandPtr command = domain::CommandPtr::create();
     command->setType(MAVLINK_MSG_ID_COMMAND_LONG);
-    command->setCommandId(MAV_CMD_ENGINE_POWER);
+    command->setCommandId(MAV_CMD_IMAGE_SETTINGS);
     const auto& s = d->model->settings();
     command->addArgument(s->quality());
     command->addArgument(s->brightness());
     command->addArgument(s->contrast());
+
+    qDebug() << Q_FUNC_INFO << s->quality() << s->brightness() << s->contrast();
 
     d->communicator->commandService()->executeCommand(d->vehicle->sysId(), command);
 }

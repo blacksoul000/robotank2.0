@@ -42,17 +42,16 @@ void SettingsHandler::processMessage(const mavlink_message_t& message)
 
     const auto& model = d->model->settings();
 
-    model->setQuality(settings.image_quality);
-    model->setBrightness(settings.image_brightness);
-    model->setContrast(settings.image_contrast);
-    model->setEnginePower(SettingsModel::Engine::Left, settings.left_engine_power);
-    model->setEnginePower(SettingsModel::Engine::Right, settings.right_engine_power);
+    model->setImageSettings(settings.image_quality,
+                            settings.image_brightness,
+                            settings.image_contrast);
+    qDebug() << Q_FUNC_INFO << settings.image_quality << settings.image_brightness
+            << settings.image_contrast;
+    model->setEnginePower(settings.left_engine_power, settings.right_engine_power);
     model->setTracker(settings.selected_tracker);
     model->setVideoSource(settings.video_source);
 
-//    qDebug() << Q_FUNC_INFO << message.sysid << status->yaw()
-//              << status->pitch() << status->roll()
-//              << status->gunPositionH() << status->gunPositionV();
+    qDebug() << Q_FUNC_INFO << model->quality() << model->brightness() << model->contrast();
 
     auto vehicle = m_communicator->vehicleRegistry()->vehicle(message.sysid);
     if (!vehicle) return;

@@ -24,12 +24,9 @@ SettingsPresenter::SettingsPresenter(domain::RoboModel *model, QObject *parent) 
 
     connect(d->model->settings(), &SettingsModel::videoSourceChanged,
             this, &SettingsPresenter::videoSourceChanged);
-    connect(d->model->settings(), &SettingsModel::qualityChanged,
-            this, &SettingsPresenter::qualityChanged);
-    connect(d->model->settings(), &SettingsModel::brightnessChanged,
-            this, &SettingsPresenter::brightnessChanged);
-    connect(d->model->settings(), &SettingsModel::contrastChanged,
-            this, &SettingsPresenter::contrastChanged);
+
+    connect(d->model->settings(), &SettingsModel::imageSettingsChanged,
+            this, &SettingsPresenter::imageSettingsChanged);
 
     connect(d->model->settings(), &SettingsModel::trackerChanged,
             this, &SettingsPresenter::trackerCodeChanged);
@@ -87,11 +84,6 @@ void SettingsPresenter::setTrackerCode(quint8 tracker)
 void SettingsPresenter::calibrateGun()
 {
     d->model->settings()->calibrateGun();
-}
-
-void SettingsPresenter::calibrateCamera()
-{
-    d->model->settings()->calibrateCamera();
 }
 
 void SettingsPresenter::calibrateGyro()

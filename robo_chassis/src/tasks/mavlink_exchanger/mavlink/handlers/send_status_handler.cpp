@@ -12,11 +12,6 @@
 // Qt
 #include <QDebug>
 
-namespace
-{
-    const int gscMavId = 255; // FIXME
-}  // namespace
-
 using namespace domain;
 using data_source::AbstractLink;
 
@@ -61,9 +56,6 @@ void SendStatusHandler::timerEvent(QTimerEvent* event)
 {
     Q_UNUSED(event)
 
-    AbstractLink* link = m_communicator->mavSystemLink(::gscMavId);
-    if (!link) return;
-
     mavlink_message_t message;
     mavlink_sys_status_t status;
 
@@ -73,13 +65,14 @@ void SendStatusHandler::timerEvent(QTimerEvent* event)
     status.gamepad_buttons = d->buttons;
     status.bluetooth_devices_count = d->deviceCount;
 
-    mavlink_msg_sys_status_encode_chan(m_communicator->systemId(),
-                                       m_communicator->componentId(),
-                                       m_communicator->linkChannel(link),
-                                       &message, &status);
-
-    m_communicator->sendMessage(message, link);
-//    qDebug() << Q_FUNC_INFO << "Send to " << link->send().address() << link->send().port() << message.msgid;
+    for (AbstractLink* link: m_communicator->links())
+    {
+        mavlink_msg_sys_status_encode_chan(m_communicator->systemId(),
+                                           m_communicator->componentId(),
+                                           m_communicator->linkChannel(link),
+                                           &message, &status);
+        m_communicator->sendMessage(message, link);
+    }
 }
 
 void SendStatusHandler::onArduinoStatus(const bool& online)

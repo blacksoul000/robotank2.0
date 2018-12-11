@@ -14,9 +14,9 @@ namespace presentation
     {
         Q_OBJECT
     public:
-        Q_PROPERTY(quint8 quality READ quality WRITE setQuality NOTIFY qualityChanged)
-        Q_PROPERTY(quint8 brightness READ brightness WRITE setBrightness NOTIFY brightnessChanged)
-        Q_PROPERTY(quint8 contrast READ contrast WRITE setContrast NOTIFY contrastChanged)
+        Q_PROPERTY(quint8 quality READ quality WRITE setQuality NOTIFY imageSettingsChanged)
+        Q_PROPERTY(quint8 brightness READ brightness WRITE setBrightness NOTIFY imageSettingsChanged)
+        Q_PROPERTY(quint8 contrast READ contrast WRITE setContrast NOTIFY imageSettingsChanged)
         Q_PROPERTY(quint8 trackerCode READ trackerCode WRITE setTrackerCode NOTIFY trackerCodeChanged)
         Q_PROPERTY(QString videoSource READ videoSource WRITE setVideoSource NOTIFY videoSourceChanged)
 
@@ -37,18 +37,15 @@ namespace presentation
         void setTrackerCode(quint8 code);
 
         void calibrateGun();
-        void calibrateCamera();
         void calibrateGyro();
 
         void setEnginePower(int engine, quint8 percent);
         quint8 enginePower(int engine) const;
 
     signals:
-        void videoSourceChanged(const QString& source);
-        void qualityChanged(quint8 quality);
-        void brightnessChanged(quint8 brightness);
-        void contrastChanged(quint8 contrast);
-        void trackerCodeChanged(quint8 tracker);
+        void videoSourceChanged();
+        void imageSettingsChanged();
+        void trackerCodeChanged();
         void enginePowerChanged();
 
     private:

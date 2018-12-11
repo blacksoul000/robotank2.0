@@ -25,12 +25,7 @@ MavLinkCommunicator* MavLinkCommunicatorBuilder::getCommunicator()
     m_communicator = nullptr;
     return communicator;
 }
-/*
-void MavLinkCommunicatorBuilder::setVehicleRegistry(const VehicleRegistryPtr& registry)
-{
-    m_registry = registry;
-}
-*/
+
 void MavLinkCommunicatorBuilder::buildIdentification(quint8 systemId, quint8 componentId, quint8 mavType)
 {
     m_communicator->setSystemId(systemId);

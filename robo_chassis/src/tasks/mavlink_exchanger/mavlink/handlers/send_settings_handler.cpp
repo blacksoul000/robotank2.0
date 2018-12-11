@@ -16,11 +16,6 @@
 #include <QPoint>
 #include <QDebug>
 
-namespace
-{
-    const int gscMavId = 255; // FIXME
-}  // namespace
-
 using namespace domain;
 using data_source::AbstractLink;
 

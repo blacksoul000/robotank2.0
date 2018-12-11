@@ -29,6 +29,12 @@ MavlinkExchanger::MavlinkExchanger() :
     d(new Impl)
 {
     d->connectionP = PubSub::instance()->advertise< data_source::AbstractLinkPtr >("connection");
+
+    CommunicatorBuilder builder;
+    builder.initCommunicator();
+    builder.buildIdentification(42, 0, MAV_TYPE_GROUND_ROVER);
+    builder.buildHandlers(); // later
+    d->communicator = builder.getCommunicator();
 }
 
 MavlinkExchanger::~MavlinkExchanger()
@@ -40,11 +46,6 @@ MavlinkExchanger::~MavlinkExchanger()
 
 void MavlinkExchanger::start()
 {
-    CommunicatorBuilder builder;
-    builder.initCommunicator();
-    builder.buildIdentification(42, 0, MAV_TYPE_GROUND_ROVER);
-    builder.buildHandlers(); // later
-    d->communicator = builder.getCommunicator();
     connect(d->communicator->vehicleRegistry().data(), &domain::VehicleRegistry::vehicleAdded,
             this, &MavlinkExchanger::onVehicleAdded);
     connect(d->communicator->vehicleRegistry().data(), &domain::VehicleRegistry::vehicleRemoved,

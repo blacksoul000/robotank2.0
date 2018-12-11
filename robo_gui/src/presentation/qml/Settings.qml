@@ -308,21 +308,6 @@ Item {
                                     horizontalAlignment: Text.AlignHCenter
                                     font.pixelSize: roboPalette.textSize
                                     color: roboPalette.backgroundColor
-                                    text: qsTr("Camera")
-                                }
-                            }
-                            onClicked: {
-                                presenter.calibrateCamera()
-                            }
-                        }
-                        Button {
-                            style: ButtonStyle {
-                                label: Text {
-                                    renderType: Text.NativeRendering
-                                    verticalAlignment: Text.AlignVCenter
-                                    horizontalAlignment: Text.AlignHCenter
-                                    font.pixelSize: roboPalette.textSize
-                                    color: roboPalette.backgroundColor
                                     text: qsTr("Gyro")
                                 }
                             }

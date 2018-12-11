@@ -33,20 +33,21 @@ namespace domain
         void setEnginePower(Engine engine, quint8 percent);
         quint8 enginePower(Engine engine) const;
 
+        void setImageSettings(quint8 quality, quint8 brightness, quint8 contrast);
+        void setEnginePower(quint8 left, quint8 right);
 
     signals:
-        void videoSourceChanged(const QString& source);
-        void qualityChanged(quint8 quality);
-        void brightnessChanged(quint8 brightness);
-        void contrastChanged(quint8 contrast);
-        void trackerChanged(quint8 tracker);
+        void videoSourceChanged();
+        void qualityChanged();
+        void brightnessChanged();
+        void contrastChanged();
+        void trackerChanged();
 
         void calibrateGun();
-        void calibrateCamera();
         void calibrateGyro();
 
         void enginePowerChanged();
-
+        void imageSettingsChanged();
 
     private:
         class Impl;
