@@ -3,6 +3,8 @@
 #include "pub_sub.h"
 #include "image_settings.h"
 
+#include "strlcpy.h"
+
 // Internal
 #include "mavlink_communicator.h"
 #include "abstract_link.h"
@@ -16,42 +18,9 @@
 #include <QPoint>
 #include <QDebug>
 
-#include <string.h>
-
 namespace
 {
     const int gscMavId = 255; // FIXME
-
-    /*
-     * Copy src to string dst of size siz.  At most siz-1 characters
-     * will be copied.  Always NUL terminates (unless siz == 0).
-     * Returns strlen(src); if retval >= siz, truncation occurred.
-     */
-    size_t
-    strlcpy(char *dst, const char *src, size_t siz)
-    {
-            char *d = dst;
-            const char *s = src;
-            size_t n = siz;
-
-            /* Copy as many bytes as will fit */
-            if (n != 0 && --n != 0) {
-                    do {
-                            if ((*d++ = *s++) == 0)
-                                    break;
-                    } while (--n != 0);
-            }
-
-            /* Not enough room in dst, add NUL and traverse rest of src */
-            if (n == 0) {
-                    if (siz != 0)
-                            *d = '\0';                /* NUL-terminate dst */
-                    while (*s++)
-                            ;
-            }
-
-            return(s - src - 1);        /* count does not include NUL */
-    }
 }  // namespace
 
 using namespace domain;
@@ -99,11 +68,12 @@ void SendSettingsHandler::processMessage(const mavlink_message_t& message)
     settings.right_engine_power = d->enginePower.y();
     settings.selected_tracker = d->selectedTracker;
     QByteArray ba = d->videoSource.toUtf8();
-    ::strlcpy(settings.video_source, ba.data(), sizeof(settings.video_source));
+    domain::strlcpy(settings.video_source, ba.data(), sizeof(settings.video_source));
 
-    mavlink_msg_settings_encode(m_communicator->systemId(),
-                                m_communicator->componentId(),
-                                &reply, &settings);
+    mavlink_msg_settings_encode_chan(m_communicator->systemId(),
+                                     m_communicator->componentId(),
+                                     m_communicator->linkChannel(vehicle->link()),
+                                     &reply, &settings);
 
     m_communicator->sendMessage(reply, vehicle->link());
 //    qDebug() << Q_FUNC_INFO << "Send to " << link->send().address() << link->send().port() << message.msgid;

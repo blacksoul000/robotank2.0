@@ -100,7 +100,7 @@ void RtspServer::mediaConfigure(GstRTSPMediaFactory*, GstRTSPMedia* media)
 
     if (!src)
     {
-        std::cerr << "Failed to get source with 'name=src' property set.";
+        std::cerr << "Failed to get source with 'name=src' property set." << std::endl;
         return;
     }
 

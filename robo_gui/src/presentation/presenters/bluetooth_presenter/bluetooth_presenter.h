@@ -3,7 +3,7 @@
 
 #include <QObject>
 
-struct DeviceInfo;
+struct BluetoothDeviceInfo;
 
 namespace domain
 {
@@ -40,7 +40,7 @@ namespace presentation
         void scanStatusChanged(bool isScanning);
 
     private slots:
-        void onDevicesChanged(const QVector< DeviceInfo >& devices);
+        void onDevicesChanged(const QVector< BluetoothDeviceInfo >& devices);
 
     private:
         class Impl;

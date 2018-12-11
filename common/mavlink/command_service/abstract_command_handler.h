@@ -26,7 +26,7 @@ namespace domain
         void commandChanged(int vehicleId, CommandPtr command);
 
     protected:
-        void ackCommand(int vehicleId, int type, Command::CommandStatus status);
+        void ackCommand(int vehicleId, int commandId, Command::CommandStatus status);
         void stopCommand(int vehicleId, const CommandPtr& command);
         void timerEvent(QTimerEvent* event) override;
 

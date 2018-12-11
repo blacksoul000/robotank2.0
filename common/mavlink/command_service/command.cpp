@@ -12,6 +12,16 @@ void Command::setType(int type)
     m_type = type;
 }
 
+int Command::commandId() const
+{
+    return m_commandId;
+}
+
+void Command::setCommandId(int commandId)
+{
+    m_commandId = commandId;
+}
+
 Command::CommandStatus Command::status() const
 {
     return m_status;

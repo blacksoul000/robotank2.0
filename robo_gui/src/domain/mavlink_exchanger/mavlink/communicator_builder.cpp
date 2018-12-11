@@ -6,6 +6,8 @@
 #include "sys_status_handler.h"
 #include "mavlink_command_handler.h"
 #include "settings_handler.h"
+#include "bluetooth_devices_handler.h"
+#include "bluetooth_pair_handler.h"
 
 struct CommunicatorBuilder::Impl
 {
@@ -30,8 +32,10 @@ void CommunicatorBuilder::buildHandlers()
 
     new HeartbeatHandler(m_communicator);
     new MavLinkCommandHandler(m_communicator);
+    new BluetoothPairHandler(m_communicator);
     new AttitudeHandler(m_communicator, d->model);
     new TrackingTargetHandler(m_communicator, d->model);
     new SysStatusHandler(m_communicator, d->model);
     new SettingsHandler(m_communicator, d->model);
+    new BluetoothDevicesHandler(m_communicator, d->model);
 }

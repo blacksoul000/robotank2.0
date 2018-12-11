@@ -19,6 +19,7 @@ find_package(Qt5Quick)
 find_package(Qt5Multimedia)
 find_package(Qt5Svg)
 find_package(Qt5Network)
+find_package(Qt5Bluetooth)
 
 set(CMAKE_AUTOMOC ON)
 
@@ -30,6 +31,7 @@ set(LIBS
     Qt5::Multimedia
     Qt5::Svg
     Qt5::Network
+    Qt5::Bluetooth
 )
 
 if (ANDROID)

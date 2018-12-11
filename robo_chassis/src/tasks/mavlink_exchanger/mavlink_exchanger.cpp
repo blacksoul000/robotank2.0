@@ -1,5 +1,7 @@
 #include "mavlink_exchanger.h"
 
+#include "pub_sub.h"
+
 #include "endpoint.h"
 #include "udp_link.h"
 #include "mavlink_communicator.h"
@@ -17,15 +19,21 @@ class MavlinkExchanger::Impl
 {
 public:
     domain::MavLinkCommunicator* communicator = nullptr;
+    domain::VehiclePtr vehicle;
+
+    Publisher< data_source::AbstractLinkPtr >* connectionP = nullptr;
 };
 
 MavlinkExchanger::MavlinkExchanger() :
     ITask(),
     d(new Impl)
-{}
+{
+    d->connectionP = PubSub::instance()->advertise< data_source::AbstractLinkPtr >("connection");
+}
 
 MavlinkExchanger::~MavlinkExchanger()
 {
+    delete d->connectionP;
     delete d->communicator;
     delete d;
 }
@@ -63,10 +71,29 @@ void MavlinkExchanger::start()
 
 void MavlinkExchanger::onVehicleAdded(domain::VehiclePtr vehicle)
 {
-    qDebug() << Q_FUNC_INFO;
+    if (d->vehicle) return;
+    if (!vehicle) return;
+
+    d->vehicle = vehicle;
+    connect(vehicle.data(), &domain::Vehicle::onlineChanged,
+            this, &MavlinkExchanger::onVehicleOnlineChanged);
 }
 
 void MavlinkExchanger::onVehicleRemoved(domain::VehiclePtr vehicle)
 {
-    qDebug() << Q_FUNC_INFO;
+    if (!d->vehicle || !vehicle) return;
+    if (vehicle->sysId() != vehicle->sysId()) return;
+
+    disconnect(d->vehicle.data(), &domain::Vehicle::onlineChanged,
+            this, &MavlinkExchanger::onVehicleOnlineChanged);
+    d->vehicle.clear();
+}
+
+void MavlinkExchanger::onVehicleOnlineChanged(bool online)
+{
+    Q_UNUSED(online)
+
+    if (!d->vehicle) return;
+
+    d->connectionP->publish(d->vehicle->link());
 }

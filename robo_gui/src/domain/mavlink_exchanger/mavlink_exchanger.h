@@ -18,23 +18,20 @@ namespace domain
         void start();
 
     public slots:
-//        void onImageSettingsChanged();
         void onSelectedTrackerChanged(quint8 code);
         void onTrackToggle(const QRectF& rect);
-//        void onCalibrateGun();
-//        void onCalibrateCamera();
-//        void onCalibrateGyro();
-//        void onEnginePowerChanged();
-//        void onRequestConfig();
-//
-//        void onRequestScan();
-//        void onRequestPair(const QString& address, bool paired);
-//        void onRequestBluetoothStatus();
+        void onRequestScan();
+        void onRequestPair(const QString& address, bool paired);
+        void onEnginePowerChanged();
+        void onCalibrateGun();
+        void onCalibrateGyro();
+        void onImageSettingsChanged();
 
     protected slots:
         void onVehicleAdded(VehiclePtr vehicle);
         void onVehicleRemoved(VehiclePtr vehicle);
 
+        void onVehicleOnlineChanged(bool online);
 
     private:
         class Impl;

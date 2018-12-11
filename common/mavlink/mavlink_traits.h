@@ -5,6 +5,8 @@
 
 namespace data_source
 {
+    class AbstractLink;
+    using AbstractLinkPtr = AbstractLink*;
 } // namespace data_source
 
 namespace domain

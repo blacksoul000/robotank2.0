@@ -2,8 +2,9 @@
 #define BLUETOOTH_MODEL_H
 
 #include <QObject>
+#include <QVector>
 
-struct DeviceInfo;
+struct BluetoothDeviceInfo;
 
 namespace domain
 {
@@ -17,16 +18,16 @@ namespace domain
         void setScanStatus(bool isScanning);
         bool scanStatus() const;
 
-        void setDevices(const QVector< DeviceInfo >& devices);
-        QVector< DeviceInfo > devices() const;
+        void setDevices(const QVector< BluetoothDeviceInfo >& devices);
+        QVector< BluetoothDeviceInfo > devices() const;
 
     signals:
         void requestStatus();
-        void requsestScan();
+        void requestScan();
         void requestPair(const QString& address, bool paired);
 
         void scanStatusChanged(bool isScanning);
-        void devicesChanged(const QVector< DeviceInfo >& devices);
+        void devicesChanged(const QVector< BluetoothDeviceInfo >& devices);
 
     private:
         class Impl;

@@ -1,6 +1,7 @@
 #include "command_handler.h"
 
 #include "image_settings.h"
+#include "bluetooth_pair_request.h"
 #include "pointf3d.h"
 #include "empty.h"
 
@@ -20,25 +21,13 @@
 #include <mavlink.h>
 
 // Qt
+#include <QBluetoothAddress>
 #include <QRectF>
 #include <QPoint>
 #include <QDebug>
 
 using namespace domain;
 using data_source::AbstractLink;
-
-namespace
-{
-    const QMultiMap< quint8, Command::CommandStatus > mavStatusMap =
-    {
-        { MAV_RESULT_DENIED, Command::Rejected },
-        { MAV_RESULT_TEMPORARILY_REJECTED, Command::Rejected },
-        { MAV_RESULT_UNSUPPORTED, Command::Rejected },
-        { MAV_RESULT_FAILED, Command::Rejected },
-        { MAV_RESULT_IN_PROGRESS, Command::InProgress },
-        { MAV_RESULT_ACCEPTED, Command::Completed }
-    };
-}
 
 class CommandHandler::Impl
 {
@@ -51,6 +40,7 @@ public:
     Publisher< Empty >* calibrateYprP = nullptr;
     Publisher< QPoint >* enginePowerP = nullptr;
     Publisher< Empty >* powerDownP = nullptr;
+    Publisher< Empty >* bluetoothScanP = nullptr;
 };
 
 CommandHandler::CommandHandler(MavLinkCommunicator* communicator):
@@ -64,6 +54,7 @@ CommandHandler::CommandHandler(MavLinkCommunicator* communicator):
     d->calibrateYprP = PubSub::instance()->advertise< Empty >("ypr/calibrate");
     d->enginePowerP = PubSub::instance()->advertise< QPoint >("core/enginePower");
     d->powerDownP = PubSub::instance()->advertise< Empty >("core/powerDown");
+    d->bluetoothScanP = PubSub::instance()->advertise< Empty >("bluetooth/scan");
 }
 
 CommandHandler::~CommandHandler()
@@ -75,10 +66,13 @@ CommandHandler::~CommandHandler()
     delete d->calibrateYprP;
     delete d->enginePowerP;
     delete d->powerDownP;
+    delete d->bluetoothScanP;
 }
 
 void CommandHandler::processCommand(const mavlink_message_t& message)
 {
+    if (message.msgid != MAVLINK_MSG_ID_COMMAND_LONG) return;
+
     mavlink_command_long_t cmd;
     mavlink_msg_command_long_decode(&message, &cmd);
 
@@ -93,19 +87,9 @@ void CommandHandler::processCommand(const mavlink_message_t& message)
 
     switch (cmd.command)
     {
-        case MAV_CMD_BLUETOOTH_PAIR:
-        {
-//            QDataStream in(packet.data);
-//            QString address;
-//            bool paired;
-//            in >> address >> paired;
-//            bluetooth->requestPairing(address, paired);
-            ack.result = MAV_RESULT_ACCEPTED;
-            break;
-        }
         case MAV_CMD_BLUETOOTH_SCAN:
         {
-//            bluetooth->scan();
+            d->bluetoothScanP->publish(Empty());
             ack.result = MAV_RESULT_ACCEPTED;
             break;
         }

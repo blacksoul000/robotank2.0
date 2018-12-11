@@ -49,5 +49,8 @@ bool Vehicle::isOnline() const
 
 void Vehicle::setOnline(bool online)
 {
+    if (m_online == online) return;
+
     m_online = online;
+    emit onlineChanged(online);
 }

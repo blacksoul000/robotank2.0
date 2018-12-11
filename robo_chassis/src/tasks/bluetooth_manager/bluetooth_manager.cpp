@@ -1,31 +1,44 @@
 #include "bluetooth_manager.h"
 
-#include "chassis_packet.h"
+#include "pub_sub.h"
+#include "empty.h"
+#include "bluetooth_pair_request.h"
+
+#include "bluetooth_device_info.h"
 
 #include <QBluetoothDeviceDiscoveryAgent>
 #include <QBluetoothLocalDevice>
 
 #include <QDebug>
 
-using domain::BluetoothManager;
-
 class BluetoothManager::Impl
 {
 public:
+    Publisher< bool >* scanStatusP = nullptr;
+    Publisher< QVector< BluetoothDeviceInfo > >* deviceListP = nullptr;
+
     QBluetoothDeviceDiscoveryAgent* agent = nullptr;
     QBluetoothLocalDevice* localDevice = nullptr;
 
-    QVector< DeviceInfo > devices;
+    QVector< BluetoothDeviceInfo > devices;
     bool isScanning = false;
 };
 
-BluetoothManager::BluetoothManager(QObject* parent) :
-    QObject(parent),
+BluetoothManager::BluetoothManager() :
+    ITask(),
     d(new Impl)
-{}
+{
+    d->scanStatusP = PubSub::instance()->advertise< bool >("bluetooth/scanning");
+    d->deviceListP = PubSub::instance()->advertise< QVector< BluetoothDeviceInfo > >("bluetooth/devices");
+
+    PubSub::instance()->subscribe("bluetooth/scan", &BluetoothManager::onRequestScan, this);
+    PubSub::instance()->subscribe("bluetooth/pair", &BluetoothManager::onRequestPair, this);
+}
 
 BluetoothManager::~BluetoothManager()
 {
+    delete d->scanStatusP;
+    delete d->deviceListP;
     delete d;
 }
 
@@ -47,42 +60,35 @@ void BluetoothManager::start()
             [&](){
         qDebug() << Q_FUNC_INFO << __LINE__  << d->agent->errorString();
     });
-    connect(d->localDevice, &QBluetoothLocalDevice::pairingDisplayConfirmation,
-            this, [](){
-        qDebug() << Q_FUNC_INFO << __LINE__ ;
-    });
-//            this, &BluetoothManager::onPairingDisplayConfirmation);
-    connect(d->localDevice, &QBluetoothLocalDevice::pairingDisplayPinCode,
-            this, [](){
-        qDebug() << Q_FUNC_INFO << __LINE__ ;
-    });
-//            this, &BluetoothManager::onPairingDisplayConfirmation);
 }
 
-void BluetoothManager::scan()
+void BluetoothManager::onRequestScan(const Empty&)
 {
     qDebug() << Q_FUNC_INFO;
     d->devices.clear();
     d->agent->start();
+    d->scanStatusP->publish(true);
+    d->deviceListP->publish(d->devices);
+}
+
+void BluetoothManager::onRequestPair(const BluetoothPairRequest& request)
+{
+    d->localDevice->requestPairing(QBluetoothAddress(request.device),
+                             request.pair ? QBluetoothLocalDevice::AuthorizedPaired
+                                          : QBluetoothLocalDevice::Unpaired);
 }
 
 void BluetoothManager::addDevice(const QBluetoothDeviceInfo& info)
 {
     qDebug() << Q_FUNC_INFO << info.address().toString();
-    DeviceInfo device;
+    BluetoothDeviceInfo device;
     device.address = info.address().toString();
     device.name = info.name();
     const QBluetoothLocalDevice::Pairing status = d->localDevice->pairingStatus(info.address());
     device.isPaired = (status == QBluetoothLocalDevice::Paired
                      || status == QBluetoothLocalDevice::AuthorizedPaired);
     d->devices.append(device);
-}
-
-void BluetoothManager::requestPairing(const QString& address, bool paired)
-{
-    d->localDevice->requestPairing(QBluetoothAddress(address),
-                                   paired ? QBluetoothLocalDevice::AuthorizedPaired
-                                          : QBluetoothLocalDevice::Unpaired);
+    d->deviceListP->publish(d->devices);
 }
 
 void BluetoothManager::onPairingFinished(const QBluetoothAddress& address,
@@ -101,19 +107,20 @@ void BluetoothManager::onPairingFinished(const QBluetoothAddress& address,
     }
 }
 
-QVector< DeviceInfo > BluetoothManager::devices() const
-{
-    return d->devices;
-}
-
-bool BluetoothManager::isScanning() const
-{
-    return d->agent->isActive();
-}
+//QVector< DeviceInfo > BluetoothManager::devices() const
+//{
+//    return d->devices;
+//}
+//
+//bool BluetoothManager::isScanning() const
+//{
+//    return d->agent->isActive();
+//}
 
 void BluetoothManager::onScanFinished()
 {
-    qDebug() << Q_FUNC_INFO ;
+    qDebug() << Q_FUNC_INFO;
+    d->scanStatusP->publish(false);
 }
 
 void BluetoothManager::onPairingDisplayConfirmation(const QBluetoothAddress& address,

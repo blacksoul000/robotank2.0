@@ -5,11 +5,13 @@
 #include "image_settings.h"
 
 #include "pub_sub.h"
-#include "network_helper.h"
+
+#include "abstract_link.h"
 
 #include <QPointF>
 #include <QSize>
 #include <QSharedPointer>
+#include <QNetworkInterface>
 #include <QHostAddress>
 #include <QDateTime>
 
@@ -62,6 +64,7 @@ VideoSource::VideoSource() :
     d->videoSourceP = PubSub::instance()->advertise< QString >("camera/source");
 
     PubSub::instance()->subscribe("camera/settings", &VideoSource::onImageSettingsChanged, this);
+    PubSub::instance()->subscribe("connection", &VideoSource::onConnectionChanged, this);
 }
 
 VideoSource::~VideoSource()
@@ -75,25 +78,16 @@ VideoSource::~VideoSource()
 
 void VideoSource::start()
 {
-    QHostAddress localIp = common::localIp();
-    if (localIp.isNull()) return;
+    d->dotsPerDegreeP->publish(QPointF(::width / ::fieldOfViewH, ::height / ::fieldOfViewV));
 
     d->initRtspServer();
-    d->rtsp->setDataCallback(std::bind(&VideoSource::onNewFrame, this, std::placeholders::_1, std::placeholders::_2));
-
-    QString path = QString("rtsp://%1:%2/%3")
-        .arg(localIp.toString())
-        .arg(d->rtsp->port())
-        .arg(QString::fromStdString(d->rtsp->streamName()));
-    qDebug() << "Stream path:" << path;
-    d->videoSourceP->publish(path);
-    d->dotsPerDegreeP->publish(QPointF(::width / ::fieldOfViewH, ::height / ::fieldOfViewV));
-    d->started = true;
+    d->rtsp->setDataCallback(std::bind(&VideoSource::onNewFrame, this,
+                                       std::placeholders::_1, std::placeholders::_2));
 }
 
 void VideoSource::onNewFrame(const void* data, int size)
 {
-    auto ts = QDateTime::currentDateTime().toString("hh.mm.ss.zzz");
+//    auto ts = QDateTime::currentDateTime().toString("hh.mm.ss.zzz");
     MatPtr mat = MatPtr::create(::height, ::width, CV_8UC1);
     memcpy(mat->data, data, ::height * ::width); // read only Y from YUV420.
 //    cv::putText(*mat, ts.toStdString(), cvPoint(30,300), cv::FONT_HERSHEY_COMPLEX_SMALL, 4, cv::Scalar(100,200,250), 1, CV_AA);
@@ -104,6 +98,30 @@ void VideoSource::onImageSettingsChanged(const ImageSettings& settings)
 {
     d->setBrightness(settings.brightness);
     d->setContrast(settings.contrast);
+}
+
+void VideoSource::onConnectionChanged(const data_source::AbstractLinkPtr& link)
+{
+    if (link)
+    {
+        if (d->started) return;
+
+        for (const QHostAddress &address: QNetworkInterface::allAddresses())
+        {
+            if (address.isInSubnet(link->send().address(), 24))
+            {
+                QString path = QString("rtsp://%1:%2/%3")
+                    .arg(address.toString())
+                    .arg(d->rtsp->port())
+                    .arg(QString::fromStdString(d->rtsp->streamName()));
+                qDebug() << "Stream path:" << path;
+                d->videoSourceP->publish(path);
+                d->started = true;
+
+                break;
+            }
+        }
+    }
 }
 
 //----------------------------------------------------------------------------

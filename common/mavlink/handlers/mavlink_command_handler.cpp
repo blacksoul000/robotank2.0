@@ -84,7 +84,9 @@ void MavLinkCommandHandler::processCommandAck(const mavlink_message_t& message)
 
 void MavLinkCommandHandler::sendCommand(int vehicleId, const domain::CommandPtr& command, int attempt)
 {
-    qDebug() << "MAV:" << vehicleId << command->type() << command->arguments() << attempt;
+    if (command->type() != MAVLINK_MSG_ID_COMMAND_LONG) return;
+
+    qDebug() << "MAV:" << vehicleId << command->commandId() << command->arguments() << attempt;
 
     VehiclePtr vehicle = m_communicator->vehicleRegistry()->vehicle(vehicleId);
     if (vehicle.isNull()) return;
@@ -95,7 +97,7 @@ void MavLinkCommandHandler::sendCommand(int vehicleId, const domain::CommandPtr&
     mavCommand.target_system = vehicle->sysId();
     mavCommand.target_component = 0;
     mavCommand.confirmation = attempt;
-    mavCommand.command = command->type();
+    mavCommand.command = command->commandId();
 
     const auto& args = command->arguments();
     if (args.count() > 0) mavCommand.param1 = args.at(0).toFloat();

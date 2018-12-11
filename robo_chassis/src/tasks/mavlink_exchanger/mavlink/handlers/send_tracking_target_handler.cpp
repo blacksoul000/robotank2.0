@@ -40,9 +40,10 @@ void SendTrackingTargetHandler::onTrackerTarget(const QRectF& target)
     rect.width = target.width();
     rect.height = target.height();
 
-    mavlink_msg_tracking_target_rect_encode(m_communicator->systemId(),
-                                            m_communicator->componentId(),
-                                            &message, &rect);
+    mavlink_msg_tracking_target_rect_encode_chan(m_communicator->systemId(),
+                                                 m_communicator->componentId(),
+                                                 m_communicator->linkChannel(link),
+                                                 &message, &rect);
 
     m_communicator->sendMessage(message, link);
 //    qDebug() << Q_FUNC_INFO << "Send to " << link->send().address() << link->send().port() << message.msgid;

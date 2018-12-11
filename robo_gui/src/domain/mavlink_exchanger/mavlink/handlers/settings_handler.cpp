@@ -54,11 +54,13 @@ void SettingsHandler::processMessage(const mavlink_message_t& message)
 //              << status->pitch() << status->roll()
 //              << status->gunPositionH() << status->gunPositionV();
 
-
     auto vehicle = m_communicator->vehicleRegistry()->vehicle(message.sysid);
     if (!vehicle) return;
 
-    this->ackCommand(vehicle->sysId(), MAV_CMD_REQUEST_SETTINGS, Command::Completed);
+    if (!model->videoSource().isEmpty())
+    {
+        this->ackCommand(vehicle->sysId(), MAV_CMD_REQUEST_SETTINGS, Command::Completed);
+    }
 }
 
 void SettingsHandler::sendCommand(int vehicleId, const CommandPtr& command, int attempt)

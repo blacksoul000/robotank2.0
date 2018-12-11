@@ -151,8 +151,8 @@ void HeartbeatHandler::timerEvent(QTimerEvent* event)
             auto vehicle = d->registry->vehicle(d->vehicleTimers.key(timer));
             if (!vehicle.isNull())
             {
-                vehicle->setOnline(false);
                 this->clearVehicleLink(vehicle);
+                vehicle->setOnline(false);
                 qDebug() << Q_FUNC_INFO << tr("Vehicle %1").arg(vehicle->name()) << tr("Offline");
             }
             timer->stop();

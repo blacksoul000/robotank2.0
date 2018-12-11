@@ -1,7 +1,7 @@
 #pragma once
 // MESSAGE COMMAND_LONG PACKING
 
-#define MAVLINK_MSG_ID_COMMAND_LONG 76
+#define MAVLINK_MSG_ID_COMMAND_LONG 75
 
 MAVPACKED(
 typedef struct __mavlink_command_long_t {
@@ -20,17 +20,17 @@ typedef struct __mavlink_command_long_t {
 
 #define MAVLINK_MSG_ID_COMMAND_LONG_LEN 33
 #define MAVLINK_MSG_ID_COMMAND_LONG_MIN_LEN 33
-#define MAVLINK_MSG_ID_76_LEN 33
-#define MAVLINK_MSG_ID_76_MIN_LEN 33
+#define MAVLINK_MSG_ID_75_LEN 33
+#define MAVLINK_MSG_ID_75_MIN_LEN 33
 
 #define MAVLINK_MSG_ID_COMMAND_LONG_CRC 152
-#define MAVLINK_MSG_ID_76_CRC 152
+#define MAVLINK_MSG_ID_75_CRC 152
 
 
 
 #if MAVLINK_COMMAND_24BIT
 #define MAVLINK_MESSAGE_INFO_COMMAND_LONG { \
-    76, \
+    75, \
     "COMMAND_LONG", \
     11, \
     {  { "target_system", NULL, MAVLINK_TYPE_UINT8_T, 0, 30, offsetof(mavlink_command_long_t, target_system) }, \

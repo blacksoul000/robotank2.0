@@ -8,7 +8,7 @@
 #include "gamepad_controller.h"
 #include "tracker_task.h"
 #include "video_source.h"
-//#include "gui_exchanger.h"
+#include "bluetooth_manager.h"
 #include "mavlink_exchanger.h"
 #include "config_handler.h"
 
@@ -39,7 +39,7 @@ bool TaskManager::createTasks()
     this->addTask(ITaskPtr(new RoboCore), 30);
     this->addTask(ITaskPtr(new ArduinoExchanger), 40);
     this->addTask(ITaskPtr(new GamepadController), 30);
-//    this->addTask(ITaskPtr(new GuiExchanger), 40);
+    this->addTask(ITaskPtr(new BluetoothManager), 1000);
     this->addTask(ITaskPtr(new VideoSource), 100);
     this->addTask(ITaskPtr(new TrackerTask), 100);
     this->addTask(ITaskPtr(new GpioController), 10);

@@ -21,7 +21,6 @@ UdpLink::UdpLink(const Endpoint& send, const Endpoint& receive):
 
 UdpLink::~UdpLink()
 {
-    qDebug() << Q_FUNC_INFO << this;
 }
 
 bool UdpLink::isConnected() const

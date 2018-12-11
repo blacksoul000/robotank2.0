@@ -10,7 +10,7 @@ namespace domain
     {
         Q_GADGET
 
-        Q_PROPERTY(int type READ type WRITE setType)
+        Q_PROPERTY(int commandId READ commandId WRITE setCommandId)
         Q_PROPERTY(CommandStatus status READ status WRITE setStatus)
         Q_PROPERTY(QVariantList arguments READ arguments WRITE setArguments)
 
@@ -28,6 +28,9 @@ namespace domain
         int type() const;
         void setType(int type);
 
+        int commandId() const;
+        void setCommandId(int commandId);
+
         CommandStatus status() const;
         void setStatus(CommandStatus status);
 
@@ -39,6 +42,7 @@ namespace domain
 
     private:
         int m_type = 0;
+        int m_commandId = 0;
         CommandStatus m_status = Idle;
         QVariantList m_arguments;
 

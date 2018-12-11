@@ -35,7 +35,7 @@ void AbstractCommandHandler::executeCommand(int vehicleId, const CommandPtr& com
 {
     for (const CommandPtr& timedCommand : d->commandTimers.keys())
     {
-        if (timedCommand->type() != command->type()
+        if (timedCommand->commandId() != command->commandId()
                 || !d->vehicleCommands.values(vehicleId).contains(timedCommand)) continue;
 
         this->stopCommand(vehicleId, timedCommand);
@@ -61,12 +61,12 @@ void AbstractCommandHandler::cancelCommand(int vehicleId, int type)
     this->ackCommand(vehicleId, type, Command::Canceled);
 }
 
-void AbstractCommandHandler::ackCommand(int vehicleId, int type,
+void AbstractCommandHandler::ackCommand(int vehicleId, int commandId,
         Command::CommandStatus status)
 {
     for (const CommandPtr& command : d->vehicleCommands.values(vehicleId))
     {
-        if (command->type() != type) continue;
+        if (command->commandId() != commandId) continue;
         command->setStatus(status);
         emit commandChanged(vehicleId, command);
     }

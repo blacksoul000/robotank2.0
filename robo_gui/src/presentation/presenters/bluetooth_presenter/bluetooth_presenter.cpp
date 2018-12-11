@@ -3,7 +3,7 @@
 #include "robo_model.h"
 #include "bluetooth_model.h"
 #include "bluetooth_device.h"
-#include "chassis_packet.h"
+#include "bluetooth_device_info.h"
 
 #include <QtQml>
 #include <QTimer>
@@ -74,7 +74,7 @@ void BluetoothPresenter::stop()
     d->statusTimer->stop();
 }
 
-void BluetoothPresenter::onDevicesChanged(const QVector< DeviceInfo >& devices)
+void BluetoothPresenter::onDevicesChanged(const QVector< BluetoothDeviceInfo >& devices)
 {
     const bool countChanged = (d->devices.count() != devices.count());
 
@@ -84,7 +84,7 @@ void BluetoothPresenter::onDevicesChanged(const QVector< DeviceInfo >& devices)
     for (int i = 0; i < devices.count(); ++i)
     {
         BluetoothDevice* dst = d->devices[i];
-        const DeviceInfo& src = devices[i];
+        const BluetoothDeviceInfo& src = devices[i];
 
         dst->setAddress(src.address);
         dst->setName(src.name);
@@ -103,7 +103,7 @@ void BluetoothPresenter::requestStatus()
 
 void BluetoothPresenter::requestScan()
 {
-    d->model->requsestScan();
+    d->model->requestScan();
 }
 
 void BluetoothPresenter::requestPair(const QString& address, bool paired)

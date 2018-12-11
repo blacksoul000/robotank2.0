@@ -70,9 +70,10 @@ void SendStatusHandler::timerEvent(QTimerEvent* event)
     status.gamepad_capacity = d->gamepadCapacity;
     status.gamepad_buttons = d->buttons;
 
-    mavlink_msg_sys_status_encode(m_communicator->systemId(),
-                                  m_communicator->componentId(),
-                                  &message, &status);
+    mavlink_msg_sys_status_encode_chan(m_communicator->systemId(),
+                                       m_communicator->componentId(),
+                                       m_communicator->linkChannel(link),
+                                       &message, &status);
 
     m_communicator->sendMessage(message, link);
 //    qDebug() << Q_FUNC_INFO << "Send to " << link->send().address() << link->send().port() << message.msgid;

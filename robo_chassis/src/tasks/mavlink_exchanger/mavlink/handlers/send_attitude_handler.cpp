@@ -74,9 +74,10 @@ void SendAttitudeHandler::timerEvent(QTimerEvent* event)
 //    d->chassis.gunH = position.x() / ::positionCoef;
 //    d->chassis.gunV = position.y() / ::positionCoef;
 
-    mavlink_msg_attitude_encode(m_communicator->systemId(),
-                                m_communicator->componentId(),
-                                &message, &attitude);
+    mavlink_msg_attitude_encode_chan(m_communicator->systemId(),
+                                     m_communicator->componentId(),
+                                     m_communicator->linkChannel(link),
+                                     &message, &attitude);
 
     m_communicator->sendMessage(message, link);
 //    qDebug() << Q_FUNC_INFO << "Send to " << link->send().address() << link->send().port() << message.msgid;
