@@ -67,12 +67,9 @@ void SendAttitudeHandler::timerEvent(QTimerEvent* event)
     attitude.yaw = data_source::encodeYpr(d->ypr.x);
     attitude.pitch = data_source::encodeYpr(d->ypr.y);
     attitude.roll = data_source::encodeYpr(d->ypr.z);
-    // TODO - encode
-    attitude.gunH = d->gunPosition.x();
-    attitude.gunV = d->gunPosition.y();
 
-//    d->chassis.gunH = position.x() / ::positionCoef;
-//    d->chassis.gunV = position.y() / ::positionCoef;
+    attitude.gunH = data_source::encodeYpr(d->gunPosition.x());
+    attitude.gunV = data_source::encodeYpr(d->gunPosition.y());
 
     mavlink_msg_attitude_encode_chan(m_communicator->systemId(),
                                      m_communicator->componentId(),

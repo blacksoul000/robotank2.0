@@ -334,15 +334,16 @@ static void mavlink_test_bluetooth_devices(uint8_t system_id, uint8_t component_
         uint8_t buffer[MAVLINK_MAX_PACKET_LEN];
         uint16_t i;
     mavlink_bluetooth_devices_t packet_in = {
-        5,72,139,"DEFGHIJKLMNOPQRSTUVWXYZABCDEFGHIJKLMNOPQRSTUVWXYZABCDEFGHIJKLMNOPQRSTUVWXYZABCDEFGHIJKLMNOPQRSTUVWXYZABCDEFGHIJKLMNOPQRSTUVWXYZABCDEFGHIJKLMNOPQRSTUVWXYZABCDEFGHIJKLMNOPQRSTUVWXYZABCDEFGHIJKLMNOPQRSTUVWXYZABCDEFGHIJKLMNOPQRSTUVWXYZABCDEFGHIJKLMNOPQRST"
+        5,72,139,206,"EFGHIJKLMNOPQRSTUVWXYZABCDEFGHIJKLMNOPQRSTUVWXYZABCDEFGHIJKLMNOPQRSTUVWXYZABCDEFGHIJKLMNOPQRSTUVWXYZABCDEFGHIJKLMNOPQRSTUVWXYZABCDEFGHIJKLMNOPQRSTUVWXYZABCDEFGHIJKLMNOPQRSTUVWXYZABCDEFGHIJKLMNOPQRSTUVWXYZABCDEFGHIJKLMNOPQRSTUVWXYZABCDEFGHIJKLMNOPQRST"
     };
     mavlink_bluetooth_devices_t packet1, packet2;
         memset(&packet1, 0, sizeof(packet1));
         packet1.total_count = packet_in.total_count;
         packet1.first_index = packet_in.first_index;
         packet1.count = packet_in.count;
+        packet1.data_length = packet_in.data_length;
         
-        mav_array_memcpy(packet1.device_list, packet_in.device_list, sizeof(char)*252);
+        mav_array_memcpy(packet1.device_list, packet_in.device_list, sizeof(char)*251);
         
 #ifdef MAVLINK_STATUS_FLAG_OUT_MAVLINK1
         if (status->flags & MAVLINK_STATUS_FLAG_OUT_MAVLINK1) {
@@ -356,12 +357,12 @@ static void mavlink_test_bluetooth_devices(uint8_t system_id, uint8_t component_
         MAVLINK_ASSERT(memcmp(&packet1, &packet2, sizeof(packet1)) == 0);
 
         memset(&packet2, 0, sizeof(packet2));
-    mavlink_msg_bluetooth_devices_pack(system_id, component_id, &msg , packet1.total_count , packet1.first_index , packet1.count , packet1.device_list );
+    mavlink_msg_bluetooth_devices_pack(system_id, component_id, &msg , packet1.total_count , packet1.first_index , packet1.count , packet1.data_length , packet1.device_list );
     mavlink_msg_bluetooth_devices_decode(&msg, &packet2);
         MAVLINK_ASSERT(memcmp(&packet1, &packet2, sizeof(packet1)) == 0);
 
         memset(&packet2, 0, sizeof(packet2));
-    mavlink_msg_bluetooth_devices_pack_chan(system_id, component_id, MAVLINK_COMM_0, &msg , packet1.total_count , packet1.first_index , packet1.count , packet1.device_list );
+    mavlink_msg_bluetooth_devices_pack_chan(system_id, component_id, MAVLINK_COMM_0, &msg , packet1.total_count , packet1.first_index , packet1.count , packet1.data_length , packet1.device_list );
     mavlink_msg_bluetooth_devices_decode(&msg, &packet2);
         MAVLINK_ASSERT(memcmp(&packet1, &packet2, sizeof(packet1)) == 0);
 
@@ -374,7 +375,7 @@ static void mavlink_test_bluetooth_devices(uint8_t system_id, uint8_t component_
         MAVLINK_ASSERT(memcmp(&packet1, &packet2, sizeof(packet1)) == 0);
         
         memset(&packet2, 0, sizeof(packet2));
-    mavlink_msg_bluetooth_devices_send(MAVLINK_COMM_1 , packet1.total_count , packet1.first_index , packet1.count , packet1.device_list );
+    mavlink_msg_bluetooth_devices_send(MAVLINK_COMM_1 , packet1.total_count , packet1.first_index , packet1.count , packet1.data_length , packet1.device_list );
     mavlink_msg_bluetooth_devices_decode(last_msg, &packet2);
         MAVLINK_ASSERT(memcmp(&packet1, &packet2, sizeof(packet1)) == 0);
 }

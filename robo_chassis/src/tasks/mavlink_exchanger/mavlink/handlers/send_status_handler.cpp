@@ -26,6 +26,7 @@ struct SendStatusHandler::Impl
     quint16 voltage = 0;
     quint8 gamepadCapacity = 0;
     quint16 buttons = 0;
+    quint8 deviceCount = 0;
 };
 
 SendStatusHandler::SendStatusHandler(MavLinkCommunicator* communicator):
@@ -48,6 +49,7 @@ SendStatusHandler::SendStatusHandler(MavLinkCommunicator* communicator):
     PubSub::instance()->subscribe("chassis/pointer", &SendStatusHandler::onPointerChanged, this);
 
     PubSub::instance()->subscribe("bluetooth/scanning", &SendStatusHandler::onBluetoothScanStatus, this);
+    PubSub::instance()->subscribe("bluetooth/devices", &SendStatusHandler::onBluetoothDevices, this);
 }
 
 void SendStatusHandler::processMessage(const mavlink_message_t& message)
@@ -69,6 +71,7 @@ void SendStatusHandler::timerEvent(QTimerEvent* event)
     status.voltage = d->voltage;
     status.gamepad_capacity = d->gamepadCapacity;
     status.gamepad_buttons = d->buttons;
+    status.bluetooth_devices_count = d->deviceCount;
 
     mavlink_msg_sys_status_encode_chan(m_communicator->systemId(),
                                        m_communicator->componentId(),
@@ -121,10 +124,15 @@ void SendStatusHandler::onHeadlightChanged(const bool& on)
 
 void SendStatusHandler::onPointerChanged(const bool& on)
 {
-    on ? d->status |= BLUETOOTH_SCANNING : d->status &= ~BLUETOOTH_SCANNING;
+    on ? d->status |= POINTER : d->status &= ~POINTER;
 }
 
 void SendStatusHandler::onBluetoothScanStatus(const bool& scanning)
 {
-    scanning ? d->status |= POINTER : d->status &= ~POINTER;
+    scanning ? d->status |= BLUETOOTH_SCANNING : d->status &= ~BLUETOOTH_SCANNING;
+}
+
+void SendStatusHandler::onBluetoothDevices(const QVector< BluetoothDeviceInfo >& devices)
+{
+    d->deviceCount = devices.count();
 }

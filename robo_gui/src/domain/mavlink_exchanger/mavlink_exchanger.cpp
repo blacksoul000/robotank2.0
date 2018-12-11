@@ -124,6 +124,7 @@ void MavlinkExchanger::onVehicleOnlineChanged(bool online)
         d->model->status()->setChassisStatus(true);
 
         domain::CommandPtr command = domain::CommandPtr::create();
+        command->setType(MAVLINK_MSG_ID_COMMAND_LONG);
         command->setCommandId(MAV_CMD_REQUEST_SETTINGS);
         d->communicator->commandService()->executeCommand(d->vehicle->sysId(), command);
     }
@@ -131,6 +132,9 @@ void MavlinkExchanger::onVehicleOnlineChanged(bool online)
     {
         d->model->status()->setChassisStatus(false);
         d->model->status()->setGamepadStatus(false);
+        d->model->status()->setPointerStatus(false);
+        d->model->status()->setHeadlightStatus(false);
+        d->model->bluetooth()->setScanStatus(false);
     }
 }
 
@@ -172,14 +176,14 @@ void MavlinkExchanger::onRequestScan()
     d->communicator->commandService()->executeCommand(d->vehicle->sysId(), command);
 }
 
-void MavlinkExchanger::onRequestPair(const QString& address, bool paired)
+void MavlinkExchanger::onRequestPair(quint64 address, bool paired)
 {
     if (!d->vehicle) return;
 
     domain::CommandPtr command = domain::CommandPtr::create();
     command->setType(MAVLINK_MSG_ID_COMMAND_BLUETOOTH_PAIR);
     command->setCommandId(MAV_CMD_BLUETOOTH_PAIR);
-    command->addArgument(QBluetoothAddress(address).toUInt64());
+    command->addArgument(address);
     command->addArgument(paired);
 
     d->communicator->commandService()->executeCommand(d->vehicle->sysId(), command);

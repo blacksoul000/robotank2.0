@@ -39,9 +39,8 @@ void AttitudeHandler::processMessage(const mavlink_message_t& message)
     status->setPitch(data_source::decodeYpr(attitude.pitch));
     status->setRoll(data_source::decodeYpr(attitude.roll));
 
-    // TODO - decode
-    status->setGunPositionH(attitude.gunH);
-    status->setGunPositionV(attitude.gunV);
+    status->setGunPositionH(data_source::decodeYpr(attitude.gunH));
+    status->setGunPositionV(data_source::decodeYpr(attitude.gunV));
 //    qDebug() << Q_FUNC_INFO << message.sysid << status->yaw()
 //              << status->pitch() << status->roll()
 //              << status->gunPositionH() << status->gunPositionV();

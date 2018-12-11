@@ -64,7 +64,6 @@ void BluetoothManager::start()
 
 void BluetoothManager::onRequestScan(const Empty&)
 {
-    qDebug() << Q_FUNC_INFO;
     d->devices.clear();
     d->agent->start();
     d->scanStatusP->publish(true);
@@ -73,6 +72,7 @@ void BluetoothManager::onRequestScan(const Empty&)
 
 void BluetoothManager::onRequestPair(const BluetoothPairRequest& request)
 {
+    qDebug() << Q_FUNC_INFO << request.device << request.pair;
     d->localDevice->requestPairing(QBluetoothAddress(request.device),
                              request.pair ? QBluetoothLocalDevice::AuthorizedPaired
                                           : QBluetoothLocalDevice::Unpaired);
@@ -82,7 +82,7 @@ void BluetoothManager::addDevice(const QBluetoothDeviceInfo& info)
 {
     qDebug() << Q_FUNC_INFO << info.address().toString();
     BluetoothDeviceInfo device;
-    device.address = info.address().toString();
+    device.address = info.address().toUInt64();
     device.name = info.name();
     const QBluetoothLocalDevice::Pairing status = d->localDevice->pairingStatus(info.address());
     device.isPaired = (status == QBluetoothLocalDevice::Paired
@@ -99,23 +99,13 @@ void BluetoothManager::onPairingFinished(const QBluetoothAddress& address,
 
     for (auto& info: d->devices)
     {
-        if (info.address == address.toString())
+        if (info.address == address.toUInt64())
         {
             info.isPaired = status;
             break;
         }
     }
 }
-
-//QVector< DeviceInfo > BluetoothManager::devices() const
-//{
-//    return d->devices;
-//}
-//
-//bool BluetoothManager::isScanning() const
-//{
-//    return d->agent->isActive();
-//}
 
 void BluetoothManager::onScanFinished()
 {

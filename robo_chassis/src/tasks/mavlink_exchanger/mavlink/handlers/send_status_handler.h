@@ -4,9 +4,11 @@
 #include "abstract_mavlink_handler.h"
 
 #include <QScopedPointer>
+#include <QVector>
 #include <QObject>
 
 struct PointF3D;
+struct BluetoothDeviceInfo;
 
 namespace domain
 {
@@ -33,6 +35,7 @@ namespace domain
         void onPointerChanged(const bool& on);
 
         void onBluetoothScanStatus(const bool& scanning);
+        void onBluetoothDevices(const QVector< BluetoothDeviceInfo >& devices);
 
     private:
         struct Impl;

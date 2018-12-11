@@ -7,7 +7,7 @@
 
 struct BluetoothDeviceInfo
 {
-    QString address;
+    quint64 address;
     QString name;
     bool isPaired;
 };

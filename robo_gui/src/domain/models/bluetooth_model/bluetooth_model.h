@@ -24,7 +24,7 @@ namespace domain
     signals:
         void requestStatus();
         void requestScan();
-        void requestPair(const QString& address, bool paired);
+        void requestPair(quint64 address, bool paired);
 
         void scanStatusChanged(bool isScanning);
         void devicesChanged(const QVector< BluetoothDeviceInfo >& devices);

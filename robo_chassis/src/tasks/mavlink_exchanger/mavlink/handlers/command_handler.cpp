@@ -47,6 +47,8 @@ CommandHandler::CommandHandler(MavLinkCommunicator* communicator):
         MavLinkCommandHandler(communicator),
     d(new Impl())
 {
+    qDebug() << Q_FUNC_INFO << this;
+
     d->trackRectP = PubSub::instance()->advertise< QRectF >("tracker/toggle");
     d->trackSelectorP = PubSub::instance()->advertise< quint8 >("tracker/selector");
     d->imageSettingsP = PubSub::instance()->advertise< ImageSettings >("camera/settings");
@@ -79,7 +81,6 @@ void CommandHandler::processCommand(const mavlink_message_t& message)
     auto vehicle = m_communicator->vehicleRegistry()->vehicle(message.sysid);
     if (!vehicle) return;
 
-    qDebug() << Q_FUNC_INFO << message.sysid << cmd.command;
     mavlink_message_t reply;
     mavlink_command_ack_t ack;
 
@@ -151,6 +152,8 @@ void CommandHandler::processCommand(const mavlink_message_t& message)
         default:
             return;
     }
+
+    qDebug() << Q_FUNC_INFO << message.sysid << cmd.command;
 
     AbstractLink* link = m_communicator->mavSystemLink(message.sysid);
     if (!link) return;

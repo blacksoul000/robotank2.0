@@ -3,8 +3,6 @@
 #include "pub_sub.h"
 #include "image_settings.h"
 
-#include "strlcpy.h"
-
 // Internal
 #include "mavlink_communicator.h"
 #include "abstract_link.h"
@@ -68,7 +66,7 @@ void SendSettingsHandler::processMessage(const mavlink_message_t& message)
     settings.right_engine_power = d->enginePower.y();
     settings.selected_tracker = d->selectedTracker;
     QByteArray ba = d->videoSource.toUtf8();
-    domain::strlcpy(settings.video_source, ba.data(), sizeof(settings.video_source));
+    memcpy(settings.video_source, ba.data(), sizeof(settings.video_source));
 
     mavlink_msg_settings_encode_chan(m_communicator->systemId(),
                                      m_communicator->componentId(),

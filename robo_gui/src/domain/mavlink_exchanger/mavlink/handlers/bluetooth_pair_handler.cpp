@@ -32,6 +32,7 @@ void BluetoothPairHandler::processMessage(const mavlink_message_t& message)
 void BluetoothPairHandler::sendCommand(int vehicleId, const CommandPtr& command, int attempt)
 {
     if (command->type() != MAVLINK_MSG_ID_COMMAND_BLUETOOTH_PAIR) return;
+
     const auto& args = command->arguments();
     if (args.count() < 2) return;
 

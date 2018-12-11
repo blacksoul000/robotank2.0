@@ -8,7 +8,8 @@ typedef struct __mavlink_bluetooth_devices_t {
  uint8_t total_count; /*<  total device count*/
  uint8_t first_index; /*<  index of first element*/
  uint8_t count; /*<  index of first element*/
- char device_list[252]; /*<  serialized DeviceInfo list*/
+ uint8_t data_length; /*<  size of device_list field*/
+ char device_list[251]; /*<  serialized DeviceInfo list*/
 }) mavlink_bluetooth_devices_t;
 
 #define MAVLINK_MSG_ID_BLUETOOTH_DEVICES_LEN 255
@@ -16,30 +17,32 @@ typedef struct __mavlink_bluetooth_devices_t {
 #define MAVLINK_MSG_ID_154_LEN 255
 #define MAVLINK_MSG_ID_154_MIN_LEN 255
 
-#define MAVLINK_MSG_ID_BLUETOOTH_DEVICES_CRC 211
-#define MAVLINK_MSG_ID_154_CRC 211
+#define MAVLINK_MSG_ID_BLUETOOTH_DEVICES_CRC 84
+#define MAVLINK_MSG_ID_154_CRC 84
 
-#define MAVLINK_MSG_BLUETOOTH_DEVICES_FIELD_DEVICE_LIST_LEN 252
+#define MAVLINK_MSG_BLUETOOTH_DEVICES_FIELD_DEVICE_LIST_LEN 251
 
 #if MAVLINK_COMMAND_24BIT
 #define MAVLINK_MESSAGE_INFO_BLUETOOTH_DEVICES { \
     154, \
     "BLUETOOTH_DEVICES", \
-    4, \
+    5, \
     {  { "total_count", NULL, MAVLINK_TYPE_UINT8_T, 0, 0, offsetof(mavlink_bluetooth_devices_t, total_count) }, \
          { "first_index", NULL, MAVLINK_TYPE_UINT8_T, 0, 1, offsetof(mavlink_bluetooth_devices_t, first_index) }, \
          { "count", NULL, MAVLINK_TYPE_UINT8_T, 0, 2, offsetof(mavlink_bluetooth_devices_t, count) }, \
-         { "device_list", NULL, MAVLINK_TYPE_CHAR, 252, 3, offsetof(mavlink_bluetooth_devices_t, device_list) }, \
+         { "data_length", NULL, MAVLINK_TYPE_UINT8_T, 0, 3, offsetof(mavlink_bluetooth_devices_t, data_length) }, \
+         { "device_list", NULL, MAVLINK_TYPE_CHAR, 251, 4, offsetof(mavlink_bluetooth_devices_t, device_list) }, \
          } \
 }
 #else
 #define MAVLINK_MESSAGE_INFO_BLUETOOTH_DEVICES { \
     "BLUETOOTH_DEVICES", \
-    4, \
+    5, \
     {  { "total_count", NULL, MAVLINK_TYPE_UINT8_T, 0, 0, offsetof(mavlink_bluetooth_devices_t, total_count) }, \
          { "first_index", NULL, MAVLINK_TYPE_UINT8_T, 0, 1, offsetof(mavlink_bluetooth_devices_t, first_index) }, \
          { "count", NULL, MAVLINK_TYPE_UINT8_T, 0, 2, offsetof(mavlink_bluetooth_devices_t, count) }, \
-         { "device_list", NULL, MAVLINK_TYPE_CHAR, 252, 3, offsetof(mavlink_bluetooth_devices_t, device_list) }, \
+         { "data_length", NULL, MAVLINK_TYPE_UINT8_T, 0, 3, offsetof(mavlink_bluetooth_devices_t, data_length) }, \
+         { "device_list", NULL, MAVLINK_TYPE_CHAR, 251, 4, offsetof(mavlink_bluetooth_devices_t, device_list) }, \
          } \
 }
 #endif
@@ -53,25 +56,28 @@ typedef struct __mavlink_bluetooth_devices_t {
  * @param total_count  total device count
  * @param first_index  index of first element
  * @param count  index of first element
+ * @param data_length  size of device_list field
  * @param device_list  serialized DeviceInfo list
  * @return length of the message in bytes (excluding serial stream start sign)
  */
 static inline uint16_t mavlink_msg_bluetooth_devices_pack(uint8_t system_id, uint8_t component_id, mavlink_message_t* msg,
-                               uint8_t total_count, uint8_t first_index, uint8_t count, const char *device_list)
+                               uint8_t total_count, uint8_t first_index, uint8_t count, uint8_t data_length, const char *device_list)
 {
 #if MAVLINK_NEED_BYTE_SWAP || !MAVLINK_ALIGNED_FIELDS
     char buf[MAVLINK_MSG_ID_BLUETOOTH_DEVICES_LEN];
     _mav_put_uint8_t(buf, 0, total_count);
     _mav_put_uint8_t(buf, 1, first_index);
     _mav_put_uint8_t(buf, 2, count);
-    _mav_put_char_array(buf, 3, device_list, 252);
+    _mav_put_uint8_t(buf, 3, data_length);
+    _mav_put_char_array(buf, 4, device_list, 251);
         memcpy(_MAV_PAYLOAD_NON_CONST(msg), buf, MAVLINK_MSG_ID_BLUETOOTH_DEVICES_LEN);
 #else
     mavlink_bluetooth_devices_t packet;
     packet.total_count = total_count;
     packet.first_index = first_index;
     packet.count = count;
-    mav_array_memcpy(packet.device_list, device_list, sizeof(char)*252);
+    packet.data_length = data_length;
+    mav_array_memcpy(packet.device_list, device_list, sizeof(char)*251);
         memcpy(_MAV_PAYLOAD_NON_CONST(msg), &packet, MAVLINK_MSG_ID_BLUETOOTH_DEVICES_LEN);
 #endif
 
@@ -88,26 +94,29 @@ static inline uint16_t mavlink_msg_bluetooth_devices_pack(uint8_t system_id, uin
  * @param total_count  total device count
  * @param first_index  index of first element
  * @param count  index of first element
+ * @param data_length  size of device_list field
  * @param device_list  serialized DeviceInfo list
  * @return length of the message in bytes (excluding serial stream start sign)
  */
 static inline uint16_t mavlink_msg_bluetooth_devices_pack_chan(uint8_t system_id, uint8_t component_id, uint8_t chan,
                                mavlink_message_t* msg,
-                                   uint8_t total_count,uint8_t first_index,uint8_t count,const char *device_list)
+                                   uint8_t total_count,uint8_t first_index,uint8_t count,uint8_t data_length,const char *device_list)
 {
 #if MAVLINK_NEED_BYTE_SWAP || !MAVLINK_ALIGNED_FIELDS
     char buf[MAVLINK_MSG_ID_BLUETOOTH_DEVICES_LEN];
     _mav_put_uint8_t(buf, 0, total_count);
     _mav_put_uint8_t(buf, 1, first_index);
     _mav_put_uint8_t(buf, 2, count);
-    _mav_put_char_array(buf, 3, device_list, 252);
+    _mav_put_uint8_t(buf, 3, data_length);
+    _mav_put_char_array(buf, 4, device_list, 251);
         memcpy(_MAV_PAYLOAD_NON_CONST(msg), buf, MAVLINK_MSG_ID_BLUETOOTH_DEVICES_LEN);
 #else
     mavlink_bluetooth_devices_t packet;
     packet.total_count = total_count;
     packet.first_index = first_index;
     packet.count = count;
-    mav_array_memcpy(packet.device_list, device_list, sizeof(char)*252);
+    packet.data_length = data_length;
+    mav_array_memcpy(packet.device_list, device_list, sizeof(char)*251);
         memcpy(_MAV_PAYLOAD_NON_CONST(msg), &packet, MAVLINK_MSG_ID_BLUETOOTH_DEVICES_LEN);
 #endif
 
@@ -125,7 +134,7 @@ static inline uint16_t mavlink_msg_bluetooth_devices_pack_chan(uint8_t system_id
  */
 static inline uint16_t mavlink_msg_bluetooth_devices_encode(uint8_t system_id, uint8_t component_id, mavlink_message_t* msg, const mavlink_bluetooth_devices_t* bluetooth_devices)
 {
-    return mavlink_msg_bluetooth_devices_pack(system_id, component_id, msg, bluetooth_devices->total_count, bluetooth_devices->first_index, bluetooth_devices->count, bluetooth_devices->device_list);
+    return mavlink_msg_bluetooth_devices_pack(system_id, component_id, msg, bluetooth_devices->total_count, bluetooth_devices->first_index, bluetooth_devices->count, bluetooth_devices->data_length, bluetooth_devices->device_list);
 }
 
 /**
@@ -139,7 +148,7 @@ static inline uint16_t mavlink_msg_bluetooth_devices_encode(uint8_t system_id, u
  */
 static inline uint16_t mavlink_msg_bluetooth_devices_encode_chan(uint8_t system_id, uint8_t component_id, uint8_t chan, mavlink_message_t* msg, const mavlink_bluetooth_devices_t* bluetooth_devices)
 {
-    return mavlink_msg_bluetooth_devices_pack_chan(system_id, component_id, chan, msg, bluetooth_devices->total_count, bluetooth_devices->first_index, bluetooth_devices->count, bluetooth_devices->device_list);
+    return mavlink_msg_bluetooth_devices_pack_chan(system_id, component_id, chan, msg, bluetooth_devices->total_count, bluetooth_devices->first_index, bluetooth_devices->count, bluetooth_devices->data_length, bluetooth_devices->device_list);
 }
 
 /**
@@ -149,25 +158,28 @@ static inline uint16_t mavlink_msg_bluetooth_devices_encode_chan(uint8_t system_
  * @param total_count  total device count
  * @param first_index  index of first element
  * @param count  index of first element
+ * @param data_length  size of device_list field
  * @param device_list  serialized DeviceInfo list
  */
 #ifdef MAVLINK_USE_CONVENIENCE_FUNCTIONS
 
-static inline void mavlink_msg_bluetooth_devices_send(mavlink_channel_t chan, uint8_t total_count, uint8_t first_index, uint8_t count, const char *device_list)
+static inline void mavlink_msg_bluetooth_devices_send(mavlink_channel_t chan, uint8_t total_count, uint8_t first_index, uint8_t count, uint8_t data_length, const char *device_list)
 {
 #if MAVLINK_NEED_BYTE_SWAP || !MAVLINK_ALIGNED_FIELDS
     char buf[MAVLINK_MSG_ID_BLUETOOTH_DEVICES_LEN];
     _mav_put_uint8_t(buf, 0, total_count);
     _mav_put_uint8_t(buf, 1, first_index);
     _mav_put_uint8_t(buf, 2, count);
-    _mav_put_char_array(buf, 3, device_list, 252);
+    _mav_put_uint8_t(buf, 3, data_length);
+    _mav_put_char_array(buf, 4, device_list, 251);
     _mav_finalize_message_chan_send(chan, MAVLINK_MSG_ID_BLUETOOTH_DEVICES, buf, MAVLINK_MSG_ID_BLUETOOTH_DEVICES_MIN_LEN, MAVLINK_MSG_ID_BLUETOOTH_DEVICES_LEN, MAVLINK_MSG_ID_BLUETOOTH_DEVICES_CRC);
 #else
     mavlink_bluetooth_devices_t packet;
     packet.total_count = total_count;
     packet.first_index = first_index;
     packet.count = count;
-    mav_array_memcpy(packet.device_list, device_list, sizeof(char)*252);
+    packet.data_length = data_length;
+    mav_array_memcpy(packet.device_list, device_list, sizeof(char)*251);
     _mav_finalize_message_chan_send(chan, MAVLINK_MSG_ID_BLUETOOTH_DEVICES, (const char *)&packet, MAVLINK_MSG_ID_BLUETOOTH_DEVICES_MIN_LEN, MAVLINK_MSG_ID_BLUETOOTH_DEVICES_LEN, MAVLINK_MSG_ID_BLUETOOTH_DEVICES_CRC);
 #endif
 }
@@ -180,7 +192,7 @@ static inline void mavlink_msg_bluetooth_devices_send(mavlink_channel_t chan, ui
 static inline void mavlink_msg_bluetooth_devices_send_struct(mavlink_channel_t chan, const mavlink_bluetooth_devices_t* bluetooth_devices)
 {
 #if MAVLINK_NEED_BYTE_SWAP || !MAVLINK_ALIGNED_FIELDS
-    mavlink_msg_bluetooth_devices_send(chan, bluetooth_devices->total_count, bluetooth_devices->first_index, bluetooth_devices->count, bluetooth_devices->device_list);
+    mavlink_msg_bluetooth_devices_send(chan, bluetooth_devices->total_count, bluetooth_devices->first_index, bluetooth_devices->count, bluetooth_devices->data_length, bluetooth_devices->device_list);
 #else
     _mav_finalize_message_chan_send(chan, MAVLINK_MSG_ID_BLUETOOTH_DEVICES, (const char *)bluetooth_devices, MAVLINK_MSG_ID_BLUETOOTH_DEVICES_MIN_LEN, MAVLINK_MSG_ID_BLUETOOTH_DEVICES_LEN, MAVLINK_MSG_ID_BLUETOOTH_DEVICES_CRC);
 #endif
@@ -194,21 +206,23 @@ static inline void mavlink_msg_bluetooth_devices_send_struct(mavlink_channel_t c
   is usually the receive buffer for the channel, and allows a reply to an
   incoming message with minimum stack space usage.
  */
-static inline void mavlink_msg_bluetooth_devices_send_buf(mavlink_message_t *msgbuf, mavlink_channel_t chan,  uint8_t total_count, uint8_t first_index, uint8_t count, const char *device_list)
+static inline void mavlink_msg_bluetooth_devices_send_buf(mavlink_message_t *msgbuf, mavlink_channel_t chan,  uint8_t total_count, uint8_t first_index, uint8_t count, uint8_t data_length, const char *device_list)
 {
 #if MAVLINK_NEED_BYTE_SWAP || !MAVLINK_ALIGNED_FIELDS
     char *buf = (char *)msgbuf;
     _mav_put_uint8_t(buf, 0, total_count);
     _mav_put_uint8_t(buf, 1, first_index);
     _mav_put_uint8_t(buf, 2, count);
-    _mav_put_char_array(buf, 3, device_list, 252);
+    _mav_put_uint8_t(buf, 3, data_length);
+    _mav_put_char_array(buf, 4, device_list, 251);
     _mav_finalize_message_chan_send(chan, MAVLINK_MSG_ID_BLUETOOTH_DEVICES, buf, MAVLINK_MSG_ID_BLUETOOTH_DEVICES_MIN_LEN, MAVLINK_MSG_ID_BLUETOOTH_DEVICES_LEN, MAVLINK_MSG_ID_BLUETOOTH_DEVICES_CRC);
 #else
     mavlink_bluetooth_devices_t *packet = (mavlink_bluetooth_devices_t *)msgbuf;
     packet->total_count = total_count;
     packet->first_index = first_index;
     packet->count = count;
-    mav_array_memcpy(packet->device_list, device_list, sizeof(char)*252);
+    packet->data_length = data_length;
+    mav_array_memcpy(packet->device_list, device_list, sizeof(char)*251);
     _mav_finalize_message_chan_send(chan, MAVLINK_MSG_ID_BLUETOOTH_DEVICES, (const char *)packet, MAVLINK_MSG_ID_BLUETOOTH_DEVICES_MIN_LEN, MAVLINK_MSG_ID_BLUETOOTH_DEVICES_LEN, MAVLINK_MSG_ID_BLUETOOTH_DEVICES_CRC);
 #endif
 }
@@ -250,13 +264,23 @@ static inline uint8_t mavlink_msg_bluetooth_devices_get_count(const mavlink_mess
 }
 
 /**
+ * @brief Get field data_length from bluetooth_devices message
+ *
+ * @return  size of device_list field
+ */
+static inline uint8_t mavlink_msg_bluetooth_devices_get_data_length(const mavlink_message_t* msg)
+{
+    return _MAV_RETURN_uint8_t(msg,  3);
+}
+
+/**
  * @brief Get field device_list from bluetooth_devices message
  *
  * @return  serialized DeviceInfo list
  */
 static inline uint16_t mavlink_msg_bluetooth_devices_get_device_list(const mavlink_message_t* msg, char *device_list)
 {
-    return _MAV_RETURN_char_array(msg, device_list, 252,  3);
+    return _MAV_RETURN_char_array(msg, device_list, 251,  4);
 }
 
 /**
@@ -271,6 +295,7 @@ static inline void mavlink_msg_bluetooth_devices_decode(const mavlink_message_t*
     bluetooth_devices->total_count = mavlink_msg_bluetooth_devices_get_total_count(msg);
     bluetooth_devices->first_index = mavlink_msg_bluetooth_devices_get_first_index(msg);
     bluetooth_devices->count = mavlink_msg_bluetooth_devices_get_count(msg);
+    bluetooth_devices->data_length = mavlink_msg_bluetooth_devices_get_data_length(msg);
     mavlink_msg_bluetooth_devices_get_device_list(msg, bluetooth_devices->device_list);
 #else
         uint8_t len = msg->len < MAVLINK_MSG_ID_BLUETOOTH_DEVICES_LEN? msg->len : MAVLINK_MSG_ID_BLUETOOTH_DEVICES_LEN;

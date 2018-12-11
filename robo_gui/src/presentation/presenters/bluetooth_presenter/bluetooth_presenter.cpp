@@ -7,6 +7,7 @@
 
 #include <QtQml>
 #include <QTimer>
+#include <QBluetoothAddress>
 #include <QDebug>
 
 using presentation::BluetoothPresenter;
@@ -86,7 +87,7 @@ void BluetoothPresenter::onDevicesChanged(const QVector< BluetoothDeviceInfo >& 
         BluetoothDevice* dst = d->devices[i];
         const BluetoothDeviceInfo& src = devices[i];
 
-        dst->setAddress(src.address);
+        dst->setAddress(QBluetoothAddress(src.address).toString());
         dst->setName(src.name);
         dst->setIsPaired(src.isPaired);
     }
@@ -108,5 +109,5 @@ void BluetoothPresenter::requestScan()
 
 void BluetoothPresenter::requestPair(const QString& address, bool paired)
 {
-    d->model->requestPair(address, paired);
+    d->model->requestPair(QBluetoothAddress(address).toUInt64(), paired);
 }

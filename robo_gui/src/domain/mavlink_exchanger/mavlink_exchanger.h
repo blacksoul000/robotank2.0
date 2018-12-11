@@ -21,7 +21,7 @@ namespace domain
         void onSelectedTrackerChanged(quint8 code);
         void onTrackToggle(const QRectF& rect);
         void onRequestScan();
-        void onRequestPair(const QString& address, bool paired);
+        void onRequestPair(quint64 address, bool paired);
         void onEnginePowerChanged();
         void onCalibrateGun();
         void onCalibrateGyro();

@@ -25,6 +25,8 @@ struct BluetoothDevicesHandler::Impl
 {
     domain::RoboModel* model = nullptr;
     QVector< BluetoothDeviceInfo > devices;
+
+    bool scanning = false;
 };
 
 BluetoothDevicesHandler::BluetoothDevicesHandler(MavLinkCommunicator* communicator, domain::RoboModel* model):
@@ -47,21 +49,18 @@ void BluetoothDevicesHandler::processSysStatus(const mavlink_message_t& message)
     mavlink_sys_status_t systemStatus;
     mavlink_msg_sys_status_decode(&message, &systemStatus);
 
-    if (systemStatus.system_state & BLUETOOTH_SCANNING)
+    const bool isScanning = systemStatus.system_state & BLUETOOTH_SCANNING;
+    if (isScanning != d->scanning || systemStatus.bluetooth_devices_count != d->devices.count())
     {
-        qDebug() << Q_FUNC_INFO << "scanning...";
-
-        auto vehicle = m_communicator->vehicleRegistry()->vehicle(message.sysid);
-        if (!vehicle) return;
-
-        if (systemStatus.bluetooth_devices_count == 0)
+        d->scanning = isScanning;
+        if (d->scanning)
         {
             d->devices.clear();
-        }
-        else
-        {
-            this->requestDevices(vehicle->sysId(), 0,
-                                 systemStatus.bluetooth_devices_count); // request all
+
+            auto vehicle = m_communicator->vehicleRegistry()->vehicle(message.sysid);
+            if (!vehicle) return;
+
+            this->requestDevices(vehicle->sysId(), 0, systemStatus.bluetooth_devices_count); // request all
         }
     }
 }
@@ -73,7 +72,7 @@ void BluetoothDevicesHandler::processDevices(const mavlink_message_t& message)
 
     this->ackCommand(message.sysid, MAV_CMD_REQUEST_BLUETOOTH_DEVICES, Command::Completed);
 
-    QByteArray ba = devices.device_list;
+    QByteArray ba = QByteArray(devices.device_list, devices.data_length);
     QDataStream in(ba);
 
     BluetoothDeviceInfo device;
@@ -108,6 +107,7 @@ void BluetoothDevicesHandler::requestDevices(int sysId, int from, int count)
 {
     qDebug() << Q_FUNC_INFO << sysId << from << count;
     domain::CommandPtr command = domain::CommandPtr::create();
+    command->setType(MAVLINK_MSG_ID_COMMAND_LONG);
     command->setCommandId(MAV_CMD_REQUEST_BLUETOOTH_DEVICES);
     command->addArgument(from);
     command->addArgument(count);

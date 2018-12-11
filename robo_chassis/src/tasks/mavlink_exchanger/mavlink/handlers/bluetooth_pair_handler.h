@@ -14,8 +14,10 @@ namespace domain
         explicit BluetoothPairHandler(MavLinkCommunicator* communicator);
         ~BluetoothPairHandler() override;
 
-    protected:
         void processCommand(const mavlink_message_t& message) override;
+
+    protected:
+        void processMessage(const mavlink_message_t& message) override;
 
     private:
         class Impl;

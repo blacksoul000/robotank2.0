@@ -45,17 +45,21 @@ BluetoothPairHandler::~BluetoothPairHandler()
     delete d->bluetoothPairP;
 }
 
+void BluetoothPairHandler::processMessage(const mavlink_message_t& message)
+{
+    if (message.msgid == MAVLINK_MSG_ID_COMMAND_BLUETOOTH_PAIR) this->processCommand(message);
+}
+
 void BluetoothPairHandler::processCommand(const mavlink_message_t& message)
 {
-    if (message.msgid != MAVLINK_MSG_ID_COMMAND_BLUETOOTH_PAIR) return;
-
     mavlink_command_bluetooth_pair_t cmd;
     mavlink_msg_command_bluetooth_pair_decode(&message, &cmd);
+
+    qDebug() << Q_FUNC_INFO << message.sysid << cmd.command;
 
     auto vehicle = m_communicator->vehicleRegistry()->vehicle(message.sysid);
     if (!vehicle) return;
 
-    qDebug() << Q_FUNC_INFO << message.sysid << cmd.command;
     mavlink_message_t reply;
     mavlink_command_ack_t ack;
 

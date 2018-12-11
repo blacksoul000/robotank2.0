@@ -3,7 +3,6 @@
 #include "pub_sub.h"
 
 #include "bluetooth_device_info.h"
-#include "strlcpy.h"
 
 // Internal
 #include "mavlink_communicator.h"
@@ -46,7 +45,9 @@ void BluetoothDevicesHandler::processMessage(const mavlink_message_t& message)
     mavlink_command_long_t cmd;
     mavlink_msg_command_long_decode(&message, &cmd);
 
-    if (cmd.command != MAVLINK_MSG_ID_BLUETOOTH_DEVICES) return;
+    if (cmd.command != MAV_CMD_REQUEST_BLUETOOTH_DEVICES) return;
+
+    qDebug() << Q_FUNC_INFO << message.sysid << cmd.command;
 
     AbstractLink* link = m_communicator->mavSystemLink(message.sysid);
     if (!link) return;
@@ -57,23 +58,24 @@ void BluetoothDevicesHandler::processMessage(const mavlink_message_t& message)
     bt.total_count = d->devices.count();
     bt.first_index = cmd.param1;
 
-    int count = qMin< int >(bt.total_count - bt.first_index, cmd.param2);
-    QByteArray result;
+    int maxCount = qMin< int >(bt.total_count - bt.first_index, cmd.param2);
 
+    quint8 bytes = 0;
     int index = bt.first_index;
-    while (bt.count < count && index < bt.total_count)
+    while (bt.count < maxCount && index < bt.total_count)
     {
         QByteArray ba;
         QDataStream out(&ba, QIODevice::WriteOnly);
         out << d->devices.at(index);
-        if (ba.size() + result.size() >= int(sizeof(bt.device_list)) - 1) break;
+        if (ba.size() + bytes >= int(sizeof(bt.device_list))) break;
 
-        result.append(ba);
+        memcpy(bt.device_list + bytes, ba.data(), ba.size());
+        bytes += ba.size();
         ++bt.count;
         ++index;
     }
 
-    domain::strlcpy(bt.device_list, result.data(), sizeof(bt.device_list));
+    bt.data_length = bytes;
 
     mavlink_msg_bluetooth_devices_encode_chan(m_communicator->systemId(),
                                               m_communicator->componentId(),
@@ -81,5 +83,5 @@ void BluetoothDevicesHandler::processMessage(const mavlink_message_t& message)
                                               &reply, &bt);
 
     m_communicator->sendMessage(reply, link);
-////    qDebug() << Q_FUNC_INFO << "Send to " << link->send().address() << link->send().port() << message.msgid;
+//    qDebug() << Q_FUNC_INFO << "Send to " << link->send().address() << link->send().port() << message.msgid;
 }
