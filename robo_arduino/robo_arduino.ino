@@ -56,19 +56,19 @@ void setup() {
   pinMode(boardL1, OUTPUT);
   pinMode(boardL2, OUTPUT);
   pinMode(boardPwmL, OUTPUT);
-  applySpeed(0, boardL1, boardL2, boardPwmL);
+  digitalWrite(boardPwmL, 0);
 
   // Engine Right
   pinMode(boardR1, OUTPUT);
   pinMode(boardR2, OUTPUT);
   pinMode(boardPwmR, OUTPUT);
-  applySpeed(0, boardR1, boardR2, boardPwmR);
+  digitalWrite(boardPwmR, 0);
   
   // Tower
   pinMode(tower1, OUTPUT);
   pinMode(tower2, OUTPUT);
   pinMode(towerPwm, OUTPUT);
-  applySpeed(0, tower1, tower2, towerPwm);
+  digitalWrite(towerPwm, 0);
   
   // Shot
   pinMode(shotPwm, OUTPUT);
@@ -180,12 +180,15 @@ void sleepNow()
   // blink 3 times
   for (int i = 0; i <= 3; ++i)
   {
-    digitalWrite(13, LOW);
+    digitalWrite(leftLightPin, LOW);
+    digitalWrite(rightLightPin, LOW);
     delay(500);
-    digitalWrite(13, HIGH);
+    digitalWrite(leftLightPin, HIGH);
+    digitalWrite(rightLightPin, HIGH);
     delay(500);
   }
-  digitalWrite(13, LOW);
+  digitalWrite(leftLightPin, LOW);
+  digitalWrite(rightLightPin, LOW);
 
   power_all_disable();
   LowPower.powerDown(SLEEP_FOREVER, ADC_OFF, BOD_OFF); // POWER OFF
