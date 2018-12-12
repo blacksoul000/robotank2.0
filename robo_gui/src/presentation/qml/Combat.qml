@@ -104,27 +104,18 @@ Item {
     RButton {
         anchors.left: parent.left
         anchors.bottom: parent.bottom
-        anchors.margins: 5
+        anchors.margins: 10
         width: 50
         height: 50
 
         imageSource: "qrc:/icons/settings.svg"
         onClicked: {
-//             var component = Qt.createComponent(Qt.resolvedUrl("qrc:/qml/Settings.qml"))
-//             var res = component.createObject(stackView, { presenter: settingsPresenter, 
-//                                                        statusPresenter: statusPresenter
-//                                                      })
-//             console.log(res.height, res.width, stackView.height, stackView.width)
-//             stackView.height = res.height
-//             stackView.width = res.width
-//             console.log(res.height, res.width, stackView.height, stackView.width)
-//             stackView.push(res)
-        
-        
             stackView.push({
                 item: Qt.resolvedUrl("qrc:/qml/Settings.qml"), 
                 properties:{ presenter: settingsPresenter, 
-                             statusPresenter: statusPresenter
+                             statusPresenter: statusPresenter,
+                             topMargin: panel.height + 10,
+                             margins: 10
                             }})
         }
     }

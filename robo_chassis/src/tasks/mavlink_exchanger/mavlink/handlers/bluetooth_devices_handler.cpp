@@ -26,6 +26,7 @@ struct BluetoothDevicesHandler::Impl
 };
 
 BluetoothDevicesHandler::BluetoothDevicesHandler(MavLinkCommunicator* communicator):
+    QObject(communicator),
     AbstractMavLinkHandler(communicator),
     d(new Impl)
 {

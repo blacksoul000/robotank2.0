@@ -18,7 +18,7 @@ VehicleRegistry::VehicleRegistry(QObject* parent):
     QObject(parent),
     d(new Impl())
 {
-    qRegisterMetaType<domain::VehiclePtr>("domain::VehiclePtr");
+    qRegisterMetaType< VehiclePtr >("VehiclePtr");
 }
 
 VehicleRegistry::~VehicleRegistry()
@@ -34,6 +34,7 @@ bool VehicleRegistry::removeVehicle(int sysId)
     if (!d->vehicles.contains(sysId)) return false;
 
     auto vehicle = d->vehicles.take(sysId);
+    vehicle->setOnline(false);
     emit vehicleRemoved(vehicle);
     return true;
 }

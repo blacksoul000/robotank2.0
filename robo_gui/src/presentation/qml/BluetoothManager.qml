@@ -7,16 +7,25 @@ import Robotank 1.0
 
 Item {
     id: root
+        
+    property int topMargin: 0
+    property int margins: 0
     
     property QtObject presenter: factory.bluetoothPresenter()
     
     Rectangle {
         id: rect
+        anchors {
+            top: root.top
+            bottom: root.bottom
+            left: root.left
+            topMargin: root.topMargin
+            margins: root.margins
+        }
+        width: 380
         color: roboPalette.backgroundColor
-        anchors.top: parent.top
-        anchors.bottom: parent.bottom
-        width: 360
-        
+        border.width: 1
+        border.color: roboPalette.textColor
     //     title: qsTr("Bluetooth manager")
     
         ListView {
@@ -33,7 +42,8 @@ Item {
                 border.color: roboPalette.textColor
                 border.width: 1
     
-                width: rect.width
+                anchors.horizontalCenter: parent.horizontalCenter
+                width: rect.width - 10
                 height: 60
     
                 Column {

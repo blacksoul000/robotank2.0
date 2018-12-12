@@ -2,12 +2,15 @@
 
 #include "bluetooth_device_info.h"
 
+#include <QDebug>
+
 using domain::BluetoothModel;
 
 class BluetoothModel::Impl
 {
 public:
     bool isScanning = false;
+    bool isPairing = false;
     QVector< BluetoothDeviceInfo > devices;
 };
 
@@ -33,6 +36,19 @@ void BluetoothModel::setScanStatus(bool isScanning)
 bool BluetoothModel::scanStatus() const
 {
     return d->isScanning;
+}
+
+void BluetoothModel::setPairStatus(bool isPairing)
+{
+    if (d->isPairing == isPairing) return;
+
+    d->isPairing = isPairing;
+    emit pairStatusChanged(isPairing);
+}
+
+bool BluetoothModel::pairStatus() const
+{
+    return d->isPairing;
 }
 
 void BluetoothModel::setDevices(const QVector< BluetoothDeviceInfo >& devices)

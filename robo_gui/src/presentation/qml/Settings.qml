@@ -8,16 +8,27 @@ import Robotank 1.0
 Item {
     id: root
     
+    property int topMargin: 0
+    property int margins: 0
+    
     property int rowSpacing: 10
     property int columnSpacing: 30
     property QtObject presenter
     property QtObject statusPresenter
-
+    
     Rectangle {
-        anchors.top: parent.top
-        anchors.bottom: parent.bottom
-        width: 360
+        anchors {
+            top: root.top
+            bottom: root.bottom
+            left: root.left
+            topMargin: root.topMargin
+            margins: root.margins
+        }
+        
+        width: 380
         color: roboPalette.backgroundColor
+        border.width: 1
+        border.color: roboPalette.textColor
         
         ListModel {
             id: trackersModel
@@ -98,25 +109,20 @@ Item {
     
         Flickable {
             id: flow
-            anchors.top: parent.top
-            anchors.bottom: parent.bottom
-            width: col.width
+            anchors.fill: parent
+            anchors.margins: 5
             contentHeight: col.height
             clip: true
     
             Column {
                 id: col
                 spacing: root.rowSpacing
+                anchors.fill: parent
     
                 GroupBox {
                     Layout.fillHeight: true
-                    Layout.fillWidth: true
+                    width: parent.width
                     title: qsTr("Gamepad")
-        //            label: Text {
-        //                color: roboPalette.textColor
-        //                font.pixelSize: roboPalette.captionTextSize / 2
-        //                text: qsTr("Gamepad")
-        //            }
     
                     Column {
                         anchors.fill: parent
@@ -153,7 +159,9 @@ Item {
                             onClicked: {
                                 stackView.push({
                                     item: Qt.resolvedUrl("qrc:/qml/BluetoothManager.qml"), 
-                                    properties:{}})
+                                    properties:{topMargin: root.topMargin, 
+                                                margins: root.margins 
+                                    }})
                             }
                         }
                     }
@@ -161,13 +169,8 @@ Item {
     
                 GroupBox {
                     Layout.fillHeight: true
-                    Layout.fillWidth: true
+                    width: parent.width
                     title: qsTr("Video")
-        //            label: Text {
-        //                color: roboPalette.textColor
-        //                font.pixelSize: roboPalette.captionTextSize / 2
-        //                text: qsTr("Video")
-        //            }
     
                     GridLayout {
                         anchors.fill: parent
@@ -205,13 +208,8 @@ Item {
     
                 GroupBox {
                     Layout.fillHeight: true
-                    Layout.fillWidth: true
+                    width: parent.width
                     title: qsTr("Trackers")
-        //            label: Text {
-        //                color: roboPalette.textColor
-        //                font.pixelSize: roboPalette.captionTextSize / 2
-        //                text: qsTr("Trackers")
-        //            }
     
                     GridLayout {
                         rowSpacing: root.rowSpacing
@@ -228,13 +226,8 @@ Item {
     
                 GroupBox {
                     Layout.fillHeight: true
-                    Layout.fillWidth: true
+                    width: parent.width
                     title: qsTr("Engine power") + ", %"
-        //            label: Text {
-        //                color: roboPalette.textColor
-        //                font.pixelSize: roboPalette.captionTextSize / 2
-        //                text: qsTr("Engine power") + ", %"
-        //            }
     
                     GridLayout {
                         rowSpacing: root.rowSpacing
@@ -272,13 +265,8 @@ Item {
     
                 GroupBox {
                     Layout.fillHeight: true
-                    Layout.fillWidth: true
+                    width: parent.width
                     title: qsTr("Sensors calibration")
-        //            label: Text {
-        //                color: roboPalette.textColor
-        //                font.pixelSize: roboPalette.captionTextSize / 2
-        //                text: qsTr("Sensors calibration")
-        //            }
     
                     GridLayout {
                         rowSpacing: root.rowSpacing

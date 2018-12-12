@@ -43,7 +43,7 @@ bool TaskManager::createTasks()
     this->addTask(ITaskPtr(new VideoSource), 100);
     this->addTask(ITaskPtr(new TrackerTask), 100);
     this->addTask(ITaskPtr(new GpioController), 10);
-    this->addTask(ITaskPtr(new MavlinkExchanger), 0);
+    this->addTask(ITaskPtr(new MavlinkExchanger), 1);
     this->addTask(ITaskPtr(new ConfigHandler), 0); // last one
     return true;
 }

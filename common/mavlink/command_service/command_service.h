@@ -27,7 +27,7 @@ namespace domain
         void executeCommand(int sysId, const CommandPtr& command);
         void cancelCommand(int sysId, int type);
 
-        void commandChanged(int vehicleId, CommandPtr command);
+        void commandChanged(int sysId, CommandPtr command);
     };
 }
 

@@ -8,8 +8,6 @@ namespace domain
 {
     class CommandHandler: public MavLinkCommandHandler
     {
-        Q_OBJECT
-
     public:
         explicit CommandHandler(MavLinkCommunicator* communicator);
         ~CommandHandler() override;

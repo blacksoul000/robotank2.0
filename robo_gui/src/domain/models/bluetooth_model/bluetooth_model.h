@@ -18,6 +18,9 @@ namespace domain
         void setScanStatus(bool isScanning);
         bool scanStatus() const;
 
+        void setPairStatus(bool isPairing);
+        bool pairStatus() const;
+
         void setDevices(const QVector< BluetoothDeviceInfo >& devices);
         QVector< BluetoothDeviceInfo > devices() const;
 
@@ -27,6 +30,7 @@ namespace domain
         void requestPair(quint64 address, bool paired);
 
         void scanStatusChanged(bool isScanning);
+        void pairStatusChanged(bool isPairing);
         void devicesChanged(const QVector< BluetoothDeviceInfo >& devices);
 
     private:

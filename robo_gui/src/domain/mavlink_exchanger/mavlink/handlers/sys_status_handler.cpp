@@ -53,6 +53,7 @@ void SysStatusHandler::processMessage(const mavlink_message_t& message)
     track->setTracking(systemStatus.system_state & TRACKING);
 
     bluetooth->setScanStatus(systemStatus.system_state & BLUETOOTH_SCANNING);
+    bluetooth->setPairStatus(systemStatus.system_state & BLUETOOTH_PAIRING);
 
 //    qDebug() << Q_FUNC_INFO << message.sysid << message.msgid << systemStatus.system_state
 //            << systemStatus.voltage << systemStatus.gamepad_capacity

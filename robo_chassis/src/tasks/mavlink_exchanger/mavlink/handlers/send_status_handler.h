@@ -35,6 +35,7 @@ namespace domain
         void onPointerChanged(const bool& on);
 
         void onBluetoothScanStatus(const bool& scanning);
+        void onBluetoothPairStatus(const bool& pairing);
         void onBluetoothDevices(const QVector< BluetoothDeviceInfo >& devices);
 
     private:

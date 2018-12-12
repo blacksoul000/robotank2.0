@@ -8,8 +8,6 @@ namespace domain
 {
     class BluetoothPairHandler: public MavLinkCommandHandler
     {
-        Q_OBJECT
-
     public:
         explicit BluetoothPairHandler(MavLinkCommunicator* communicator);
         ~BluetoothPairHandler() override;

@@ -44,11 +44,9 @@ public:
 };
 
 CommandHandler::CommandHandler(MavLinkCommunicator* communicator):
-        MavLinkCommandHandler(communicator),
+    MavLinkCommandHandler(communicator),
     d(new Impl())
 {
-    qDebug() << Q_FUNC_INFO << this;
-
     d->trackRectP = PubSub::instance()->advertise< QRectF >("tracker/toggle");
     d->trackSelectorP = PubSub::instance()->advertise< quint8 >("tracker/selector");
     d->imageSettingsP = PubSub::instance()->advertise< ImageSettings >("camera/settings");

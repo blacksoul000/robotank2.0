@@ -8,7 +8,7 @@ namespace domain
 {
     class MavLinkCommunicator;
 
-    class AbstractMavLinkHandler // To Processor
+    class AbstractMavLinkHandler
     {
     public:
         explicit AbstractMavLinkHandler(MavLinkCommunicator* communicator);

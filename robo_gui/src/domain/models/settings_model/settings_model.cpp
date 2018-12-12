@@ -104,7 +104,6 @@ QString SettingsModel::videoSource() const
 
 void SettingsModel::setImageSettings(quint8 quality, quint8 brightness, quint8 contrast)
 {
-    qDebug() << Q_FUNC_INFO;
     d->quality = quality;
     d->brightness = brightness;
     d->contrast = contrast;
@@ -114,7 +113,6 @@ void SettingsModel::setImageSettings(quint8 quality, quint8 brightness, quint8 c
 
 void SettingsModel::setEnginePower(quint8 left, quint8 right)
 {
-    qDebug() << Q_FUNC_INFO;
     d->enginePower[SettingsModel::Engine::Left] = left;
     d->enginePower[SettingsModel::Engine::Right] = right;
     emit enginePowerChanged();

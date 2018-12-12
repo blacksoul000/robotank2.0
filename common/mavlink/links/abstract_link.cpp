@@ -6,8 +6,8 @@
 
 using namespace data_source;
 
-AbstractLink::AbstractLink(const Endpoint& send, const Endpoint& receive):
-    QObject(nullptr),
+AbstractLink::AbstractLink(const Endpoint& send, const Endpoint& receive, QObject* parent):
+    QObject(parent),
     m_send(send),
     m_receive(receive)
 {

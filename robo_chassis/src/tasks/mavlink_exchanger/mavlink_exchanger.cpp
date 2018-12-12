@@ -35,6 +35,7 @@ MavlinkExchanger::MavlinkExchanger() :
     builder.buildIdentification(42, 0, MAV_TYPE_GROUND_ROVER);
     builder.buildHandlers(); // later
     d->communicator = builder.getCommunicator();
+    d->communicator->setParent(this);
 }
 
 MavlinkExchanger::~MavlinkExchanger()
@@ -61,7 +62,8 @@ void MavlinkExchanger::start()
                 if (!entry.broadcast().isNull())
                 {
                     auto link = new data_source::UdpLink({entry.broadcast(), 14550},
-                                                         {QHostAddress::Any, 14550});
+                                                         {QHostAddress::Any, 14550},
+                                                         d->communicator);
                     d->communicator->addHeartbeatLink(link);
                     link->connectLink();
                 }

@@ -46,7 +46,10 @@
       <entry value="32" name="BLUETOOTH_SCANNING">
         <description>Bluetooth scan is on.</description>
       </entry>
-      <entry value="64" name="TRACKING">
+      <entry value="64" name="BLUETOOTH_PAIRING">
+        <description>Bluetooth is pairing.</description>
+      </entry>
+      <entry value="128" name="TRACKING">
         <description>Object tracking is on.</description>
       </entry>
     </enum>

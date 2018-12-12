@@ -26,7 +26,7 @@ struct BluetoothDevicesHandler::Impl
     domain::RoboModel* model = nullptr;
     QVector< BluetoothDeviceInfo > devices;
 
-    bool scanning = false;
+    bool isPairing = false;
 };
 
 BluetoothDevicesHandler::BluetoothDevicesHandler(MavLinkCommunicator* communicator, domain::RoboModel* model):
@@ -49,20 +49,17 @@ void BluetoothDevicesHandler::processSysStatus(const mavlink_message_t& message)
     mavlink_sys_status_t systemStatus;
     mavlink_msg_sys_status_decode(&message, &systemStatus);
 
-    const bool isScanning = systemStatus.system_state & BLUETOOTH_SCANNING;
-    if (isScanning != d->scanning || systemStatus.bluetooth_devices_count != d->devices.count())
+    const bool isPairing = systemStatus.system_state & BLUETOOTH_PAIRING;
+    if (systemStatus.bluetooth_devices_count != d->devices.count() || (d->isPairing && !isPairing))
     {
-        d->scanning = isScanning;
-        if (d->scanning)
-        {
-            d->devices.clear();
+        auto vehicle = m_communicator->vehicleRegistry()->vehicle(message.sysid);
+        if (!vehicle) return;
 
-            auto vehicle = m_communicator->vehicleRegistry()->vehicle(message.sysid);
-            if (!vehicle) return;
-
-            this->requestDevices(vehicle->sysId(), 0, systemStatus.bluetooth_devices_count); // request all
-        }
+        d->devices.clear();
+        d->devices.resize(systemStatus.bluetooth_devices_count);
+        this->requestDevices(vehicle->sysId(), 0, systemStatus.bluetooth_devices_count); // request all
     }
+    d->isPairing = isPairing;
 }
 
 void BluetoothDevicesHandler::processDevices(const mavlink_message_t& message)
@@ -79,20 +76,11 @@ void BluetoothDevicesHandler::processDevices(const mavlink_message_t& message)
     for (quint8 index = 0; index < devices.count; ++index)
     {
         in >> device;
-        d->devices.append(device);
+        d->devices[devices.first_index + index] = device;
+        qDebug() << Q_FUNC_INFO << device.address << device.isPaired;
     }
 
     qDebug() << Q_FUNC_INFO << devices.first_index << devices.count << devices.total_count;
-
-    if (d->devices.count() < devices.total_count)
-    {
-        auto vehicle = m_communicator->vehicleRegistry()->vehicle(message.sysid);
-        if (!vehicle) return;
-
-        this->requestDevices(vehicle->sysId(), d->devices.count(),
-                                               devices.total_count - d->devices.count());
-    }
-
     d->model->bluetooth()->setDevices(d->devices);
 }
 

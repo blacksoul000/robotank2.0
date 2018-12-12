@@ -25,6 +25,7 @@ QList<AbstractLink*> AbstractCommunicator::links() const
 
 void AbstractCommunicator::addLink(AbstractLink* link)
 {
+    link->setParent(this);
     m_links.append(link);
 
     connect(link, &AbstractLink::dataReceived, this, &AbstractCommunicator::onDataReceived);

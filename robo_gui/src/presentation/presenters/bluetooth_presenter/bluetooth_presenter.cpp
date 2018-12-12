@@ -43,6 +43,8 @@ BluetoothPresenter::BluetoothPresenter(domain::RoboModel* model, QObject* parent
     connect(d->model, &BluetoothModel::devicesChanged,
             this, &BluetoothPresenter::onDevicesChanged);
     connect(d->statusTimer, &QTimer::timeout, this, &BluetoothPresenter::requestStatus);
+
+    this->onDevicesChanged(d->model->devices());
 }
 
 BluetoothPresenter::~BluetoothPresenter()

@@ -25,6 +25,7 @@ struct SendStatusHandler::Impl
 };
 
 SendStatusHandler::SendStatusHandler(MavLinkCommunicator* communicator):
+    QObject(communicator),
     AbstractMavLinkHandler(communicator),
     d(new Impl)
 {
@@ -44,6 +45,7 @@ SendStatusHandler::SendStatusHandler(MavLinkCommunicator* communicator):
     PubSub::instance()->subscribe("chassis/pointer", &SendStatusHandler::onPointerChanged, this);
 
     PubSub::instance()->subscribe("bluetooth/scanning", &SendStatusHandler::onBluetoothScanStatus, this);
+    PubSub::instance()->subscribe("bluetooth/pairing", &SendStatusHandler::onBluetoothPairStatus, this);
     PubSub::instance()->subscribe("bluetooth/devices", &SendStatusHandler::onBluetoothDevices, this);
 }
 
@@ -123,6 +125,11 @@ void SendStatusHandler::onPointerChanged(const bool& on)
 void SendStatusHandler::onBluetoothScanStatus(const bool& scanning)
 {
     scanning ? d->status |= BLUETOOTH_SCANNING : d->status &= ~BLUETOOTH_SCANNING;
+}
+
+void SendStatusHandler::onBluetoothPairStatus(const bool& pairing)
+{
+    pairing ? d->status |= BLUETOOTH_PAIRING : d->status &= ~BLUETOOTH_PAIRING;
 }
 
 void SendStatusHandler::onBluetoothDevices(const QVector< BluetoothDeviceInfo >& devices)

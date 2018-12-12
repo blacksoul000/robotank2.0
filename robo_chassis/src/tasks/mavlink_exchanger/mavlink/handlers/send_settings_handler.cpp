@@ -29,6 +29,7 @@ struct SendSettingsHandler::Impl
 };
 
 SendSettingsHandler::SendSettingsHandler(MavLinkCommunicator* communicator):
+    QObject(communicator),
     AbstractMavLinkHandler(communicator),
     d(new Impl)
 {

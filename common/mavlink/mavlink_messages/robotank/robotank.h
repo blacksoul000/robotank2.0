@@ -62,8 +62,9 @@ typedef enum MAV_SYSTEM_STATE
    HEADLIGHT=8, /* Headlights is on. | */
    POINTER=16, /* Target pointer is on. | */
    BLUETOOTH_SCANNING=32, /* Bluetooth scan is on. | */
-   TRACKING=64, /* Object tracking is on. | */
-   MAV_SYSTEM_STATE_ENUM_END=65, /*  | */
+   BLUETOOTH_PAIRING=64, /* Bluetooth is pairing. | */
+   TRACKING=128, /* Object tracking is on. | */
+   MAV_SYSTEM_STATE_ENUM_END=129, /*  | */
 } MAV_SYSTEM_STATE;
 #endif
 

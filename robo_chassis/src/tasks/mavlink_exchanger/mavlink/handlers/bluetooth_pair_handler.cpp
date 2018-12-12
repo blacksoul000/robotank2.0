@@ -34,7 +34,7 @@ public:
 };
 
 BluetoothPairHandler::BluetoothPairHandler(MavLinkCommunicator* communicator):
-        MavLinkCommandHandler(communicator),
+    MavLinkCommandHandler(communicator),
     d(new Impl())
 {
     d->bluetoothPairP = PubSub::instance()->advertise< BluetoothPairRequest >("bluetooth/pair");

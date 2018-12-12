@@ -14,7 +14,7 @@ namespace data_source
         Q_OBJECT
 
     public:
-        explicit AbstractLink(const Endpoint& send, const Endpoint& receive);
+        explicit AbstractLink(const Endpoint& send, const Endpoint& receive, QObject* parent = nullptr);
         virtual ~AbstractLink() = default;
 
         virtual bool isConnected() const = 0;

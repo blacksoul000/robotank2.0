@@ -15,6 +15,7 @@ class BluetoothManager::Impl
 {
 public:
     Publisher< bool >* scanStatusP = nullptr;
+    Publisher< bool >* pairStatusP = nullptr;
     Publisher< QVector< BluetoothDeviceInfo > >* deviceListP = nullptr;
 
     QBluetoothDeviceDiscoveryAgent* agent = nullptr;
@@ -29,6 +30,7 @@ BluetoothManager::BluetoothManager() :
     d(new Impl)
 {
     d->scanStatusP = PubSub::instance()->advertise< bool >("bluetooth/scanning");
+    d->pairStatusP = PubSub::instance()->advertise< bool >("bluetooth/pairing");
     d->deviceListP = PubSub::instance()->advertise< QVector< BluetoothDeviceInfo > >("bluetooth/devices");
 
     PubSub::instance()->subscribe("bluetooth/scan", &BluetoothManager::onRequestScan, this);
@@ -38,6 +40,7 @@ BluetoothManager::BluetoothManager() :
 BluetoothManager::~BluetoothManager()
 {
     delete d->scanStatusP;
+    delete d->pairStatusP;
     delete d->deviceListP;
     delete d;
 }
@@ -73,6 +76,7 @@ void BluetoothManager::onRequestScan(const Empty&)
 void BluetoothManager::onRequestPair(const BluetoothPairRequest& request)
 {
     qDebug() << Q_FUNC_INFO << request.device << request.pair;
+    d->pairStatusP->publish(true);
     d->localDevice->requestPairing(QBluetoothAddress(request.device),
                              request.pair ? QBluetoothLocalDevice::AuthorizedPaired
                                           : QBluetoothLocalDevice::Unpaired);
@@ -105,6 +109,8 @@ void BluetoothManager::onPairingFinished(const QBluetoothAddress& address,
             break;
         }
     }
+    d->pairStatusP->publish(false);
+    d->deviceListP->publish(d->devices);
 }
 
 void BluetoothManager::onScanFinished()

@@ -9,13 +9,13 @@
 
 using namespace data_source;
 
-UdpLink::UdpLink(const Endpoint& send, const Endpoint& receive):
-    AbstractLink(send, receive),
+UdpLink::UdpLink(const Endpoint& send, const Endpoint& receive, QObject* parent):
+    AbstractLink(send, receive, parent),
     m_socket(new QUdpSocket(this)),
     m_sendSocket(new QUdpSocket(this))
 {
     QObject::connect(m_socket, &QUdpSocket::readyRead, this, &UdpLink::onReadyRead);
-    connect(m_socket, QOverload < QUdpSocket::SocketError > ::of(&QUdpSocket::error),
+    connect(m_socket, static_cast< void(QAbstractSocket::*)(QAbstractSocket::SocketError) >(&QAbstractSocket::error),
             this, &AbstractLink::onSocketError);
 }
 
@@ -35,7 +35,7 @@ bool UdpLink::waitData(int timeout)
 
 AbstractLink* UdpLink::clone(const Endpoint& send, const Endpoint& receive)
 {
-    return new UdpLink(send, receive);
+    return new UdpLink(send, receive, this);
 }
 
 void UdpLink::connectLink()
@@ -72,7 +72,9 @@ void UdpLink::onReadyRead()
 {
     while (m_socket->hasPendingDatagrams())
     {
-        QNetworkDatagram datagram = m_socket->receiveDatagram();
-        this->receiveData(datagram.data());
+        QByteArray datagram;
+        datagram.resize(m_socket->pendingDatagramSize());
+        m_socket->readDatagram(datagram.data(), datagram.size());
+        this->receiveData(datagram);
     }
 }

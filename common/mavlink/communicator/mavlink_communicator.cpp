@@ -58,6 +58,7 @@ MavLinkCommunicator::~MavLinkCommunicator()
 {
     d->heartbeatLinks.clear();
     qDeleteAll(d->handlers);
+    qDeleteAll(d->heartbeatLinks);
 }
 
 bool MavLinkCommunicator::isAddLinkEnabled()
@@ -111,7 +112,11 @@ CommandServicePtr MavLinkCommunicator::commandService() const
 void MavLinkCommunicator::addHeartbeatLink(data_source::AbstractLink* link)
 {
     d->heartbeatLinks.append(link);
-    AbstractCommunicator::addLink(link);
+
+    link->setParent(this);
+
+    connect(link, &AbstractLink::dataReceived, this, &MavLinkCommunicator::onDataReceived);
+    emit linkAdded(link);
 }
 
 void MavLinkCommunicator::addLink(data_source::AbstractLink* link)
