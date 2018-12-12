@@ -1,11 +1,12 @@
 #include "tracker_keypoints.h"
 
 #include <opencv2/core/utility.hpp>
-//#include <opencv2/tracking.hpp>
+#include <opencv2/tracking.hpp>
 
 #include <iostream>
 #include <chrono>
 
+//KCF
 //MIL
 //BOOSTING
 //MEDIANFLOW
@@ -21,7 +22,7 @@ public:
     bool tracking = false;
     std::string algo;
 
-//    Ptr<Tracker> tracker;
+    Ptr<Tracker> tracker;
     bool inited = false;
 };
 
@@ -60,12 +61,12 @@ cv::Rect2d TrackerKeypoints::target() const
 
 void TrackerKeypoints::track(const cv::Mat& image)
 {
-//    if (!d->inited)
-//    {
-//        d->tracker = Tracker::create(d->algo);
-//
-//        if (!d->tracker->init(image, d->target)) return;
-//        d->inited = true;
-//    }
-//    d->tracker->update(image, d->target);
+    if (!d->inited)
+    {
+        d->tracker = Tracker::create(d->algo);
+
+        if (!d->tracker->init(image, d->target)) return;
+        d->inited = true;
+    }
+    d->tracker->update(image, d->target);
 }
