@@ -58,6 +58,7 @@ void BluetoothDevicesHandler::processMessage(const mavlink_message_t& message)
 
     bt.total_count = d->devices.count();
     bt.first_index = cmd.param1;
+    bt.count = 0;
 
     int maxCount = qMin< int >(bt.total_count - bt.first_index, cmd.param2);
 
@@ -72,6 +73,7 @@ void BluetoothDevicesHandler::processMessage(const mavlink_message_t& message)
 
         memcpy(bt.device_list + bytes, ba.data(), ba.size());
         bytes += ba.size();
+
         ++bt.count;
         ++index;
     }

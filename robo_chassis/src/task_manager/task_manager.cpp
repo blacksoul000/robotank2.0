@@ -39,11 +39,11 @@ bool TaskManager::createTasks()
     this->addTask(ITaskPtr(new RoboCore), 30);
     this->addTask(ITaskPtr(new ArduinoExchanger), 40);
     this->addTask(ITaskPtr(new GamepadController), 30);
-    this->addTask(ITaskPtr(new BluetoothManager), 1000);
+    this->addTask(ITaskPtr(new BluetoothManager), 2);
     this->addTask(ITaskPtr(new VideoSource), 100);
     this->addTask(ITaskPtr(new TrackerTask), 100);
     this->addTask(ITaskPtr(new GpioController), 10);
-    this->addTask(ITaskPtr(new MavlinkExchanger), 1);
+    this->addTask(ITaskPtr(new MavlinkExchanger), 0);
     this->addTask(ITaskPtr(new ConfigHandler), 0); // last one
     return true;
 }
