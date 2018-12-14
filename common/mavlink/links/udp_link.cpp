@@ -5,7 +5,6 @@
 // Qt
 #include <QUdpSocket>
 #include <QHostAddress>
-#include <QNetworkDatagram>
 
 using namespace data_source;
 

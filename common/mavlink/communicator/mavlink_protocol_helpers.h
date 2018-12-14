@@ -40,7 +40,7 @@ namespace data_source
         return value * 100;
     }
 
-    inline uint16_t encodeYpr(float value)
+    inline int16_t encodeYpr(float value)
     {
         return value / 360.0 * UINT16_MAX;
     }
@@ -101,7 +101,7 @@ namespace data_source
         return qMin(qMax(qRound(value / 1.9 - 127.0), - 120), 0);
     }
 
-    inline float decodeYpr(uint16_t value)
+    inline float decodeYpr(int16_t value)
     {
         return value * 360.0 / UINT16_MAX;
     }

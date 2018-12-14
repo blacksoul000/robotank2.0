@@ -15,7 +15,7 @@ ExternalProject_Add(OpenTLD
                     CMAKE_ARGS -DWITH_OPENMP=ON
                     INSTALL_COMMAND "")
 
-include(${CMAKE_SOURCE_DIR}/../cmake/FindOpenCV.cmake)
+#include(${CMAKE_SOURCE_DIR}/../cmake/FindOpenCV.cmake)
 include(${CMAKE_SOURCE_DIR}/../cmake/RecurseDirs.cmake)
 
 find_package(OpenCV 3)

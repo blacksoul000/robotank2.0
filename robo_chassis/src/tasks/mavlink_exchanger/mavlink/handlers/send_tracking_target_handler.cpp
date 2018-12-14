@@ -17,6 +17,7 @@ using namespace domain;
 using data_source::AbstractLink;
 
 SendTrackingTargetHandler::SendTrackingTargetHandler(MavLinkCommunicator* communicator):
+    QObject(communicator),
     AbstractMavLinkHandler(communicator)
 {
     PubSub::instance()->subscribe("tracker/target", &SendTrackingTargetHandler::onTrackerTarget, this);
