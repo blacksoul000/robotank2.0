@@ -2,6 +2,7 @@ import QtQuick 2.0
 import QtMultimedia 5.0
 import QtQuick.Controls 1.4
 import QtQuick.Window 2.2
+
 //import QtSystemInfo 5.0
 
 Item {
@@ -10,42 +11,67 @@ Item {
     property QtObject trackPresenter: factory.trackPresenter()
     property QtObject statusPresenter: factory.statusPresenter()
     property QtObject settingsPresenter: factory.settingsPresenter()
-    property double scaleX: video.sourceRect.width / page.width
-    property double scaleY: video.sourceRect.height / page.height
+    property QtObject videoPresenter: factory.videoPresenter()
+    property double scaleX: 1
+    property double scaleY: 1
+    property bool hasVideo: true 
+//     property double scaleX: video.sourceRect.width / page.width
+//     property double scaleY: video.sourceRect.height / page.height
 
-    property bool hasVideo: (video.sourceRect.width > 0 && video.sourceRect.height > 0)
+//     property bool hasVideo: (video.sourceRect.width > 0 && video.sourceRect.height > 0)
     
     onVisibleChanged: visible = true // Always visible
 
-    Timer {
-        id: restartTimer
-        interval: 1000; running: false; repeat: false
-        onTriggered: player.play();
-    }
+//     Timer {
+//         id: restartTimer
+//         interval: 1000; running: false; repeat: false
+//         onTriggered: player.play();
+//     }
 
-    MediaPlayer {
-        id: player
-        source: settingsPresenter.videoSource
-        autoPlay: true
+//     MediaPlayer {
+//         id: player
+//         source: settingsPresenter.videoSource
+// //        source: "udp://192.168.1.255:5000"
+//         autoPlay: true
+// 
+//         onErrorChanged: {
+//             if (error === MediaPlayer.NetworkError || error === MediaPlayer.ResourceError)
+//             {
+//                 restartTimer.running = true
+//             }
+//             else if (error !== MediaPlayer.NoError)
+//             {
+//                 console.log("Video error: ", errorString);
+//             }
+//         }
+//         
+//         onSourceChanged: console.log("Video source:", source)
+//     }
+//
+//     VideoOutput {
+//         id: video
+//         anchors.fill: parent;
+//         source: player;
+//     }
 
-        onErrorChanged: {
-            if (error === MediaPlayer.NetworkError || error === MediaPlayer.ResourceError)
-            {
-                restartTimer.running = true
-            }
-            else if (error !== MediaPlayer.NoError)
-            {
-                console.log("Video error: ", errorString);
-            }
-        }
-        
-        onSourceChanged: console.log("Video source:", source)
-    }
-
-    VideoOutput {
-        id: video
+    Item {
+        id: videoContainer
         anchors.fill: parent;
-        source: player;
+        
+        property var surface: videoPresenter.surface
+        
+//         Component.onCompleted: {
+//             var item = videoPresenter.surface;
+//             item.parent = videoContainer;
+//             item.anchors.fill = videoContainer
+// //             
+// //             videoPresenter.play()
+//         }
+//         
+//         Timer {
+//             interval: 10000; running: true; repeat: false
+//             onTriggered: videoPresenter.play()
+//         }
     }
 
     Crosshair {

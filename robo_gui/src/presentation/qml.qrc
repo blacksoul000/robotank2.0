@@ -17,5 +17,6 @@
         <file>qml/StatusIndicator.qml</file>
         <file>qml/StatusPanel.qml</file>
         <file>qml/Page.qml</file>
+        <file>qml/Video.qml</file>
     </qresource>
 </RCC>

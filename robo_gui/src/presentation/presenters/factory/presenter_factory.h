@@ -22,6 +22,7 @@ namespace presentation
         QObject* settingsPresenter();
         QObject* statusPresenter();
         QObject* bluetoothPresenter();
+        QObject* videoPresenter();
 
     private:
         class Impl;

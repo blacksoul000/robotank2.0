@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 2.8.3)
 project(robo_gui)
 
-add_definitions(-std=c++11)
+add_definitions(-std=c++11 -fpic)
 SET(CMAKE_BUILD_TYPE Debug)
 
 if(ANDROID)
@@ -12,37 +12,29 @@ endif()
 
 include(${CMAKE_SOURCE_DIR}/../cmake/RecurseDirs.cmake)
 
-find_package(Qt5Core)
-find_package(Qt5Gui)
-find_package(Qt5Qml)
-find_package(Qt5Quick)
-find_package(Qt5Multimedia)
-find_package(Qt5Svg)
-find_package(Qt5Network)
-find_package(Qt5Bluetooth)
+find_package(Qt5 REQUIRED COMPONENTS Core Gui Qml Quick Svg Network Bluetooth)
+find_package(PkgConfig REQUIRED)
+pkg_check_modules(GSTREAMER REQUIRED gstreamer-1.0 
+                                        gstreamer-video-1.0 
+                                        gstreamer-base-1.0 
+                                        gstreamer-plugins-base-1.0 
+                                        gmodule-2.0 
+                                        glib-2.0)
 
 set(CMAKE_AUTOMOC ON)
 
-set(LIBS
-    Qt5::Core
-    Qt5::Gui
-    Qt5::Qml
-    Qt5::Quick
-    Qt5::Multimedia
-    Qt5::Svg
-    Qt5::Network
-    Qt5::Bluetooth
-)
-
 if (ANDROID)
     find_package(Qt5AndroidExtras)
-    set (LIBS ${LIBS} Qt5::AndroidExtras android)
+    pkg_check_modules(GST_PLUGINS REQUIRED gstreamer-gl-1.0 gstqmlgl gstvideotestsrc)
+    set (LIBS ${GSTREAMER_STATIC_LDFLAGS} ${GST_PLUGINS_LDFLAGS} Qt5::AndroidExtras android)
+else (ANDROID)
+    set(LIBS ${GSTREAMER_LDFLAGS})
 endif()
 
 file(GLOB_RECURSE SOURCES ${CMAKE_SOURCE_DIR}/src src/*.cpp)
 
 HEADER_DIRECTORIES(${CMAKE_SOURCE_DIR}/src DIRS)
-include_directories(${DIRS})
+include_directories(${DIRS} ${GSTREAMER_INCLUDE_DIRS})
 
 file(GLOB_RECURSE QRC ${CMAKE_SOURCE_DIR}/src src/*.qrc)
 qt5_add_resources(RESOURCES ${QRC})
@@ -51,22 +43,43 @@ set_property(SOURCE ${RESOURCES} PROPERTY SKIP_AUTOMOC ON)
 if(ANDROID)
     include_directories(${ANDROID_SYSROOT}/usr/include)
     add_library(${PROJECT_NAME} SHARED ${SOURCES} ${RESOURCES})
-    set_target_properties(${PROJECT_NAME} PROPERTIES VERSION 0.1)
+    set_target_properties(${PROJECT_NAME} PROPERTIES VERSION 0.2)
+
 else(ANDROID)
     add_executable(${PROJECT_NAME} ${SOURCES} ${RESOURCES})
 endif()
 
 add_subdirectory(${CMAKE_SOURCE_DIR}/../common common)
 target_link_libraries(${PROJECT_NAME} ${LIBS})
+qt5_use_modules(${PROJECT_NAME} Core Qml Quick Svg Multimedia Network Bluetooth)
 
 if(ANDROID)
     set (QT_ANDROID_APP_NAME ${PROJECT_NAME})
     include(3rdparty/qt-android-cmake/AddQtAndroidApk.cmake)
-    add_qt_android_apk(${PROJECT_NAME}_apk.
+    
+    set(tc /home/user/workspace/android/toolchain/workspace/cerbero/build/dist/android_armv7/lib)
+    set(deps 
+        ${tc}/libgstreamer-1.0.so
+        ${tc}/libgstgl-1.0.so
+        ${tc}/libgstbase-1.0.so
+        ${tc}/libgstvideo-1.0.so
+        ${tc}/libgmodule-2.0.so
+        ${tc}/libgobject-2.0.so
+        ${tc}/libglib-2.0.so
+        ${tc}/libiconv.so
+        ${tc}/liborc-0.4.so
+        ${tc}/libffi.so
+        ${tc}/libintl.so
+        ${tc}/gstreamer-1.0/libgstqmlgl.so
+        ${tc}/gstreamer-1.0/libgstvideotestsrc.so
+    )
+
+    add_qt_android_apk(${PROJECT_NAME}_apk
                         ${PROJECT_NAME}
                         NAME "Robotank"
                         PACKAGE_NAME "vitaliy.bondar.robotank"
                         PACKAGE_SOURCES ${CMAKE_SOURCE_DIR}/android
                         BUILDTOOLS_REVISION "25.0.0"
+                        DEPENDS ${deps}
 )
 endif()

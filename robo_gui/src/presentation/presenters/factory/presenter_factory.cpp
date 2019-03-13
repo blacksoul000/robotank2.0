@@ -5,6 +5,7 @@
 #include "settings_presenter.h"
 #include "status_presenter.h"
 #include "bluetooth_presenter.h"
+#include "video_presenter.h"
 
 #include <QtQml>
 
@@ -12,6 +13,7 @@ using presentation::PresenterFactory;
 using presentation::SettingsPresenter;
 using presentation::StatusPresenter;
 using presentation::BluetoothPresenter;
+using presentation::VideoPresenter;
 
 class PresenterFactory::Impl
 {
@@ -49,4 +51,9 @@ QObject* PresenterFactory::statusPresenter()
 QObject* PresenterFactory::bluetoothPresenter()
 {
     return new BluetoothPresenter(d->model, this);
+}
+
+QObject* PresenterFactory::videoPresenter()
+{
+    return new VideoPresenter(d->model, this);
 }
