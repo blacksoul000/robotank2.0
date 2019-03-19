@@ -58,20 +58,20 @@ Item {
         id: videoContainer
         anchors.fill: parent;
         
-        property var surface: videoPresenter.surface
+//         property var surface: videoPresenter.surface
         
-//         Component.onCompleted: {
-//             var item = videoPresenter.surface;
-//             item.parent = videoContainer;
-//             item.anchors.fill = videoContainer
-// //             
-// //             videoPresenter.play()
-//         }
-//         
-//         Timer {
-//             interval: 10000; running: true; repeat: false
-//             onTriggered: videoPresenter.play()
-//         }
+        Component.onCompleted: {
+            var item = videoPresenter.surface;
+            item.parent = videoContainer;
+            item.anchors.fill = videoContainer
+//             
+//             videoPresenter.play()
+        }
+        
+        Timer {
+            interval: 2000; running: true; repeat: false
+            onTriggered: videoPresenter.play()
+        }
     }
 
     Crosshair {

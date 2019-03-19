@@ -3,6 +3,25 @@
 
 #include <QObject>
 
+#include <gst/gst.h>
+
+extern "C" {
+//	GST_PLUGIN_STATIC_DECLARE(coreelements);
+//	GST_PLUGIN_STATIC_DECLARE(rtp);
+//	GST_PLUGIN_STATIC_DECLARE(x264);
+//	GST_PLUGIN_STATIC_DECLARE(openh264);
+//	GST_PLUGIN_STATIC_DECLARE(libav);
+//	GST_PLUGIN_STATIC_DECLARE(videoparsersbad);
+//	GST_PLUGIN_STATIC_DECLARE(playback);
+//	GST_PLUGIN_STATIC_DECLARE(qt5videosink);
+//	GST_PLUGIN_STATIC_DECLARE(soup);
+//	GST_PLUGIN_STATIC_DECLARE(udp);
+//	GST_PLUGIN_STATIC_DECLARE(rtsp);
+	GST_PLUGIN_STATIC_DECLARE(videotestsrc);
+	GST_PLUGIN_STATIC_DECLARE(opengl);
+	GST_PLUGIN_STATIC_DECLARE(qmlgl);
+}
+
 namespace domain
 {
     class RoboModel;
@@ -21,13 +40,14 @@ namespace presentation
 
         QObject* surface() const;
 
+    	QStringList pluginsList() const;
+    	QStringList pluginFeaturesList(const QString& pluginName) const;
+
 	public slots:
         void play();
         void stop();
         void setUri(const QString & uri);
-
-    private:
-//        bool onBusMessage(GstBus* bus GstMessage* message);
+        bool onBusMessage(GstBus* bus, GstMessage* message);
 
     private:
         class Impl;

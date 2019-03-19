@@ -10,14 +10,18 @@ if(ANDROID)
     set (ANDROID_COMPILER_VERSION 4.9)
 endif()
 
-include(${CMAKE_SOURCE_DIR}/../cmake/RecurseDirs.cmake)
+set (CMAKE_MODULE_PATH ${CMAKE_SOURCE_DIR}/../cmake/)
+include(RecurseDirs)
 
 find_package(Qt5 REQUIRED COMPONENTS Core Gui Qml Quick Svg Network Bluetooth)
 find_package(PkgConfig REQUIRED)
 pkg_check_modules(GSTREAMER REQUIRED gstreamer-1.0 
-                                        gstreamer-video-1.0 
-                                        gstreamer-base-1.0 
+                                        gstreamer-base-1.0
                                         gstreamer-plugins-base-1.0 
+                                        gstreamer-app-1.0
+                                        gstreamer-pbutils-1.0  
+                                        gstreamer-audio-1.0
+                                        gstreamer-video-1.0 
                                         gmodule-2.0 
                                         glib-2.0)
 
@@ -25,8 +29,31 @@ set(CMAKE_AUTOMOC ON)
 
 if (ANDROID)
     find_package(Qt5AndroidExtras)
-    pkg_check_modules(GST_PLUGINS REQUIRED gstreamer-gl-1.0 gstqmlgl gstvideotestsrc)
-    set (LIBS ${GSTREAMER_STATIC_LDFLAGS} ${GST_PLUGINS_LDFLAGS} Qt5::AndroidExtras android)
+    pkg_check_modules(GSTGL REQUIRED gstreamer-gl-1.0)
+    pkg_check_modules(GST_PLUGINS REQUIRED
+                                       gstvideotestsrc
+#                                        gstcoreelements
+#                                        gstvideoparsersbad
+#                                        gstrtp
+#                                        gstx264
+# #                                        gstopenh264
+#                                        gstlibav
+#                                        gstplayback
+#                                        gstsoup
+#                                        gstudp
+#                                        gstrtsp
+#                                       gstreamer-plugins-base-1.0 
+                                       gstopengl
+                                       gstqmlgl
+#                                        gstreamer-video-1.0 
+                                   )
+    set (LIBS  
+            ${GST_PLUGINS_STATIC_LDFLAGS} 
+            ${GSTGL_STATIC_LDFLAGS}
+            Qt5::AndroidExtras
+            EGL
+            android 
+            log)
 else (ANDROID)
     set(LIBS ${GSTREAMER_LDFLAGS})
 endif()
@@ -57,29 +84,11 @@ if(ANDROID)
     set (QT_ANDROID_APP_NAME ${PROJECT_NAME})
     include(3rdparty/qt-android-cmake/AddQtAndroidApk.cmake)
     
-    set(tc /home/user/workspace/android/toolchain/workspace/cerbero/build/dist/android_armv7/lib)
-    set(deps 
-        ${tc}/libgstreamer-1.0.so
-        ${tc}/libgstgl-1.0.so
-        ${tc}/libgstbase-1.0.so
-        ${tc}/libgstvideo-1.0.so
-        ${tc}/libgmodule-2.0.so
-        ${tc}/libgobject-2.0.so
-        ${tc}/libglib-2.0.so
-        ${tc}/libiconv.so
-        ${tc}/liborc-0.4.so
-        ${tc}/libffi.so
-        ${tc}/libintl.so
-        ${tc}/gstreamer-1.0/libgstqmlgl.so
-        ${tc}/gstreamer-1.0/libgstvideotestsrc.so
-    )
-
     add_qt_android_apk(${PROJECT_NAME}_apk
                         ${PROJECT_NAME}
                         NAME "Robotank"
                         PACKAGE_NAME "vitaliy.bondar.robotank"
                         PACKAGE_SOURCES ${CMAKE_SOURCE_DIR}/android
                         BUILDTOOLS_REVISION "25.0.0"
-                        DEPENDS ${deps}
 )
 endif()

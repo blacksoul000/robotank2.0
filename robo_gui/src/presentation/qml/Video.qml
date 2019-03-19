@@ -9,5 +9,7 @@ Item {
     GstGLVideoItem {
         id: video
         objectName: "videoItem"
+        
+        anchors.fill: parent
     }
 }
