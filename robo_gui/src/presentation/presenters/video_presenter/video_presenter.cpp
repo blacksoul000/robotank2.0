@@ -40,25 +40,24 @@ VideoPresenter::VideoPresenter(domain::RoboModel* model, QObject* parent) :
 
     gst_init (nullptr, nullptr);
 
-//    GST_PLUGIN_STATIC_REGISTER(coreelements);
-//    GST_PLUGIN_STATIC_REGISTER(rtp);
-//    GST_PLUGIN_STATIC_REGISTER(x264);
-//    GST_PLUGIN_STATIC_REGISTER(openh264);
-//    GST_PLUGIN_STATIC_REGISTER(libav);
-//    GST_PLUGIN_STATIC_REGISTER(videoparsersbad);
-//    GST_PLUGIN_STATIC_REGISTER(playback);
-//    GST_PLUGIN_STATIC_REGISTER(qt5videosink);
-//    GST_PLUGIN_STATIC_REGISTER(soup);
-//    GST_PLUGIN_STATIC_REGISTER(udp);
-//    GST_PLUGIN_STATIC_REGISTER(rtsp);
+    GST_PLUGIN_STATIC_REGISTER(coreelements);
+    GST_PLUGIN_STATIC_REGISTER(rtpmanager);
+    GST_PLUGIN_STATIC_REGISTER(rtp);
+    GST_PLUGIN_STATIC_REGISTER(libav);
+    GST_PLUGIN_STATIC_REGISTER(videoparsersbad);
+    GST_PLUGIN_STATIC_REGISTER(playback);
+    GST_PLUGIN_STATIC_REGISTER(udp);
+    GST_PLUGIN_STATIC_REGISTER(videoconvert);
+	GST_PLUGIN_STATIC_REGISTER(autoconvert);
+    GST_PLUGIN_STATIC_REGISTER(rtsp);
     GST_PLUGIN_STATIC_REGISTER(videotestsrc);
     GST_PLUGIN_STATIC_REGISTER(opengl);
     GST_PLUGIN_STATIC_REGISTER(qmlgl);
 
-	for (auto& p : this->pluginsList())
-	{
-		qDebug() << p << this->pluginFeaturesList(p);
-	}
+//	for (auto& p : this->pluginsList())
+//	{
+//		qDebug() << p << this->pluginFeaturesList(p);
+//	}
 
 	// FIXME
 	this->setUri("rtsp://192.168.1.77:8554/live");
@@ -77,28 +76,25 @@ void VideoPresenter::setUri(const QString& uri)
 {
 	if (!d->pipeline)
 	{
-		d->src = gst_element_factory_make ("videotestsrc", nullptr);
-		GstElement* glupload = gst_element_factory_make ("glupload", nullptr);
-		/* the plugin must be loaded before loading the qml file to register the
-		 * GstGLVideoItem qml item */
-		GstElement* sink = gst_element_factory_make ("qmlglsink", nullptr);
-		d->pipeline = gst_pipeline_new (nullptr);
+//		QString pipe("rtspsrc name=src ! rtph264depay ! h264parse ! avdec_h264 ! glupload ! glcolorconvert ! qmlglsink name=sink");
+		QString pipe("rtspsrc name=src ! decodebin ! glupload ! glcolorconvert ! qmlglsink name=sink");
 
-		if (!d->src || !glupload || !sink || !d->pipeline)
+		GError* error = nullptr;
+		d->pipeline = gst_parse_launch (pipe.toLatin1().data(), &error);
+
+		if (error)
 		{
-			qDebug() << Q_FUNC_INFO << "Not all elements could be created.";
-			gst_object_unref(d->pipeline);
-			d->pipeline = nullptr;
-			return;
+            qWarning() << "*** GStreamer ***" << error->message;
+            g_error_free(error);
+            return;
 		}
 
-		gst_bin_add_many (GST_BIN (d->pipeline), d->src, glupload, sink, nullptr);
-		if (!gst_element_link_many (d->src, glupload, sink, nullptr))
+		d->src = gst_bin_get_by_name(GST_BIN(d->pipeline), "src");
+		GstElement* sink = gst_bin_get_by_name(GST_BIN(d->pipeline), "sink");
+		if (!d->src || !sink)
 		{
-			qDebug() << Q_FUNC_INFO << "Elements could not be linked.";
-			gst_object_unref(d->pipeline);
-			d->pipeline = nullptr;
-			return;
+            qWarning() << "*** GStreamer ***" << "'src' or 'sink' element not found";
+            return;
 		}
 
 		GstBus* bus = gst_pipeline_get_bus(GST_PIPELINE(d->pipeline));
@@ -106,14 +102,13 @@ void VideoPresenter::setUri(const QString& uri)
 		gst_object_unref(bus);
 
 		d->engine.load (QUrl(QStringLiteral("qrc:/qml/Video.qml")));
-		QQuickItem* rootObject = static_cast< QQuickItem* >(d->engine.rootObjects().first());
-		d->surface = rootObject->findChild< QQuickItem* > ("videoItem");
+		d->surface = static_cast< QQuickItem* >(d->engine.rootObjects().first());
 
-		qDebug() << rootObject << d->surface;
 		g_object_set (sink, "widget", d->surface, nullptr);
 	}
 
-//    QQmlProperty(d->player, "source").write(QUrl(uri));
+//	gst-launch-1.0 rtspsrc location=rtsp://192.168.1.77:8554/live ! decodebin ! glupload ! glimagesink
+	g_object_set (d->src, "location", uri.toLatin1().data(), nullptr);
 }
 
 QObject* VideoPresenter::surface() const

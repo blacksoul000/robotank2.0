@@ -58,8 +58,6 @@ Item {
         id: videoContainer
         anchors.fill: parent;
         
-//         property var surface: videoPresenter.surface
-        
         Component.onCompleted: {
             var item = videoPresenter.surface;
             item.parent = videoContainer;

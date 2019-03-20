@@ -20,7 +20,6 @@ pkg_check_modules(GSTREAMER REQUIRED gstreamer-1.0
                                         gstreamer-plugins-base-1.0 
                                         gstreamer-app-1.0
                                         gstreamer-pbutils-1.0  
-                                        gstreamer-audio-1.0
                                         gstreamer-video-1.0 
                                         gmodule-2.0 
                                         glib-2.0)
@@ -29,31 +28,33 @@ set(CMAKE_AUTOMOC ON)
 
 if (ANDROID)
     find_package(Qt5AndroidExtras)
-    pkg_check_modules(GSTGL REQUIRED gstreamer-gl-1.0)
+    pkg_check_modules(GSTGL REQUIRED gstreamer-gl-1.0 gstreamer-audio-1.0)
     pkg_check_modules(GST_PLUGINS REQUIRED
                                        gstvideotestsrc
-#                                        gstcoreelements
-#                                        gstvideoparsersbad
-#                                        gstrtp
+                                       gstcoreelements
+                                       gstrtpmanager
+                                       gstvideoparsersbad
+                                       gstrtp
 #                                        gstx264
 # #                                        gstopenh264
-#                                        gstlibav
-#                                        gstplayback
-#                                        gstsoup
-#                                        gstudp
-#                                        gstrtsp
-#                                       gstreamer-plugins-base-1.0 
+                                       gstlibav
+                                       gstvideoconvert
+                                       gstautoconvert
+                                       gstrtsp
+                                       gstplayback
                                        gstopengl
                                        gstqmlgl
+#                                        gstsoup
+                                       gstudp
+#                                       gstreamer-plugins-base-1.0 
 #                                        gstreamer-video-1.0 
                                    )
-    set (LIBS  
-            ${GST_PLUGINS_STATIC_LDFLAGS} 
-            ${GSTGL_STATIC_LDFLAGS}
-            Qt5::AndroidExtras
-            EGL
-            android 
-            log)
+    set (LIBS ${GST_PLUGINS_STATIC_LDFLAGS} 
+              ${GSTGL_STATIC_LDFLAGS}
+              EGL
+              Qt5::AndroidExtras
+              android
+              log)
 else (ANDROID)
     set(LIBS ${GSTREAMER_LDFLAGS})
 endif()
