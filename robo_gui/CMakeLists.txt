@@ -4,6 +4,8 @@ project(robo_gui)
 add_definitions(-std=c++11 -fpic)
 SET(CMAKE_BUILD_TYPE Debug)
 
+option(GSTREAMER_STATIC "Link gstreamer as static libraries" OFF)
+
 if(ANDROID)
     set (QT_ANDROID_ANT /usr/bin/ant)
     set (PYTHON_EXECUTABLE /usr/bin/python)
@@ -26,8 +28,9 @@ pkg_check_modules(GSTREAMER REQUIRED gstreamer-1.0
 
 set(CMAKE_AUTOMOC ON)
 
-if (ANDROID)
-    find_package(Qt5AndroidExtras)
+if (GSTREAMER_STATIC)
+    message("* Building GStreamer static *")
+    add_definitions(-DGSTREAMER_STATIC)
     pkg_check_modules(GSTGL REQUIRED gstreamer-gl-1.0 gstreamer-audio-1.0)
     pkg_check_modules(GST_PLUGINS REQUIRED
                                        gstvideotestsrc
@@ -35,8 +38,6 @@ if (ANDROID)
                                        gstrtpmanager
                                        gstvideoparsersbad
                                        gstrtp
-#                                        gstx264
-# #                                        gstopenh264
                                        gstlibav
                                        gstvideoconvert
                                        gstautoconvert
@@ -44,19 +45,16 @@ if (ANDROID)
                                        gstplayback
                                        gstopengl
                                        gstqmlgl
-#                                        gstsoup
                                        gstudp
-#                                       gstreamer-plugins-base-1.0 
-#                                        gstreamer-video-1.0 
                                    )
-    set (LIBS ${GST_PLUGINS_STATIC_LDFLAGS} 
-              ${GSTGL_STATIC_LDFLAGS}
-              EGL
-              Qt5::AndroidExtras
-              android
-              log)
-else (ANDROID)
+    set(LIBS ${GST_PLUGINS_STATIC_LDFLAGS} ${GSTGL_STATIC_LDFLAGS} EGL)
+else (GSTREAMER_STATIC)
     set(LIBS ${GSTREAMER_LDFLAGS})
+endif() 
+
+if (ANDROID)
+    find_package(Qt5AndroidExtras)
+    set (LIBS ${LIBS} Qt5::AndroidExtras android log)
 endif()
 
 file(GLOB_RECURSE SOURCES ${CMAKE_SOURCE_DIR}/src src/*.cpp)

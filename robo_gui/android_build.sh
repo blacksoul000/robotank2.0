@@ -8,7 +8,8 @@ export PKG_CONFIG_PATH=${SYSROOT}/lib/pkgconfig:${SYSROOT}/lib/gstreamer-1.0/pkg
 
 mkdir -p `pwd`/android-build
 cd `pwd`/android-build
-cmake .. -DCMAKE_TOOLCHAIN_FILE=${ANDROID_NDK}/build/cmake/android.toolchain.cmake \
+cmake .. -DGSTREAMER_STATIC=ON \
+        -DCMAKE_TOOLCHAIN_FILE=${ANDROID_NDK}/build/cmake/android.toolchain.cmake \
         -DCMAKE_FIND_ROOT_PATH_MODE_PACKAGE=ON \
         -DANDROID_ABI=armeabi-v7a \
         -DANDROID_ARM_NEON=TRUE \

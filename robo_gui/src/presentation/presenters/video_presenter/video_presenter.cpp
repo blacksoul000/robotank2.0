@@ -1,18 +1,13 @@
 #include "video_presenter.h"
+#include "robo_model.h"
+#include "settings_model.h"
 
+#include <QQmlApplicationEngine>
 #include <QQuickItem>
-#include <QQmlContext>
-#include <QQmlEngine>
 #include <QObject>
 #include <QUrl>
+#include <QTimer>
 #include <QDebug>
-#include <QRunnable>
-#include <QQmlApplicationEngine>
-
-#include <QDir>
-#include <QStandardPaths>
-
-#include <gst/gst.h>
 
 using presentation::VideoPresenter;
 
@@ -28,8 +23,27 @@ public:
 	GstElement* pipeline = nullptr;
 	QQuickItem* surface = nullptr;
 	GstElement* src = nullptr;
+	GstElement* sink = nullptr;
+
+	const bool test = false; // Set "true" for test video
+
+	int width = 0;
+	int height = 0;
 
     QQmlApplicationEngine engine;
+
+    void releasePipeline()
+    {
+    	if (pipeline)
+    	{
+    		gst_element_set_state (pipeline, GST_STATE_NULL);
+    		src = nullptr;
+    		sink = nullptr;
+    		gst_object_unref (pipeline);
+    		pipeline = nullptr;
+    	}
+
+    }
 };
 
 VideoPresenter::VideoPresenter(domain::RoboModel* model, QObject* parent) :
@@ -40,6 +54,7 @@ VideoPresenter::VideoPresenter(domain::RoboModel* model, QObject* parent) :
 
     gst_init (nullptr, nullptr);
 
+#ifdef GSTREAMER_STATIC
     GST_PLUGIN_STATIC_REGISTER(coreelements);
     GST_PLUGIN_STATIC_REGISTER(rtpmanager);
     GST_PLUGIN_STATIC_REGISTER(rtp);
@@ -53,20 +68,30 @@ VideoPresenter::VideoPresenter(domain::RoboModel* model, QObject* parent) :
     GST_PLUGIN_STATIC_REGISTER(videotestsrc);
     GST_PLUGIN_STATIC_REGISTER(opengl);
     GST_PLUGIN_STATIC_REGISTER(qmlgl);
+#endif
 
-//	for (auto& p : this->pluginsList())
-//	{
-//		qDebug() << p << this->pluginFeaturesList(p);
-//	}
+    // Just to register GstGLVideoItem in qml
+	GstElement* sink = gst_element_factory_make ("qmlglsink", nullptr);
+	gst_object_unref (GST_OBJECT (sink));
 
-	// FIXME
-	this->setUri("rtsp://192.168.1.77:8554/live");
+	d->engine.load (QUrl("qrc:/qml/Video.qml"));
+	d->surface = static_cast< QQuickItem* >(d->engine.rootObjects().first());
+
+    connect(d->model->settings(), &domain::SettingsModel::videoSourceChanged,
+    		this, &VideoPresenter::onVideoSourceChanged);
+
+    if (d->test)
+    {
+		QTimer::singleShot(1000, this, [&](){
+			this->createPipeline();
+			this->play();
+		});
+    }
 }
 
 VideoPresenter::~VideoPresenter()
 {
-    gst_element_set_state (d->pipeline, GST_STATE_NULL);
-    gst_object_unref (d->pipeline);
+	d->releasePipeline();
 
     delete d;
     gst_deinit();
@@ -74,41 +99,10 @@ VideoPresenter::~VideoPresenter()
 
 void VideoPresenter::setUri(const QString& uri)
 {
-	if (!d->pipeline)
-	{
-//		QString pipe("rtspsrc name=src ! rtph264depay ! h264parse ! avdec_h264 ! glupload ! glcolorconvert ! qmlglsink name=sink");
-		QString pipe("rtspsrc name=src ! decodebin ! glupload ! glcolorconvert ! qmlglsink name=sink");
-
-		GError* error = nullptr;
-		d->pipeline = gst_parse_launch (pipe.toLatin1().data(), &error);
-
-		if (error)
-		{
-            qWarning() << "*** GStreamer ***" << error->message;
-            g_error_free(error);
-            return;
-		}
-
-		d->src = gst_bin_get_by_name(GST_BIN(d->pipeline), "src");
-		GstElement* sink = gst_bin_get_by_name(GST_BIN(d->pipeline), "sink");
-		if (!d->src || !sink)
-		{
-            qWarning() << "*** GStreamer ***" << "'src' or 'sink' element not found";
-            return;
-		}
-
-		GstBus* bus = gst_pipeline_get_bus(GST_PIPELINE(d->pipeline));
-		gst_bus_add_watch(bus, onBusMessageProxy, this);
-		gst_object_unref(bus);
-
-		d->engine.load (QUrl(QStringLiteral("qrc:/qml/Video.qml")));
-		d->surface = static_cast< QQuickItem* >(d->engine.rootObjects().first());
-
-		g_object_set (sink, "widget", d->surface, nullptr);
-	}
-
-//	gst-launch-1.0 rtspsrc location=rtsp://192.168.1.77:8554/live ! decodebin ! glupload ! glimagesink
+	qDebug() << Q_FUNC_INFO << uri;
+	if (!d->src || uri.isEmpty()) return;
 	g_object_set (d->src, "location", uri.toLatin1().data(), nullptr);
+	this->play();
 }
 
 QObject* VideoPresenter::surface() const
@@ -116,9 +110,18 @@ QObject* VideoPresenter::surface() const
 	return d->surface;
 }
 
+int VideoPresenter::width() const
+{
+	return d->width;
+}
+
+int VideoPresenter::height() const
+{
+	return d->height;
+}
+
 void VideoPresenter::play()
 {
-	qDebug() << Q_FUNC_INFO << d->pipeline;
 	if (!d->pipeline) return;
 	gst_element_set_state (d->pipeline, GST_STATE_PLAYING);
 }
@@ -127,6 +130,57 @@ void VideoPresenter::stop()
 {
 	if (!d->pipeline) return;
 	gst_element_set_state (d->pipeline, GST_STATE_PAUSED);
+}
+
+void VideoPresenter::onVideoSourceChanged()
+{
+	d->releasePipeline();
+
+	const auto& uri = d->model->settings()->videoSource();
+	if (uri.isEmpty()) return;
+	if (!this->createPipeline()) return;
+	this->setUri(uri);
+}
+
+bool VideoPresenter::createPipeline()
+{
+	QString pipe;
+	if (d->test)
+	{
+		pipe = "videotestsrc name=src ! ";
+	}
+	else
+	{
+		pipe = "rtspsrc name=src latency=0 ! "
+			   "rtph264depay ! h264parse ! avdec_h264 ! ";
+	}
+
+	pipe += "glupload ! glcolorconvert ! qmlglsink name=sink";
+
+	GError* error = nullptr;
+	d->pipeline = gst_parse_launch (pipe.toLatin1().data(), &error);
+
+	if (error)
+	{
+        qWarning() << "*** GStreamer ***" << error->message;
+        g_error_free(error);
+        return false;
+	}
+
+	d->src = gst_bin_get_by_name(GST_BIN(d->pipeline), "src");
+	d->sink = gst_bin_get_by_name(GST_BIN(d->pipeline), "sink");
+	if (!d->src || !d->sink)
+	{
+        qWarning() << "*** GStreamer ***" << "'src' or 'sink' element not found";
+        return false;
+	}
+
+	GstBus* bus = gst_pipeline_get_bus(GST_PIPELINE(d->pipeline));
+	gst_bus_add_watch(bus, onBusMessageProxy, this);
+	gst_object_unref(bus);
+
+	g_object_set (d->sink, "widget", d->surface, nullptr);
+	return true;
 }
 
 bool VideoPresenter::onBusMessage(GstBus* bus, GstMessage* message)
@@ -139,30 +193,66 @@ bool VideoPresenter::onBusMessage(GstBus* bus, GstMessage* message)
         {
             GError* error;
             gst_message_parse_error(message, &error, nullptr);
-            qWarning() << "*** GStreamer ***" << gst_element_get_name(message->src) << error->message;
+            qWarning() << "*** GStreamer ***"
+            		   << gst_element_get_name(message->src)
+					   << error->message;
             g_error_free(error);
 
-            gst_element_set_state(d->pipeline, GST_STATE_NULL);
-            gst_object_unref(d->pipeline);
-            d->pipeline = nullptr;
-            return FALSE;
+			d->model->settings()->setVideoSource(QString());
+			break;
         }
 		case GST_MESSAGE_STATE_CHANGED:
 		{
-			GstState old_state, new_state;
+			if (message->src == GST_OBJECT (d->pipeline))
+			{
+				GstState oldState, newState;
+				gst_message_parse_state_changed (message, &oldState,
+												 &newState, nullptr);
 
-			gst_message_parse_state_changed (message, &old_state, &new_state, nullptr);
-			qDebug() << Q_FUNC_INFO
-					 << QString("Element %1 changed state from %2 to %3.")
-					 	 .arg(GST_OBJECT_NAME (message->src))
-						 .arg(gst_element_state_get_name (old_state))
-						 .arg(gst_element_state_get_name (new_state));
+				qDebug() << Q_FUNC_INFO
+						 << QString("Element %1 changed state from %2 to %3.")
+						 	 .arg(GST_OBJECT_NAME (message->src))
+							 .arg(gst_element_state_get_name (oldState))
+							 .arg(gst_element_state_get_name (newState));
+				if (newState == GST_STATE_PLAYING)
+				{
+					this->updateVideoResolution();
+					this->startTimer(100);
+				}
+			}
 		    break;
 		}
         default:
             break;
     }
     return TRUE;
+}
+
+void VideoPresenter::timerEvent(QTimerEvent* event)
+{
+	Q_UNUSED(event);
+	this->updateVideoResolution();
+}
+
+void VideoPresenter::updateVideoResolution()
+{
+	gint width;
+	gint height;
+
+	GstPad* pad = gst_element_get_static_pad(d->sink, "sink");
+	GstCaps* caps = gst_pad_get_current_caps (pad);
+	GstStructure* structure = gst_caps_get_structure(caps, 0);
+	gst_caps_unref(caps);
+
+	gst_structure_get_int(structure, "width", &width);
+	gst_structure_get_int(structure, "height", &height);
+
+	if (width != d->width || height != d->height)
+	{
+		d->width = width;
+		d->height = height;
+		emit videoSizeChanged();
+	}
 }
 
 QStringList VideoPresenter::pluginsList() const
