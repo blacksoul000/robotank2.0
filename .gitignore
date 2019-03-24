@@ -6,7 +6,7 @@
 .cproject
 .project
 .settings
-build
+build*
 devel
 
 /*.sh

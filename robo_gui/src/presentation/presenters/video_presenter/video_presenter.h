@@ -58,9 +58,6 @@ namespace presentation
 	signals:
 		void videoSizeChanged();
 
-	protected:
-		void timerEvent(QTimerEvent* event) override;
-
 	private:
 		bool createPipeline();
 		void updateVideoResolution();

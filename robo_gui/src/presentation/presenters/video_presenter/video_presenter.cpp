@@ -217,7 +217,6 @@ bool VideoPresenter::onBusMessage(GstBus* bus, GstMessage* message)
 				if (newState == GST_STATE_PLAYING)
 				{
 					this->updateVideoResolution();
-					this->startTimer(100);
 				}
 			}
 		    break;
@@ -226,12 +225,6 @@ bool VideoPresenter::onBusMessage(GstBus* bus, GstMessage* message)
             break;
     }
     return TRUE;
-}
-
-void VideoPresenter::timerEvent(QTimerEvent* event)
-{
-	Q_UNUSED(event);
-	this->updateVideoResolution();
 }
 
 void VideoPresenter::updateVideoResolution()
