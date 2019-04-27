@@ -4,6 +4,7 @@
 #include "bluetooth_model.h"
 #include "status_model.h"
 #include "settings_model.h"
+#include "track_model.h"
 
 #include "endpoint.h"
 #include "udp_link.h"
@@ -56,6 +57,8 @@ MavlinkExchanger::MavlinkExchanger(domain::RoboModel* model, QObject *parent) :
             this, &MavlinkExchanger::onImageSettingsChanged);
     connect(d->model->settings(), &domain::SettingsModel::contrastChanged,
             this, &MavlinkExchanger::onImageSettingsChanged);
+    connect(d->model->track(), &domain::TrackModel::trackRequest,
+            this, &MavlinkExchanger::onTrackToggle);
 }
 
 MavlinkExchanger::~MavlinkExchanger()
