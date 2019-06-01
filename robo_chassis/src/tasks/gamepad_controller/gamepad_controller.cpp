@@ -60,6 +60,7 @@ GamepadController::~GamepadController()
 {
     if (d->capacity.isOpen()) d->capacity.close();
     if (d->status.isOpen()) d->status.close();
+
     close (d->fd);
     delete d->joyStatusP;
     delete d->axesP;
@@ -128,6 +129,11 @@ void GamepadController::Impl::close()
     isOpened = false;
     capacity.close();
     status.close();
+    buttons = 0;
+    axes.axes.fill(0, axes.axesCount);
+
+	buttonsP->publish(buttons);
+    axesP->publish(axes);
     joyStatusP->publish(false);
 }
 

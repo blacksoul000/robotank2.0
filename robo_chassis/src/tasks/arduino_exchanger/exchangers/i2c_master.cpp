@@ -71,7 +71,7 @@ bool I2CMaster::isOpen() const
 
 bool I2CMaster::sendData(const QByteArray& data)
 {
-	return (::write(d->fd, data.toStdString().c_str(), data.size()) == data.size());
+	return (::write(d->fd, data.constData(), data.size()) == data.size());
 }
 
 bool I2CMaster::readData()

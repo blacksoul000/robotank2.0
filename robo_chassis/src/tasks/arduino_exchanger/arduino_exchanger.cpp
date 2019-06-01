@@ -102,20 +102,14 @@ ArduinoExchanger::~ArduinoExchanger()
 void ArduinoExchanger::execute()
 {
     if (!d->arduino->isOpen() && !d->arduino->open()) return;
-    if (!d->isArduinoOnline()) return;
-
     d->sendData();
 }
 
 void ArduinoExchanger::onInfluence(const Influence& influence)
 {
-    if (!d->isArduinoOnline()) return;
-
     d->package.leftEngine = influence.leftEngine;
     d->package.rightEngine = influence.rightEngine;
     d->package.towerH = influence.towerH;
-
-    d->sendData();
 }
 
 void ArduinoExchanger::onJoyEvent(const quint16& joy)
@@ -135,10 +129,7 @@ void ArduinoExchanger::onNewData(const QByteArray& data)
 
 void ArduinoExchanger::onPowerDown(const Empty&)
 {
-    if (!d->isArduinoOnline()) return;
-
     d->package.powerDown = 1;
-    d->sendData();
 }
 
 void ArduinoExchanger::Impl::setArduinoOnline(bool online)
@@ -147,7 +138,6 @@ void ArduinoExchanger::Impl::setArduinoOnline(bool online)
     qDebug() << (online ? "Arduino online" : "Arduino offline");
     arduinoOnline = online;
     arduinoStatusP->publish(online);
-    if (arduinoOnline) this->sendData();
 }
 
 void ArduinoExchanger::Impl::sendData()
