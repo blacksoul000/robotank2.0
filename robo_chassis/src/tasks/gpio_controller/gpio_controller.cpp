@@ -59,6 +59,7 @@ public:
 		Publisher< bool >* onlineP = nullptr;
 		Publisher< bool >* readyP = nullptr;
 		bool ready = false;
+		double yawOffset = 0;
     };
 
     Publisher< QPointF >* gunPositionP = nullptr;
@@ -73,7 +74,6 @@ public:
     bool pointer = false;
 
     double towerH = 0;
-    double towerHOffset = 0;
 
     PointF3D chassisGyroData;
     QMap< uint8_t, ServoInfo > servo;
@@ -174,7 +174,7 @@ void GpioController::execute()
 #endif //ENABLE_GYRO
 
     const float towerH = d->chassis.imu->isReady() && d->tower.imu->isReady()
-    				? d->towerH - d->towerHOffset : 0;
+    				? d->towerH - d->tower.yawOffset : 0;
     const auto gunPosition = QPointF(towerH,
                                 ((d->servo[::gunVPin].maxPulse - d->servo[::gunVPin].realPulse) / d->servo[::gunVPin].pulsePerDegree));
 //    qDebug() << Q_FUNC_INFO << gunPosition.y() << d->servo[::gunVPin].realPulse << d->servo[::gunVPin].maxPulse;
@@ -191,6 +191,7 @@ void GpioController::readGyroData()
 		{
     		imuData->ready = imuData->imu->isReady();
 			imuData->readyP->publish(imuData->ready);
+			imuData->yawOffset = imuData->imu->yaw();
 		}
     }
 
@@ -199,7 +200,7 @@ void GpioController::readGyroData()
     // imu is rotated. pitch and roll swapped.
     if (d->chassis.ready)
     {
-    	d->yprP->publish(PointF3D({d->chassis.imu->yaw(),
+    	d->yprP->publish(PointF3D({d->chassis.imu->yaw() - d->chassis.yawOffset,
     							   d->chassis.imu->roll(),
 								   d->chassis.imu->pitch()}));
     }
@@ -231,11 +232,12 @@ void GpioController::onDeviation(const double& value)
 void GpioController::onGunCalibrate(const Empty&)
 {
     d->servo[::gunVPin].zeroLift = d->servo[::gunVPin].pulse;
+    d->tower.yawOffset = d->towerH;
 }
 
 void GpioController::onGyroCalibrate(const Empty&)
 {
-    d->towerHOffset = d->towerH;
+    d->chassis.yawOffset = d->chassis.imu->yaw();
 }
 
 void GpioController::onArduinoStatusChanged(const bool& online)

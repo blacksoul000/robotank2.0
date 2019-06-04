@@ -14,6 +14,7 @@ public:
     ~Mpu6050Dmp();
 
     bool init() override;
+    bool isReady() const override;
     void readData() override;
 
     float yaw() const override;

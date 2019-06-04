@@ -12,6 +12,7 @@ public:
     ~Mpu6050Raw();
 
     bool init() override;
+    bool isReady() const override;
     void readData() override;
 
     float yaw() const override;

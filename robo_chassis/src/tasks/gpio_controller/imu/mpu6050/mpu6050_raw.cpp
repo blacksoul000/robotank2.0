@@ -11,6 +11,7 @@ public:
 	float gyroResolution = 1.0;
 	float accelResolution = 1.0;
 	float magResolution = 1.0;
+	bool isReady = true;
 
 	MPU6050 mpu;
 	int16_t ax, ay, az, gx, gy, gz, mx, my, mz;
@@ -44,6 +45,11 @@ bool Mpu6050Raw::init()
 
     d->timer.start();
     return d->mpu.testConnection();
+}
+
+bool Mpu6050Raw::isReady() const
+{
+	return d->isReady;
 }
 
 void Mpu6050Raw::readData()

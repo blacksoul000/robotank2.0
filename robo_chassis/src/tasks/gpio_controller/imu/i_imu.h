@@ -7,6 +7,7 @@ public:
     virtual ~IImu() {}
 
     virtual bool init() = 0;
+    virtual bool isReady() const = 0;
     virtual void readData() = 0;
 
     virtual float yaw() const = 0;

@@ -2,6 +2,7 @@
 
 #include "MPU6050_6Axis_MotionApps20.h"
 
+#include <QElapsedTimer>
 #include <QDebug>
 
 class Mpu6050Dmp::Impl
@@ -16,6 +17,9 @@ public:
 	int16_t xAccel = 0;
 	int16_t yAccel = 0;
 	int16_t zAccel = 0;
+
+	bool isReady = true;
+	float prevYaw = 0;
 
 	MPU6050 mpu;
 
@@ -96,6 +100,11 @@ bool Mpu6050Dmp::init()
 	}
 }
 
+bool Mpu6050Dmp::isReady() const
+{
+	return d->isReady;
+}
+
 void Mpu6050Dmp::readData()
 {
     // if programming failed, don't try to do anything
@@ -126,6 +135,14 @@ void Mpu6050Dmp::readData()
         d->mpu.dmpGetYawPitchRoll(d->ypr, &d->q, &d->gravity);
 //        printf("ypr1  %7.2f %7.2f %7.2f    ", d->ypr[0] * 180/M_PI, d->ypr[1] * 180/M_PI, d->ypr[2] * 180/M_PI);
         if (d->ypr[0] < 0) d->ypr[0] += 2 * M_PI;
+        if (!d->isReady)
+		{
+        	if (qFuzzyCompare(d->ypr[0], d->prevYaw))
+        	{
+        		d->isReady = true;
+        	}
+			d->prevYaw = d->ypr[0];
+		}
 
         #ifdef OUTPUT_READABLE_REALACCEL
             // display real acceleration, adjusted to remove gravity
