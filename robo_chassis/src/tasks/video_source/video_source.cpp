@@ -24,11 +24,11 @@ namespace
 {
     const int defaultBrightness = 65;
     const int defaultContrast = 75;
-    const int width = 640;
-    const int height = 480;
+//    const int width = 640;
+//  const int height = 480;
 
-//    const int width = 1296;
-//    const int height = 730;
+    const int width = 1296;
+    const int height = 730;
 
 #ifdef PICAM
     const double fieldOfViewH = 53.5; // +/- 0.13 degrees
