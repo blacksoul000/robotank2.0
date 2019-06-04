@@ -1,5 +1,8 @@
 #include "video_source.h"
-#include "rtsp_server.h"
+
+#ifdef WITH_RTSP
+	#include "rtsp_server.h"
+#endif // WITH_RTSP
 
 //msgs
 #include "image_settings.h"
@@ -44,14 +47,17 @@ namespace
 class VideoSource::Impl
 {
 public:
-    rtsp_server::RtspServer* rtsp = nullptr;
     bool started = false;
 
     Publisher< MatPtr >* imageP = nullptr;
     Publisher< QPointF >* dotsPerDegreeP = nullptr;
     Publisher< QString >* videoSourceP = nullptr;
 
+#ifdef WITH_RTSP
+    rtsp_server::RtspServer* rtsp = nullptr;
     void initRtspServer();
+#endif // WITH_RTSP
+
     void setBrightness(int brightness);
     void setContrast(int contrast);
 };
@@ -72,7 +78,11 @@ VideoSource::~VideoSource()
     delete d->imageP;
     delete d->dotsPerDegreeP;
     delete d->videoSourceP;
+
+#ifdef WITH_RTSP
     delete d->rtsp;
+#endif // WITH_RTSP
+
     delete d;
 }
 
@@ -80,9 +90,11 @@ void VideoSource::start()
 {
     d->dotsPerDegreeP->publish(QPointF(::width / ::fieldOfViewH, ::height / ::fieldOfViewV));
 
+#ifdef WITH_RTSP
     d->initRtspServer();
     d->rtsp->setDataCallback(std::bind(&VideoSource::onNewFrame, this,
                                        std::placeholders::_1, std::placeholders::_2));
+#endif // WITH_RTSP
 }
 
 void VideoSource::onNewFrame(const void* data, int size)
@@ -102,6 +114,7 @@ void VideoSource::onImageSettingsChanged(const ImageSettings& settings)
 
 void VideoSource::onConnectionChanged(const data_source::AbstractLinkPtr& link)
 {
+#ifdef WITH_RTSP
     if (link)
     {
         if (d->started) return;
@@ -122,6 +135,7 @@ void VideoSource::onConnectionChanged(const data_source::AbstractLinkPtr& link)
             }
         }
     }
+#endif // WITH_RTSP
 }
 
 //----------------------------------------------------------------------------
@@ -135,6 +149,7 @@ void VideoSource::Impl::setContrast(int contrast)
 //    capturer.set(CV_CAP_PROP_CONTRAST, contrast);
 }
 
+#ifdef WITH_RTSP
 void VideoSource::Impl::initRtspServer()
 {
     rtsp = new rtsp_server::RtspServer(
@@ -149,3 +164,4 @@ void VideoSource::Impl::initRtspServer()
                                        .toStdString());
     rtsp->start();
 }
+#endif // WITH_RTSP

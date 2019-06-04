@@ -7,6 +7,8 @@ set (CMAKE_BUILD_TYPE Debug)
 
 set (OpenTLD_DIR ${CMAKE_SOURCE_DIR}/3rdparty/OpenTLD)
 
+set (CMAKE_MODULE_PATH ${CMAKE_SOURCE_DIR}/../cmake)
+
 include(ExternalProject)
 ExternalProject_Add(OpenTLD
                     SOURCE_DIR ${OpenTLD_DIR}
@@ -15,10 +17,10 @@ ExternalProject_Add(OpenTLD
                     CMAKE_ARGS -DWITH_OPENMP=ON
                     INSTALL_COMMAND "")
 
-#include(${CMAKE_SOURCE_DIR}/../cmake/FindOpenCV.cmake)
-include(${CMAKE_SOURCE_DIR}/../cmake/RecurseDirs.cmake)
+include(RecurseDirs)
 
-find_package(OpenCV 3)
+find_package(OpenCV 3 COMPONENTS core imgproc video OPTIONAL_COMPONENTS tracking)
+find_package(pigpio)
 
 find_package(Qt5Core)
 find_package(Qt5Network)
@@ -34,15 +36,31 @@ set(LIBS
     Qt5::SerialPort
     Qt5::Bluetooth
     ${OpenCV_LIBS}
-    opencv_tracking
     ${CMAKE_BINARY_DIR}/OpenTLD/lib/libopentld.a
     ${CMAKE_BINARY_DIR}/OpenTLD/lib/libcvblobs.a
     gomp
-    pigpio
-    gstrtsp-1.0
-    gstapp-1.0
-    ${GSTRTSP_LIBRARIES}
 )
+
+if (${OPENCV_TRACKING_FOUND})
+    set(LIBS ${LIBS} opencv_tracking)
+    add_definitions(-DWITH_OPENCV_TRACKING)
+else (${OPENCV_TRACKING_FOUND})
+    set(FEATURES ${FEATURES} "tracking")
+endif(${OPENCV_TRACKING_FOUND})
+
+if (${PIGPIO_FOUND})
+    set(LIBS ${LIBS} pigpio)
+    add_definitions(-DWITH_GPIO)
+else (${PIGPIO_FOUND})
+    set (FEATURES ${FEATURES} "GPIO control")
+endif(${PIGPIO_FOUND})
+
+if (${GSTRTSP_FOUND})
+    set(LIBS ${LIBS} gstrtsp-1.0 gstapp-1.0 ${GSTRTSP_LIBRARIES})
+    add_definitions(-DWITH_RTSP)
+else (${GSTRTSP_FOUND})
+    set(FEATURES ${FEATURES} "FPV")
+endif(${GSTRTSP_FOUND})
 
 if(PICAM)
     message("** Enabling RPi Camera **")
@@ -64,3 +82,7 @@ add_dependencies(${PROJECT_NAME} OpenTLD)
 add_subdirectory(${CMAKE_SOURCE_DIR}/../common common)
 
 target_link_libraries(${PROJECT_NAME} ${LIBS})
+
+if (FEATURES)
+    message (WARNING "DISABLED FEATURES:" "${FEATURES}")
+endif (FEATURES)

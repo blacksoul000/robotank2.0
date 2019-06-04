@@ -1,3 +1,5 @@
+#ifdef WITH_RTSP
+
 #include "rtsp_server.h"
 
 #include <gst/gst.h>
@@ -159,3 +161,5 @@ GstPadProbeReturn bufferProbeProxy(GstPad* pad, GstPadProbeInfo* info, gpointer 
 {
     return (GstPadProbeReturn)reinterpret_cast< RtspServer* >(obj)->bufferProbe(pad, info);
 }
+
+#endif // WITH_RTSP
