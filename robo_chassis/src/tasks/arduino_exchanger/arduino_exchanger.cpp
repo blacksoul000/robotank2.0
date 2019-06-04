@@ -19,6 +19,9 @@ namespace
     struct ArduinoPkg
     {
         int16_t voltage = 0;
+        int16_t currentLeft;
+        int16_t currentRight;
+        int16_t currentTower;
         uint16_t crc = 0;
     };
 
@@ -70,7 +73,7 @@ ArduinoExchanger::ArduinoExchanger():
     ITask(),
     d(new Impl)
 {
-    d->arduino = new I2CMaster("/dev/i2c-1", sizeof(::ArduinoPkg), this);
+    d->arduino = new I2CMaster("/dev/i2c-3", sizeof(::ArduinoPkg), this);
     connect(d->arduino, &IExchanger::dataAvailable, this, &ArduinoExchanger::onNewData);
 
     d->timer = new QTimer(this);
@@ -102,8 +105,6 @@ ArduinoExchanger::~ArduinoExchanger()
 void ArduinoExchanger::execute()
 {
     if (!d->arduino->isOpen() && !d->arduino->open()) return;
-    if (!d->isArduinoOnline()) return;
-
     d->sendData();
 }
 
@@ -114,8 +115,6 @@ void ArduinoExchanger::onInfluence(const Influence& influence)
     d->package.leftEngine = influence.leftEngine;
     d->package.rightEngine = influence.rightEngine;
     d->package.towerH = influence.towerH;
-
-    d->sendData();
 }
 
 void ArduinoExchanger::onJoyEvent(const quint16& joy)
@@ -131,6 +130,7 @@ void ArduinoExchanger::onNewData(const QByteArray& data)
     const ::ArduinoPkg* pkg = reinterpret_cast<const ::ArduinoPkg *>(data.data());
     if (!d->isValid(pkg)) return;
     d->voltageP->publish(pkg->voltage);
+//    qDebug() << Q_FUNC_INFO << pkg->currentLeft << pkg->currentRight << pkg->currentTower;
 }
 
 void ArduinoExchanger::onPowerDown(const Empty&)
@@ -138,7 +138,6 @@ void ArduinoExchanger::onPowerDown(const Empty&)
     if (!d->isArduinoOnline()) return;
 
     d->package.powerDown = 1;
-    d->sendData();
 }
 
 void ArduinoExchanger::Impl::setArduinoOnline(bool online)
@@ -147,13 +146,11 @@ void ArduinoExchanger::Impl::setArduinoOnline(bool online)
     qDebug() << (online ? "Arduino online" : "Arduino offline");
     arduinoOnline = online;
     arduinoStatusP->publish(online);
-    if (arduinoOnline) this->sendData();
 }
 
 void ArduinoExchanger::Impl::sendData()
 {
     package.crc = this->crc16(reinterpret_cast< unsigned char* >(&package), sizeof(RaspberryPkg) - sizeof(package.crc));
-  
     if (!arduino->sendData(QByteArray(reinterpret_cast<const char *>(&package), sizeof(package))))
     {
         qDebug() << Q_FUNC_INFO << "Failed to write to the bus.";
