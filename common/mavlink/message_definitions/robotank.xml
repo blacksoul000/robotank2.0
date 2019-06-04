@@ -432,7 +432,7 @@
       <description>Bluetooth device list.</description>
       <field type="uint8_t" name="total_count">total device count</field>
       <field type="uint8_t" name="first_index">index of first element</field>
-      <field type="uint8_t" name="count">index of first element</field>
+      <field type="uint8_t" name="count">elements count</field>
       <field type="uint8_t" name="data_length">size of device_list field</field>
       <field type="char[251]" name="device_list">serialized DeviceInfo list</field>
     </message>
