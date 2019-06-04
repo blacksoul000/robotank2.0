@@ -26,7 +26,6 @@ namespace
     const uint8_t pointerPin = 26;
 
     const uint8_t gunVPin = 13;
-//    const uint8_t cameraVPin = 19;
 
     const int tickInterval = 10;
     constexpr double gunTickCoef = 60.0 / SHRT_MAX;

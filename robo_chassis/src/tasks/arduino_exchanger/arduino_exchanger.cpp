@@ -19,6 +19,9 @@ namespace
     struct ArduinoPkg
     {
         int16_t voltage = 0;
+        int16_t currentLeft;
+        int16_t currentRight;
+        int16_t currentTower;
         uint16_t crc = 0;
     };
 
@@ -70,7 +73,7 @@ ArduinoExchanger::ArduinoExchanger():
     ITask(),
     d(new Impl)
 {
-    d->arduino = new I2CMaster("/dev/i2c-1", sizeof(::ArduinoPkg), this);
+    d->arduino = new I2CMaster("/dev/i2c-3", sizeof(::ArduinoPkg), this);
     connect(d->arduino, &IExchanger::dataAvailable, this, &ArduinoExchanger::onNewData);
 
     d->timer = new QTimer(this);
@@ -125,6 +128,7 @@ void ArduinoExchanger::onNewData(const QByteArray& data)
     const ::ArduinoPkg* pkg = reinterpret_cast<const ::ArduinoPkg *>(data.data());
     if (!d->isValid(pkg)) return;
     d->voltageP->publish(pkg->voltage);
+//    qDebug() << Q_FUNC_INFO << pkg->currentLeft << pkg->currentRight << pkg->currentTower;
 }
 
 void ArduinoExchanger::onPowerDown(const Empty&)
@@ -143,7 +147,6 @@ void ArduinoExchanger::Impl::setArduinoOnline(bool online)
 void ArduinoExchanger::Impl::sendData()
 {
     package.crc = this->crc16(reinterpret_cast< unsigned char* >(&package), sizeof(RaspberryPkg) - sizeof(package.crc));
-  
     if (!arduino->sendData(QByteArray(reinterpret_cast<const char *>(&package), sizeof(package))))
     {
         qDebug() << Q_FUNC_INFO << "Failed to write to the bus.";
