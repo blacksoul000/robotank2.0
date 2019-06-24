@@ -85,7 +85,7 @@ void MavlinkExchanger::onVehicleAdded(domain::VehiclePtr vehicle)
 void MavlinkExchanger::onVehicleRemoved(domain::VehiclePtr vehicle)
 {
     if (!d->vehicle || !vehicle) return;
-    if (vehicle->sysId() != vehicle->sysId()) return;
+    if (d->vehicle->sysId() != vehicle->sysId()) return;
 
     disconnect(d->vehicle.data(), &domain::Vehicle::onlineChanged,
             this, &MavlinkExchanger::onVehicleOnlineChanged);
