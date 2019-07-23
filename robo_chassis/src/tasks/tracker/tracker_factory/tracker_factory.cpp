@@ -16,9 +16,8 @@ ITracker* TrackerFactory::makeTracker(TrackerCode code)
         case TrackerCode::Mil: return new va::TrackerKeypoints("MIL");
         case TrackerCode::Tld: return new va::TrackerKeypoints("TLD");
         case TrackerCode::CustomTld: return new va::TldAdapter();
-        case TrackerCode::OpenTld: return new va::OpenTldAdapter();
+        case TrackerCode::OpenTld:
         case TrackerCode::Unknown:
-        default: break;
+        default: return new va::OpenTldAdapter();
     }
-    return new va::TrackerKeypoints("MEDIANFLOW");
 }

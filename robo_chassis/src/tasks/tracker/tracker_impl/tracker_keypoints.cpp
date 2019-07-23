@@ -1,7 +1,9 @@
 #include "tracker_keypoints.h"
 
-#include <opencv2/core/utility.hpp>
-#include <opencv2/tracking.hpp>
+#ifdef WITH_OPENCV_TRACKING
+	#include <opencv2/core/utility.hpp>
+	#include <opencv2/tracking.hpp>
+#endif // WITH_OPENCV_TRACKING
 
 #include <iostream>
 #include <chrono>
@@ -22,7 +24,9 @@ public:
     bool tracking = false;
     std::string algo;
 
+#ifdef WITH_OPENCV_TRACKING
     Ptr<Tracker> tracker;
+#endif // WITH_OPENCV_TRACKING
     bool inited = false;
 };
 
@@ -61,6 +65,7 @@ cv::Rect2d TrackerKeypoints::target() const
 
 void TrackerKeypoints::track(const cv::Mat& image)
 {
+#ifdef WITH_OPENCV_TRACKING
     if (!d->inited)
     {
         d->tracker = Tracker::create(d->algo);
@@ -69,4 +74,5 @@ void TrackerKeypoints::track(const cv::Mat& image)
         d->inited = true;
     }
     d->tracker->update(image, d->target);
+#endif // WITH_OPENCV_TRACKING
 }

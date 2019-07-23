@@ -7,7 +7,6 @@
 
 //Qt
 #include <QScopedPointer>
-#include <QSocketNotifier>
 #include <QDir>
 #include <QFileInfo>
 #include <QFile>
@@ -23,6 +22,8 @@ class GamepadController::Impl
 public:
     bool axesChanged = false;
     bool buttonsChanged = false;
+
+    quint8 axesCount; // FIXME
     JoyAxes axes;
     quint16 buttons = 0;
 
@@ -41,6 +42,7 @@ public:
 
     QString gamepadSystemPath() const;
     bool open();
+    void close();
 };
 
 GamepadController::GamepadController() :
@@ -58,6 +60,7 @@ GamepadController::~GamepadController()
 {
     if (d->capacity.isOpen()) d->capacity.close();
     if (d->status.isOpen()) d->status.close();
+
     close (d->fd);
     delete d->joyStatusP;
     delete d->axesP;
@@ -74,6 +77,9 @@ void GamepadController::execute()
         if (d->open())
         {
             qDebug() << Q_FUNC_INFO << "Connected";
+
+            fcntl (d->fd, F_SETFD, FD_CLOEXEC);
+            ioctl (d->fd, JSIOCGAXES, &d->axesCount);
             d->joyStatusP->publish(true);
 
             const QString path = d->gamepadSystemPath();
@@ -116,11 +122,31 @@ bool GamepadController::Impl::open()
     return isOpened;
 }
 
+void GamepadController::Impl::close()
+{
+    qDebug() << Q_FUNC_INFO << "Disconnected";
+    fd = -1;
+    isOpened = false;
+    capacity.close();
+    status.close();
+    buttons = 0;
+    axes.axes.fill(0, axes.axesCount);
+
+	buttonsP->publish(buttons);
+    axesP->publish(axes);
+    joyStatusP->publish(false);
+}
+
 void GamepadController::readData()
 {
-    struct js_event event;
+	if (fcntl (d->fd, F_GETFD) == 0 || errno == ENODEV)
+	{
+		d->close();
+		return;
+	}
 
-    while (read(d->fd, &event, sizeof(event)) == sizeof(event))
+    struct js_event event;
+    while (read(d->fd, &event, sizeof(event)) != -1)
     {
         switch (event.type)
         {
@@ -131,6 +157,7 @@ void GamepadController::readData()
         case JS_EVENT_AXIS:
             d->axes.axes[event.number] = event.value;
             d->axesChanged = true;
+            break;
         default:
             break;
         }

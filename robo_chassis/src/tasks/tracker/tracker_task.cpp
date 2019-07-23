@@ -44,7 +44,6 @@ public:
     void publishDeviation(const cv::Rect2d& rect);
 };
 
-#include <QDateTime>
 TrackerTask::TrackerTask() :
     ITask(),
     d(new Impl)
@@ -57,6 +56,7 @@ TrackerTask::TrackerTask() :
     PubSub::instance()->subscribe("tracker/toggle", &TrackerTask::onToggleRequest, this);
     PubSub::instance()->subscribe("tracker/selector", &TrackerTask::onSwitchTrackerRequest, this);
     PubSub::instance()->subscribe("gun/position", &TrackerTask::onGunPosition, this);
+    PubSub::instance()->subscribe("connection", &TrackerTask::onConnectionChanged, this);
 
     d->targetP->publish(QRectF());
     d->trackerStatusP->publish(false);
@@ -83,8 +83,7 @@ void TrackerTask::execute()
 void TrackerTask::onNewFrame(const QSharedPointer< cv::Mat >& frame)
 {
     if (frame.isNull()) return;
-    QString timestamp = QDateTime::currentDateTime().toString("hh.mm.ss.zzz");
-    d->fpsTimer.start();
+//    d->fpsTimer.start();
 
     d->imageWidth = frame->cols;
     d->imageHeight = frame->rows;
@@ -104,7 +103,6 @@ void TrackerTask::onNewFrame(const QSharedPointer< cv::Mat >& frame)
 
     d->publishTarget(d->tracker->target());
     d->publishDeviation(d->tracker->target());
-//    qDebug() << Q_FUNC_INFO << timestamp << QDateTime::currentDateTime().toString("hh.mm.ss.zzz") << d->fpsTimer.elapsed();
 }
 
 void TrackerTask::onToggleRequest(const QRectF& rect)
@@ -149,6 +147,11 @@ void TrackerTask::onSwitchTrackerRequest(const quint8& code)
 void TrackerTask::onGunPosition(const QPointF& position)
 {
     d->gunPosition = position;
+}
+
+void TrackerTask::onConnectionChanged(const bool& online)
+{
+    if (!online) this->onToggleRequest(QRectF());
 }
 
 void TrackerTask::Impl::publishTarget(const cv::Rect2d& rect)

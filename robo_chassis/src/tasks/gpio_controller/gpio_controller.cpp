@@ -46,19 +46,33 @@ public:
         float pulsePerDegree;
     };
 
+    struct ImuData
+    {
+    	~ImuData()
+    	{
+    		delete onlineP;
+    		delete readyP;
+    	}
+
+		QScopedPointer< IImu > imu;
+		Publisher< bool >* onlineP = nullptr;
+		Publisher< bool >* readyP = nullptr;
+		bool ready = false;
+		double yawOffset = 0;
+    };
+
     Publisher< QPointF >* gunPositionP = nullptr;
     Publisher< bool >* pointerP = nullptr;
     Publisher< PointF3D >* yprP = nullptr;
 
-    QScopedPointer< IImu > towerImu;
-    QScopedPointer< IImu > chassisImu;
+    ImuData chassis;
+    ImuData tower;
 
     bool shoting = false;
     bool shotClosing = false;
     bool pointer = false;
 
     double towerH = 0;
-    double towerHOffset = 0;
 
     PointF3D chassisGyroData;
     QMap< uint8_t, ServoInfo > servo;
@@ -75,6 +89,10 @@ GpioController::GpioController():
     d->gunPositionP = PubSub::instance()->advertise< QPointF >("gun/position");
     d->pointerP = PubSub::instance()->advertise< bool >("chassis/pointer");
     d->yprP = PubSub::instance()->advertise< PointF3D >("chassis/ypr");
+    d->chassis.onlineP = PubSub::instance()->advertise< bool >("chassis/gyro/online");
+    d->chassis.readyP = PubSub::instance()->advertise< bool >("chassis/gyro/ready");
+    d->tower.onlineP = PubSub::instance()->advertise< bool >("tower/gyro/online");
+    d->tower.readyP = PubSub::instance()->advertise< bool >("tower/gyro/ready");
 }
 
 GpioController::~GpioController()
@@ -91,13 +109,21 @@ GpioController::~GpioController()
 void GpioController::start()
 {
 #ifdef ENABLE_GYRO
-    d->towerImu.reset(new Mpu6050Dmp(0x69, 14, -53, 25, 825, 304, 1254));
-    d->chassisImu.reset(new Mpu6050Dmp(0x68, 68, -17, -31, -2364, -983, 987));
+    d->tower.imu.reset(new Mpu6050Dmp(0x69, 14, -53, 25, 825, 304, 1254));
+    d->chassis.imu.reset(new Mpu6050Dmp(0x68, 68, -17, -31, -2364, -983, 987));
 
-    if (!d->towerImu->init() || !d->chassisImu->init())
+    for (auto& imuData: {&d->chassis, &d->tower})
     {
-    	qWarning() << Q_FUNC_INFO << "Failed to init IMU";
+		if (imuData->imu->init())
+		{
+			imuData->onlineP->publish(true);
+		}
+		else
+		{
+			qWarning() << Q_FUNC_INFO << "Failed to init IMU";
+		}
     }
+
 #endif //ENABLE_GYRO
 
     if (gpioInitialise() >= 0)
@@ -146,7 +172,9 @@ void GpioController::execute()
     this->readGyroData();
 #endif //ENABLE_GYRO
 
-    const auto gunPosition = QPointF(d->towerH - d->towerHOffset,
+    const float towerH = d->chassis.imu->isReady() && d->tower.imu->isReady()
+    				? d->towerH - d->tower.yawOffset : 0;
+    const auto gunPosition = QPointF(towerH,
                                 ((d->servo[::gunVPin].maxPulse - d->servo[::gunVPin].realPulse) / d->servo[::gunVPin].pulsePerDegree));
 //    qDebug() << Q_FUNC_INFO << gunPosition.y() << d->servo[::gunVPin].realPulse << d->servo[::gunVPin].maxPulse;
     d->gunPositionP->publish(gunPosition);
@@ -154,14 +182,28 @@ void GpioController::execute()
 
 void GpioController::readGyroData()
 {
-    d->chassisImu->readData();
-    d->towerImu->readData();
+    for (auto& imuData: {&d->chassis, &d->tower})
+    {
+    	imuData->imu->readData();
 
-//    qDebug() << d->towerImu->yaw() << d->towerImu->pitch() << d->towerImu->roll();
+    	if (imuData->imu->isReady() != imuData->ready)
+		{
+    		imuData->ready = imuData->imu->isReady();
+			imuData->readyP->publish(imuData->ready);
+			imuData->yawOffset = imuData->imu->yaw();
+		}
+    }
+
+//    qDebug() << d->tower.imu->yaw() << d->tower.imu->pitch() << d->tower.imu->roll();
 
     // imu is rotated. pitch and roll swapped.
-    d->yprP->publish(PointF3D({d->chassisImu->yaw(), d->chassisImu->roll(), d->chassisImu->pitch()}));
-    d->towerH = d->towerImu->yaw() - d->chassisImu->yaw();
+    if (d->chassis.ready)
+    {
+    	d->yprP->publish(PointF3D({d->chassis.imu->yaw() - d->chassis.yawOffset,
+    							   d->chassis.imu->roll(),
+								   d->chassis.imu->pitch()}));
+    }
+    d->towerH = d->tower.imu->yaw() - d->chassis.imu->yaw();
 }
 
 void GpioController::onJoyEvent(const quint16& joy)
@@ -189,11 +231,12 @@ void GpioController::onDeviation(const double& value)
 void GpioController::onGunCalibrate(const Empty&)
 {
     d->servo[::gunVPin].zeroLift = d->servo[::gunVPin].pulse;
+    d->tower.yawOffset = d->towerH;
 }
 
 void GpioController::onGyroCalibrate(const Empty&)
 {
-    d->towerHOffset = d->towerH;
+    d->chassis.yawOffset = d->chassis.imu->yaw();
 }
 
 void GpioController::onArduinoStatusChanged(const bool& online)

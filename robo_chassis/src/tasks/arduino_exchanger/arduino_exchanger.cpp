@@ -110,8 +110,6 @@ void ArduinoExchanger::execute()
 
 void ArduinoExchanger::onInfluence(const Influence& influence)
 {
-    if (!d->isArduinoOnline()) return;
-
     d->package.leftEngine = influence.leftEngine;
     d->package.rightEngine = influence.rightEngine;
     d->package.towerH = influence.towerH;
@@ -135,8 +133,6 @@ void ArduinoExchanger::onNewData(const QByteArray& data)
 
 void ArduinoExchanger::onPowerDown(const Empty&)
 {
-    if (!d->isArduinoOnline()) return;
-
     d->package.powerDown = 1;
 }
 
