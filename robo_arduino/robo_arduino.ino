@@ -3,7 +3,7 @@
 #include "LowPower.h"
 #include <avr/power.h>
 
-#define SLAVE_ADDRESS 0x4
+#define RPI_ADDRESS 0x03
 
 struct Engine
 {
@@ -31,7 +31,7 @@ constexpr float vccCoef = 1.07309486781; // 1.098 * 1000 / 1023;
 const float dividerCoef = 10.9710144928;  // 100K and 10K
 const uint16_t minVoltage = 6500; //mV
 
-uint32_t ms, rpiOnline, lastCurrent, lowVoltageMs = 0;
+uint32_t ms, rpiOnline, lastMs, sendMs, lowVoltageMs = 0;
 bool lowVoltage = false;
 
 struct RpiPkg
@@ -48,12 +48,12 @@ struct RpiPkg
 void setup() {
   Serial.begin(115200); // start serial for output
 
-  // initialize i2c as slave
-  Wire.begin(SLAVE_ADDRESS);
+  // initialize i2c as master
+  Wire.begin();
 
   // define callbacks for i2c communication
   Wire.onReceive(receiveData);
-  Wire.onRequest(sendData);
+//  Wire.onRequest(sendData);
 
   Engine engines[] = {&left, &right, &tower};
   for (auto& eng : engines)
@@ -76,22 +76,16 @@ void setup() {
   pinMode(enginesPower, OUTPUT);
   digitalWrite(enginesPower, LOW);
 
-  // Serial.println("Ready!");
+  Serial.println("Ready!");
   delay(10);
 }
 
 // callback for received data
 void receiveData(int byteCount)
 {
-  if (byteCount == sizeof(RpiPkg))
-  {
-    processRpiData();
-  }
-  else
-  {
-    // Garbage? Can't handle, drop.
-    while (Wire.available()) Wire.read();
-  }
+  Serial.print("Received bytes: ");
+  Serial.println(byteCount);
+  processRpiData();
 }
 
 void processRpiData()
@@ -163,7 +157,9 @@ void sendData()
   pkg.voltage = vcc * dividerCoef; // mV
   pkg.crc = crc16(reinterpret_cast< unsigned char* >(&pkg), sizeof(ArduinoPkg) - sizeof(pkg.crc));
 
+  Wire.beginTransmission(RPI_ADDRESS); // transmit to rpi
   Wire.write(reinterpret_cast< const unsigned char* >(&pkg), sizeof(pkg));
+  Wire.endTransmission();    // stop transmitting
 
   if (pkg.voltage < minVoltage)
   {
@@ -203,7 +199,6 @@ void sleepNow()
 
 void loop()
 {
-  Serial.println("Ready!");
   ms = millis();
   if (rpiOnline + 1000 < ms)
   {
@@ -213,17 +208,23 @@ void loop()
     digitalWrite(tower.pwmPin, 0);
   }
 
-  if (lastCurrent + 100 < ms)
+  if (lastMs + 20 < ms)
   {
-    lastCurrent = ms;
+    lastMs = ms;
     left.currentValue = analogRead(left.currentSensorPin);
     right.currentValue = analogRead(right.currentSensorPin);
     tower.currentValue = analogRead(tower.currentSensorPin);
+    Wire.requestFrom(RPI_ADDRESS, sizeof(RpiPkg));
+  }
+
+  if (sendMs + 400 < ms)
+  {
+    sendMs = ms;
+    sendData();
   }
 
   if (lowVoltage && lowVoltageMs + 3000 < ms)
   {
-//    blinkLight(20, 500);
     sleepNow();
   }
 }
