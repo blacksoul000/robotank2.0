@@ -25,7 +25,7 @@ namespace
     const uint8_t resetPin = 4;
     const uint8_t pointerPin = 26;
 
-    const uint8_t gunVPin = 13;
+    const uint8_t gunVPin = 23;
 
     const int tickInterval = 10;
     constexpr double gunTickCoef = 60.0 / SHRT_MAX;
@@ -78,7 +78,6 @@ public:
     QMap< uint8_t, ServoInfo > servo;
 
     void onShotStatusChanged(bool shot);
-    bool initMpu();
     void onPointerTriggered();
 };
 

@@ -7,7 +7,7 @@
 #include "pub_sub.h"
 
 #include "uart.h"
-#include "i2c_master.h"
+#include "i2c_slave.h"
 
 #include <QElapsedTimer>
 #include <QTimer>
@@ -39,6 +39,7 @@ namespace
     };
 #pragma pack(pop)
 
+    const uint8_t slaveAddress = 0x03;
     const int timeout = 1500; // ms
 } // namespace
 
@@ -73,7 +74,7 @@ ArduinoExchanger::ArduinoExchanger():
     ITask(),
     d(new Impl)
 {
-    d->arduino = new I2CMaster("/dev/i2c-3", sizeof(::ArduinoPkg), this);
+    d->arduino = new I2CSlave(::slaveAddress, this);
     connect(d->arduino, &IExchanger::dataAvailable, this, &ArduinoExchanger::onNewData);
 
     d->timer = new QTimer(this);
