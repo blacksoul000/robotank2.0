@@ -5,8 +5,10 @@
 
 struct JoyAxes
 {
-    static const int axesCount = 18;
-    QVector< short > axes = QVector< short >(axesCount);
+    short x1;
+    short y1;
+    short x2;
+    short y2;
 };
 
 #endif // JOY_AXES_H

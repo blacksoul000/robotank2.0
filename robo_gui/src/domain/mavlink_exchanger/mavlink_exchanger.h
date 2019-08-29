@@ -26,6 +26,7 @@ namespace domain
         void onCalibrateGun();
         void onCalibrateGyro();
         void onImageSettingsChanged();
+        void onJoyChanged();
 
     protected slots:
         void onVehicleAdded(VehiclePtr vehicle);

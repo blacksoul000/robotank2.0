@@ -75,6 +75,14 @@ else(ANDROID)
     add_executable(${PROJECT_NAME} ${SOURCES} ${RESOURCES})
 endif()
 
+add_custom_target(mavlink mavgen.py --lang C --wire-protocol 1.0 
+    -o ${CMAKE_CURRENT_BINARY_DIR}/mavlink_messages
+    ${CMAKE_SOURCE_DIR}/../common/mavlink/message_definitions/robotank.xml)
+
+target_include_directories(${PROJECT_NAME} PRIVATE 
+    ${CMAKE_CURRENT_BINARY_DIR}/mavlink_messages
+    ${CMAKE_CURRENT_BINARY_DIR}/mavlink_messages/robotank)
+
 add_subdirectory(${CMAKE_SOURCE_DIR}/../common common)
 target_link_libraries(${PROJECT_NAME} ${LIBS})
 qt5_use_modules(${PROJECT_NAME} Core Qml Quick Svg Multimedia Network Bluetooth)

@@ -6,6 +6,7 @@
 #include "status_presenter.h"
 #include "bluetooth_presenter.h"
 #include "video_presenter.h"
+#include "gamepad_presenter.h"
 
 #include <QtQml>
 
@@ -14,6 +15,7 @@ using presentation::SettingsPresenter;
 using presentation::StatusPresenter;
 using presentation::BluetoothPresenter;
 using presentation::VideoPresenter;
+using presentation::GamepadPresenter;
 
 class PresenterFactory::Impl
 {
@@ -56,4 +58,9 @@ QObject* PresenterFactory::bluetoothPresenter()
 QObject* PresenterFactory::videoPresenter()
 {
     return new VideoPresenter(d->model, this);
+}
+
+QObject* PresenterFactory::gamepadPresenter()
+{
+    return new GamepadPresenter(d->model, this);
 }

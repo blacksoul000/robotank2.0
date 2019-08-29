@@ -9,8 +9,6 @@ class StatusModel::Impl
 public:
     int batteryLevel = 0;
     bool isCharging = false;
-    bool isGamepadCharging = false;
-    int gamepadBatteryLevel = 0;
     int robotBatteryLevel = 0;
     qreal gunPositionH = 0;
     qreal gunPositionV = 0;
@@ -18,7 +16,6 @@ public:
     qreal pitch = 0;
     qreal roll = 0;
     bool arduinoStatus = false;
-    bool gamepadStatus = false;
     bool chassisStatus = false;
 
     bool headlightStatus = false;
@@ -62,32 +59,6 @@ void StatusModel::setCharging(bool charging)
 bool StatusModel::isCharging() const
 {
     return d->isCharging;
-}
-
-void StatusModel::setGamepadCharging(bool charging)
-{
-    if (d->isGamepadCharging == charging) return;
-
-    d->isGamepadCharging = charging;
-    emit gamepadChargingChanged(charging);
-}
-
-bool StatusModel::gamepadCharging() const
-{
-	return d->isGamepadCharging;
-}
-
-void StatusModel::setGamepadBatteryLevel(int level)
-{
-    if (d->gamepadBatteryLevel == level) return;
-
-    d->gamepadBatteryLevel = level;
-    emit gamepadBatteryLevelChanged(level);
-}
-
-int StatusModel::gamepadBatteryLevel() const
-{
-    return d->gamepadBatteryLevel;
 }
 
 void StatusModel::setRobotBatteryLevel(int level)
@@ -179,19 +150,6 @@ void StatusModel::setArduinoStatus(bool status)
 bool StatusModel::arduinoStatus() const
 {
     return d->arduinoStatus;
-}
-
-void StatusModel::setGamepadStatus(bool status)
-{
-    if (status != d->gamepadStatus)
-
-    d->gamepadStatus = status;
-    emit gamepadStatusChanged(status);
-}
-
-bool StatusModel::gamepadStatus() const
-{
-    return d->gamepadStatus;
 }
 
 void StatusModel::setChassisStatus(bool status)

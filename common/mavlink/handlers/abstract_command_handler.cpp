@@ -8,7 +8,7 @@
 namespace
 {
     const int interval = 700;
-    const int maxAttemps = 5;
+    const int maxAttempts = 5;
 }
 
 using namespace domain;
@@ -17,7 +17,7 @@ class AbstractCommandHandler::Impl
 {
 public:
     QMultiMap< int, CommandPtr > vehicleCommands;
-    QMap< CommandPtr, int > attemps;
+    QMap< CommandPtr, int > attempts;
     QMap< CommandPtr, int > commandTimers;
 };
 
@@ -31,27 +31,32 @@ AbstractCommandHandler::~AbstractCommandHandler()
 {
 }
 
-void AbstractCommandHandler::executeCommand(int vehicleId, const CommandPtr& command)
+void AbstractCommandHandler::executeCommand(int vehicleId, const CommandPtr& command,
+											bool singleshot)
 {
-    for (const CommandPtr& timedCommand : d->commandTimers.keys())
-    {
-        if (timedCommand->commandId() != command->commandId()
-                || !d->vehicleCommands.values(vehicleId).contains(timedCommand)) continue;
+	if (!singleshot)
+	{
+		for (const CommandPtr& timedCommand : d->commandTimers.keys())
+		{
+			if (timedCommand->commandId() != command->commandId()
+					|| !d->vehicleCommands.values(vehicleId).contains(timedCommand)) continue;
 
-        this->stopCommand(vehicleId, timedCommand);
+			this->stopCommand(vehicleId, timedCommand);
 
-        timedCommand->setStatus(Command::Canceled);
-        emit commandChanged(vehicleId, timedCommand);
+			timedCommand->setStatus(Command::Canceled);
+			emit commandChanged(vehicleId, timedCommand);
 
-        break;
-    }
+			break;
+		}
+		d->attempts[command] = 0;
+		d->commandTimers[command] = this->startTimer(::interval);
+	}
 
     d->vehicleCommands.insert(vehicleId, command);
-    d->attemps[command] = 0;
-    d->commandTimers[command] = this->startTimer(::interval);
     command->setStatus(Command::Sending);
 
     this->sendCommand(vehicleId, command);
+    if (singleshot) command->setStatus(Command::Completed);
 
     emit commandChanged(vehicleId, command);
 }
@@ -75,7 +80,7 @@ void AbstractCommandHandler::ackCommand(int vehicleId, int commandId,
 void AbstractCommandHandler::stopCommand(int vehicleId, const CommandPtr& command)
 {
     d->vehicleCommands.remove(vehicleId, command);
-    d->attemps.remove(command);
+    d->attempts.remove(command);
     if (d->commandTimers.contains(command))
     {
         this->killTimer(d->commandTimers.take(command));
@@ -88,9 +93,9 @@ void AbstractCommandHandler::timerEvent(QTimerEvent* event)
     if (command.isNull()) return QObject::timerEvent(event);
 
     int vehicleId = d->vehicleCommands.key(command, 0);
-    this->sendCommand(vehicleId, command, ++d->attemps[command]);
+    this->sendCommand(vehicleId, command, ++d->attempts[command]);
 
-    if (d->attemps[command] < ::maxAttemps) return;
+    if (d->attempts[command] < ::maxAttempts) return;
 
     this->stopCommand(vehicleId, command);
 

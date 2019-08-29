@@ -4,51 +4,38 @@
 #include "joy_axes.h"
 
 #include "pub_sub.h"
+#include "gamepad.h"
 
 //Qt
 #include <QScopedPointer>
-#include <QDir>
-#include <QFileInfo>
-#include <QFile>
 #include <QDebug>
-
-// linux
-#include <unistd.h>
-#include <linux/joystick.h>
-#include <fcntl.h>
 
 class GamepadController::Impl
 {
 public:
-    bool axesChanged = false;
-    bool buttonsChanged = false;
+    QScopedPointer< Gamepad > gamepad;
 
-    quint8 axesCount; // FIXME
     JoyAxes axes;
-    quint16 buttons = 0;
 
     Publisher< bool >* joyStatusP = nullptr;
     Publisher< JoyAxes >* axesP = nullptr;
     Publisher< quint16 >* buttonsP = nullptr;
     Publisher< quint8 >* capacityP = nullptr;
     Publisher< bool >* chargingP = nullptr;
-
-    const QString gamepad = "/dev/input/js0";
-    int fd = -1;
-    bool isOpened = false;
-
-    QFile capacity;
-    QFile status;
-
-    QString gamepadSystemPath() const;
-    bool open();
-    void close();
 };
 
 GamepadController::GamepadController() :
     ITask(),
     d(new Impl)
 {
+	d->gamepad.reset(new Gamepad("/dev/input/js0", this));
+	connect(d->gamepad.data(), &Gamepad::capacityChanged,
+			this, &GamepadController::onCapacityChanged);
+	connect(d->gamepad.data(), &Gamepad::chargingChanged,
+			this, &GamepadController::onChargingChanged);
+	connect(d->gamepad.data(), &Gamepad::connectedChanged,
+			this, &GamepadController::onConnectedChanged);
+
     d->joyStatusP = PubSub::instance()->advertise< bool >("joy/status");
     d->axesP = PubSub::instance()->advertise< JoyAxes >("joy/axes");
     d->buttonsP = PubSub::instance()->advertise< quint16 >("joy/buttons");
@@ -58,10 +45,8 @@ GamepadController::GamepadController() :
 
 GamepadController::~GamepadController()
 {
-    if (d->capacity.isOpen()) d->capacity.close();
-    if (d->status.isOpen()) d->status.close();
+	d->gamepad.reset();
 
-    close (d->fd);
     delete d->joyStatusP;
     delete d->axesP;
     delete d->buttonsP;
@@ -72,121 +57,32 @@ GamepadController::~GamepadController()
 
 void GamepadController::execute()
 {
-    if (!d->isOpened)
-    {
-        if (d->open())
-        {
-            qDebug() << Q_FUNC_INFO << "Connected";
+	d->gamepad->execute();
+	if (!d->gamepad->isConnected()) return;
 
-            fcntl (d->fd, F_SETFD, FD_CLOEXEC);
-            ioctl (d->fd, JSIOCGAXES, &d->axesCount);
-            d->joyStatusP->publish(true);
+	const auto& axes = d->gamepad->axes();
+	d->axes.x1 = axes.at(Axes::DigitalX)
+							? axes.at(Axes::DigitalX) : axes.at(Axes::X1);
+	d->axes.y1 = axes.at(Axes::DigitalY)
+				    		? -axes.at(Axes::DigitalY) : -axes.at(Axes::Y1);
+	d->axes.x2 = axes.at(Axes::X2);
+	d->axes.y2 = axes.at(Axes::Y2);
 
-            const QString path = d->gamepadSystemPath();
-            if (!path.isEmpty())
-            {
-                d->capacity.setFileName(path + "/capacity");
-                d->capacity.open(QIODevice::ReadOnly | QIODevice::Text);
-                connect(&d->capacity, &QIODevice::readyRead, this, &GamepadController::onCapacityChanged);
-                this->onCapacityChanged();
-
-                d->status.setFileName(path + "/status");
-                d->status.open(QIODevice::ReadOnly | QIODevice::Text);
-                connect(&d->status, &QIODevice::readyRead, this, &GamepadController::onStatusChanged);
-                this->onStatusChanged();
-            }
-        }
-        else
-        {
-            return;
-        }
-    }
-    this->readData();
-
-    if (d->axesChanged)
-    {
-        d->axesP->publish(d->axes);
-        d->axesChanged = false;
-    }
-    if (d->buttonsChanged)
-    {
-        d->buttonsP->publish(d->buttons);
-        d->buttonsChanged = false;
-    }
+	d->axesP->publish(d->axes);
+	d->buttonsP->publish(d->gamepad->buttons());
 }
 
-bool GamepadController::Impl::open()
+void GamepadController::onConnectedChanged(bool connected)
 {
-    fd = ::open(gamepad.toStdString().c_str(), O_RDONLY | O_NONBLOCK);
-    isOpened = (fd >= 0);
-    return isOpened;
+    d->joyStatusP->publish(connected);
 }
 
-void GamepadController::Impl::close()
+void GamepadController::onCapacityChanged(int capacity)
 {
-    qDebug() << Q_FUNC_INFO << "Disconnected";
-    fd = -1;
-    isOpened = false;
-    capacity.close();
-    status.close();
-    buttons = 0;
-    axes.axes.fill(0, axes.axesCount);
-
-	buttonsP->publish(buttons);
-    axesP->publish(axes);
-    joyStatusP->publish(false);
+    d->capacityP->publish(capacity);
 }
 
-void GamepadController::readData()
+void GamepadController::onChargingChanged(bool charging)
 {
-	if (fcntl (d->fd, F_GETFD) == 0 || errno == ENODEV)
-	{
-		d->close();
-		return;
-	}
-
-    struct js_event event;
-    while (read(d->fd, &event, sizeof(event)) != -1)
-    {
-        switch (event.type)
-        {
-        case JS_EVENT_BUTTON:
-            d->buttons = (d->buttons & ~(1 << event.number)) | (event.value << event.number);
-            d->buttonsChanged = true;
-            break;
-        case JS_EVENT_AXIS:
-            d->axes.axes[event.number] = event.value;
-            d->axesChanged = true;
-            break;
-        default:
-            break;
-        }
-    }
-}
-
-void GamepadController::onCapacityChanged()
-{
-    d->capacity.seek(0);
-    QByteArray data = d->capacity.readAll().trimmed();
-    bool ok;
-    const int capacity = data.toInt(&ok);
-    if (ok) d->capacityP->publish(capacity);
-}
-
-void GamepadController::onStatusChanged()
-{
-    d->status.seek(0);
-    const QString data = d->status.readAll();
-    const bool charging = data.compare("Charging", Qt::CaseInsensitive) == 0;
     d->chargingP->publish(charging);
-}
-
-QString GamepadController::Impl::gamepadSystemPath() const
-{
-    QDir dir("/sys/class/power_supply");
-    if (!dir.exists()) return QString();
-
-    const auto& list = dir.entryInfoList(QDir::Dirs | QDir::NoDotAndDotDot);
-    if (list.isEmpty()) return QString();
-    return list.first().absoluteFilePath();
 }

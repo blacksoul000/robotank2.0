@@ -7,17 +7,25 @@ class GamepadController : public ITask
 {
     Q_OBJECT
 public:
+    enum Axes // Bluetooth
+    {
+        X1 = 0,
+        Y1 = 1,
+        X2 = 2,
+        Y2 = 5,
+        DigitalX = 6,
+        DigitalY = 7,
+    };
+
     GamepadController();
     ~GamepadController();
 
     void execute() override;
 
-private:
-    void readData();
-
 private slots:
-    void onCapacityChanged();
-    void onStatusChanged();
+	void onConnectedChanged(bool connected);
+    void onCapacityChanged(int capacity);
+    void onChargingChanged(bool charging);
 
 private:
     class Impl;

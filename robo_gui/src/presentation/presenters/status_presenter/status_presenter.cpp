@@ -14,7 +14,7 @@ public:
     StatusModel* model = nullptr;
 };
 
-StatusPresenter::StatusPresenter(domain::RoboModel *model, QObject *parent) :
+StatusPresenter::StatusPresenter(domain::RoboModel* model, QObject* parent) :
     QObject(parent),
     d(new Impl)
 {
@@ -26,14 +26,8 @@ StatusPresenter::StatusPresenter(domain::RoboModel *model, QObject *parent) :
     connect(d->model, &StatusModel::isChargingChanged,
             this, &StatusPresenter::isChargingChanged);
 
-    connect(d->model, &StatusModel::gamepadBatteryLevelChanged,
-            this, &StatusPresenter::gamepadBatteryLevelChanged);
-
     connect(d->model, &StatusModel::robotBatteryLevelChanged,
             this, &StatusPresenter::robotBatteryLevelChanged);
-
-    connect(d->model, &StatusModel::gamepadChargingChanged,
-            this, &StatusPresenter::gamepadChargingChanged);
 
     connect(d->model, &StatusModel::gunPositionHChanged,
             this, &StatusPresenter::gunPositionHChanged);
@@ -47,8 +41,6 @@ StatusPresenter::StatusPresenter(domain::RoboModel *model, QObject *parent) :
 
     connect(d->model, &StatusModel::arduinoStatusChanged,
             this, &StatusPresenter::arduinoStatusChanged);
-    connect(d->model, &StatusModel::gamepadStatusChanged,
-            this, &StatusPresenter::gamepadStatusChanged);
     connect(d->model, &StatusModel::chassisStatusChanged,
             this, &StatusPresenter::chassisStatusChanged);
 
@@ -71,16 +63,6 @@ int StatusPresenter::batteryLevel() const
 bool StatusPresenter::isCharging() const
 {
     return d->model->isCharging();
-}
-
-int StatusPresenter::gamepadBatteryLevel() const
-{
-    return d->model->gamepadBatteryLevel();
-}
-
-bool StatusPresenter::gamepadCharging() const
-{
-    return d->model->gamepadCharging();
 }
 
 int StatusPresenter::robotBatteryLevel() const
@@ -116,11 +98,6 @@ qreal StatusPresenter::roll() const
 bool StatusPresenter::arduinoStatus() const
 {
     return d->model->arduinoStatus();
-}
-
-bool StatusPresenter::gamepadStatus() const
-{
-    return d->model->gamepadStatus();
 }
 
 bool StatusPresenter::chassisStatus() const

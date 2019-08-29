@@ -16,8 +16,6 @@ namespace presentation
     public:
         Q_PROPERTY(int batteryLevel READ batteryLevel NOTIFY batteryLevelChanged)
         Q_PROPERTY(bool isCharging READ isCharging NOTIFY isChargingChanged)
-        Q_PROPERTY(int gamepadBatteryLevel READ gamepadBatteryLevel NOTIFY gamepadBatteryLevelChanged)
-        Q_PROPERTY(bool gamepadCharging READ gamepadCharging NOTIFY gamepadChargingChanged)
         Q_PROPERTY(int robotBatteryLevel READ robotBatteryLevel NOTIFY robotBatteryLevelChanged)
         Q_PROPERTY(qreal gunPositionH READ gunPositionH NOTIFY gunPositionHChanged)
         Q_PROPERTY(qreal gunPositionV READ gunPositionV NOTIFY gunPositionVChanged)
@@ -25,7 +23,6 @@ namespace presentation
         Q_PROPERTY(qreal pitch READ pitch NOTIFY pitchChanged)
         Q_PROPERTY(qreal roll READ roll NOTIFY rollChanged)
         Q_PROPERTY(bool arduinoStatus READ arduinoStatus NOTIFY arduinoStatusChanged)
-        Q_PROPERTY(bool gamepadStatus READ gamepadStatus NOTIFY gamepadStatusChanged)
         Q_PROPERTY(bool chassisStatus READ chassisStatus NOTIFY chassisStatusChanged)
         Q_PROPERTY(bool headlightStatus READ headlightStatus NOTIFY headlightStatusChanged)
         Q_PROPERTY(bool pointerStatus READ pointerStatus NOTIFY pointerStatusChanged)
@@ -35,8 +32,6 @@ namespace presentation
 
         int batteryLevel() const;
         bool isCharging() const;
-        int gamepadBatteryLevel() const;
-        bool gamepadCharging() const;
         int robotBatteryLevel() const;
         qreal gunPositionH() const;
         qreal gunPositionV() const;
@@ -45,7 +40,6 @@ namespace presentation
         qreal roll() const;
 
         bool arduinoStatus() const;
-        bool gamepadStatus() const;
         bool chassisStatus() const;
 
         bool headlightStatus() const;
@@ -54,8 +48,6 @@ namespace presentation
     signals:
         void batteryLevelChanged(int level);
         void isChargingChanged(bool charging);
-        void gamepadBatteryLevelChanged(int level);
-        void gamepadChargingChanged(bool charging);
         void robotBatteryLevelChanged(int level);
         void gunPositionHChanged(qreal position);
         void gunPositionVChanged(qreal position);
@@ -64,7 +56,6 @@ namespace presentation
         void rollChanged(qreal roll);
 
         void arduinoStatusChanged(bool online);
-        void gamepadStatusChanged(bool online);
         void chassisStatusChanged(bool online);
 
         void headlightStatusChanged(bool on);

@@ -4,6 +4,7 @@
 #include "status_model.h"
 #include "bluetooth_model.h"
 #include "track_model.h"
+#include "gamepad_model.h"
 
 // Internal
 #include "mavlink_communicator.h"
@@ -40,11 +41,12 @@ void SysStatusHandler::processMessage(const mavlink_message_t& message)
     const auto& status = d->model->status();
     const auto& track = d->model->track();
     const auto& bluetooth = d->model->bluetooth();
+    const auto& gamepad = d->model->gamepad();
 
     status->setArduinoStatus(systemStatus.system_state & ARDUINO_ONLINE);
-    status->setGamepadStatus(systemStatus.system_state & GAMEPAD_CONNECTED);
-    status->setGamepadBatteryLevel(systemStatus.gamepad_capacity);
-    status->setGamepadCharging(systemStatus.system_state & GAMEPAD_CHARGING);
+    gamepad->setConnected(systemStatus.system_state & GAMEPAD_CONNECTED);
+    gamepad->setCapacity(systemStatus.gamepad_capacity);
+    gamepad->setCharging(systemStatus.system_state & GAMEPAD_CHARGING);
     status->setRobotBatteryLevel(systemStatus.voltage);
     status->setHeadlightStatus(systemStatus.system_state & HEADLIGHT);
     status->setPointerStatus(systemStatus.system_state & POINTER);

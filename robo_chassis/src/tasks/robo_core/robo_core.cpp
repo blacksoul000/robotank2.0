@@ -25,16 +25,6 @@ namespace
     const double minInfluence = -40;
     const double maxInfluence = 40;
 
-    enum Axes
-    {
-        X1 = 0,
-        Y1 = 1,
-        X2 = 2,
-        Y2 = 5,
-        DigitalX = 6,
-        DigitalY = 7,
-    };
-
     template < class T >
     inline T bound(T minValue, T value, T maxValue)
     {
@@ -55,7 +45,6 @@ public:
     short enginePowerRight = SHRT_MAX;
     bool hasNewData = false;
     double requiredTowerH = 0;
-    JoyAxes joy;
 
     Publisher< Influence >* influenceP = nullptr;
     Publisher< double >* deviationVP = nullptr;
@@ -95,62 +84,61 @@ void RoboCore::execute()
         {
             d->influence.towerH = d->pid.calculate(d->requiredTowerH, d->gunPosition.x()) / ::influenceCoef;
 //            qDebug() << Q_FUNC_INFO << d->requiredTowerH << d->gunPosition.x() << d->influence.towerH << (d->influence.towerH * ::influenceCoef);
-            d->hasNewData = true;
         }
     }
 
-    if (d->hasNewData) 
-    {
-        d->influenceP->publish(d->influence);
+	d->influenceP->publish(d->influence);
 //        qDebug() << Q_FUNC_INFO << d->influence.leftEngine << d->influence.rightEngine << d->influence.gunV << d->influence.towerH;
-        d->hasNewData = false;
-    }
 }
 
 void RoboCore::onJoyEvent(const JoyAxes& joy)
 {
     if (d->state == State::Search)
     {
-        if (d->joy.axes[Axes::X2] != joy.axes[Axes::X2] || d->joy.axes[Axes::Y2] != joy.axes[Axes::Y2])
-        {
-//            qDebug() << Q_FUNC_INFO << __LINE__ << joy.axes;
-            short x = d->smooth(joy.axes[Axes::X2], SHRT_MAX, SHRT_MAX);
-            short y = d->smooth(joy.axes[Axes::Y2], SHRT_MAX, SHRT_MAX);
+//		qDebug() << Q_FUNC_INFO << __LINE__ << joy.axes;
+		short x = d->smooth(joy.x2, SHRT_MAX, SHRT_MAX);
+		short y = d->smooth(joy.y2, SHRT_MAX, SHRT_MAX);
 
-            d->influence.gunV = y;
-            d->influence.towerH = x;
-//            qDebug() << Q_FUNC_INFO << d->influence.gunV << d->influence.towerH << joy.axes;
-            d->joy.axes[Axes::X2] = joy.axes[Axes::X2];
-            d->joy.axes[Axes::Y2] = joy.axes[Axes::Y2];
-            d->hasNewData = true;
-        }
+		d->influence.gunV = y;
+		d->influence.towerH = x;
+//		qDebug() << Q_FUNC_INFO << d->influence.gunV << d->influence.towerH << joy.axes;
     }
 
-    if (d->joy.axes[Axes::X1] != joy.axes[Axes::X1] 
-        || d->joy.axes[Axes::Y1] != joy.axes[Axes::Y1]
-        || d->joy.axes[Axes::DigitalX] != joy.axes[Axes::DigitalX] 
-        || d->joy.axes[Axes::DigitalY] != joy.axes[Axes::DigitalY])
-    {
-//        qDebug() << Q_FUNC_INFO << __LINE__ << joy.axes;
-        // Y axis is inverted. Up is negative, down is positive
-        const int speed = -(joy.axes[Axes::DigitalY] ? joy.axes[Axes::DigitalY] : joy.axes[Axes::Y1]);
-        int turn = joy.axes[Axes::DigitalX] ? joy.axes[Axes::DigitalX] : joy.axes[Axes::X1];
-        if (speed < 0) turn *= -1;
+	qDebug() << Q_FUNC_INFO << __LINE__ << joy.x1 << joy.y1 << joy.x2 << joy.y2;
+	const int speed = joy.y1;
+	int turn = joy.x1;
+	if (speed < 0) turn *= -1;
 
-        d->influence.leftEngine = ::bound< int >(SHRT_MIN,
-                                d->smooth(speed + turn, SHRT_MAX, d->enginePowerLeft), SHRT_MAX);
-        d->influence.rightEngine = ::bound< int >(SHRT_MIN,
-                                d->smooth(speed - turn, SHRT_MAX, d->enginePowerRight), SHRT_MAX);
+	d->influence.leftEngine = ::bound< int >(SHRT_MIN,
+							d->smooth(speed + turn, SHRT_MAX, d->enginePowerLeft), SHRT_MAX);
+	d->influence.rightEngine = ::bound< int >(SHRT_MIN,
+							d->smooth(speed - turn, SHRT_MAX, d->enginePowerRight), SHRT_MAX);
 
-        d->joy.axes[Axes::X1] = joy.axes[Axes::X1];
-        d->joy.axes[Axes::Y1] = joy.axes[Axes::Y1];
-        d->joy.axes[Axes::DigitalX] = joy.axes[Axes::DigitalX];
-        d->joy.axes[Axes::DigitalY] = joy.axes[Axes::DigitalY];
-        d->hasNewData = true;
-//        qDebug() << Q_FUNC_INFO << d->influence.leftEngine << d->influence.rightEngine << speed << turn 
-//            << d->smooth(speed + turn, SHRT_MAX, d->enginePowerLeft)
-//            << d->smooth(speed - turn, SHRT_MAX, d->enginePowerRight) << joy.axes;
-    }
+//	qDebug() << Q_FUNC_INFO << d->influence.leftEngine << d->influence.rightEngine << speed << turn
+//		<< d->smooth(speed + turn, SHRT_MAX, d->enginePowerLeft)
+//		<< d->smooth(speed - turn, SHRT_MAX, d->enginePowerRight) << joy.axes;
+
+/*
++  // Compute effective linear and angular speed.
++  const auto linearSpeed = ignition::math::clamp(
++    _msg->position().x(),
++    -this->dataPtr->maxLinearSpeed,
++    this->dataPtr->maxLinearSpeed);
++
++  const auto yaw = msgs::ConvertIgn(_msg->orientation()).Euler().Z();
++  const auto angularSpeed = ignition::math::clamp(
++    yaw,
++    -this->dataPtr->maxAngularSpeed,
++    this->dataPtr->maxAngularSpeed);
++
++  // Compute track velocities using the tracked vehicle kinematics model.
++  const auto leftVelocity = linearSpeed + angularSpeed *
++    this->dataPtr->tracksSeparation / 2 / this->dataPtr->steeringEfficiency;
++
++  const auto rightVelocity = linearSpeed - angularSpeed *
++    this->dataPtr->tracksSeparation / 2 / this->dataPtr->steeringEfficiency;
+
+*/
 }
 
 void RoboCore::onTrackerDeviation(const QPointF& deviation)

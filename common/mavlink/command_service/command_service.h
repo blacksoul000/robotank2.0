@@ -24,7 +24,8 @@ namespace domain
         void removeHandler(AbstractCommandHandler* handler);
 
     signals:
-        void executeCommand(int sysId, const CommandPtr& command);
+        void executeCommand(int sysId, const CommandPtr& command,
+        					bool singleshot = false);
         void cancelCommand(int sysId, int type);
 
         void commandChanged(int sysId, CommandPtr command);

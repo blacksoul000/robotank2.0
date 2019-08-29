@@ -6,6 +6,7 @@ Item {
     height: 38
 
     property QtObject presenter
+    property QtObject gamepad
 
     Rectangle {
         color: "#616769"
@@ -57,12 +58,12 @@ Item {
             StatusIndicator {
             	image.source: "qrc:/icons/gamepad.svg"
             	image.width: 35
-                text: presenter.gamepadBatteryLevel + "%"
+                text: gamepad.batteryLevel + "%"
 				anchors.verticalCenter: parent.verticalCenter
 
                 ColorOverlay {
                     source: parent.image
-                    color: presenter.gamepadStatus ? "#00ce00" : "#ce0000"
+                    color: gamepad.connected ? "#00ce00" : "#ce0000"
 					x: parent.image.x
 					y: parent.image.y
 					width: parent.image.width
