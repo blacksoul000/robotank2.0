@@ -25,11 +25,11 @@ namespace
     const uint8_t resetPin = 4;
     const uint8_t pointerPin = 26;
 
-    const uint8_t gunVPin = 23;
+    const uint8_t gunVPin = 13;
 
     const int tickInterval = 10;
     constexpr double gunTickCoef = 60.0 / SHRT_MAX;
-    constexpr double positionCoef = 360.0 / 32767;
+    constexpr double positionCoef = 360.0 / SHRT_MAX;
 }
 
 class GpioController::Impl
@@ -175,7 +175,7 @@ void GpioController::execute()
     const float towerH = d->chassis.imu->isReady() && d->tower.imu->isReady()
     				? d->towerH - d->tower.yawOffset : 0;
     const auto gunPosition = QPointF(towerH,
-                                ((d->servo[::gunVPin].maxPulse - d->servo[::gunVPin].realPulse) / d->servo[::gunVPin].pulsePerDegree));
+                                ((d->servo[::gunVPin].maxPulse - d->servo[::gunVPin].pulse) / d->servo[::gunVPin].pulsePerDegree));
 //    qDebug() << Q_FUNC_INFO << gunPosition.y() << d->servo[::gunVPin].realPulse << d->servo[::gunVPin].maxPulse;
     d->gunPositionP->publish(gunPosition);
 }
@@ -218,7 +218,7 @@ void GpioController::onJoyEvent(const quint16& joy)
 void GpioController::onInfluence(const Influence& influence)
 {
     d->servo[::gunVPin].tick = std::ceil(influence.gunV * ::gunTickCoef);
-//    qDebug() << Q_FUNC_INFO << __LINE__ << influence.gunV << ::tickCoef << d->servo[::gunVPin].tick << d->servo[::gunVPin].pulse;
+//    qDebug() << Q_FUNC_INFO << __LINE__ << influence.gunV << ::gunTickCoef << d->servo[::gunVPin].tick << d->servo[::gunVPin].pulse;
 }
 
 void GpioController::onDeviation(const double& value)
@@ -254,9 +254,10 @@ void GpioController::servoTick()
 {
     for (auto it = d->servo.begin(), end = d->servo.end(); it != end; ++it)
     {
-        it.value().realPulse = qBound< uint16_t >(it.value().minPulse, it.value().pulse + it.value().tick, it.value().maxPulse);
-//        qDebug() << it.key() << it.value().pulse << it.value().minPulse << it.value().maxPulse << ((it.value().maxPulse - it.value().pulse) / it.value().pulsePerDegree);
-        gpioServo(it.key(), it.value().realPulse);
+        it.value().pulse = qBound< uint16_t >(it.value().minPulse, it.value().pulse + it.value().tick, it.value().maxPulse);
+//        qDebug() << it.key() << it.value().pulse << it.value().minPulse << it.value().maxPulse << it.value().tick 
+//            << ((it.value().maxPulse - it.value().pulse) / it.value().pulsePerDegree);
+        gpioServo(it.key(), it.value().pulse);
     }
 }
 
