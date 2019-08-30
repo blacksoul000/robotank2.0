@@ -17,6 +17,8 @@ namespace
     constexpr float defaultDotsPerDegree = 100;
     constexpr double influenceCoef = 90.0 / 32767;
 
+    constexpr double turnCoef = 13.6 / 2 / 0.5;  // tracksSeparation / 2 / steeringEfficiency
+
     // towerH pid
     const double Kp = 5.5;
     const double Ki = 0.2;
@@ -104,41 +106,16 @@ void RoboCore::onJoyEvent(const JoyAxes& joy)
 //		qDebug() << Q_FUNC_INFO << d->influence.gunV << d->influence.towerH << joy.axes;
     }
 
-	qDebug() << Q_FUNC_INFO << __LINE__ << joy.x1 << joy.y1 << joy.x2 << joy.y2;
 	const int speed = joy.y1;
 	int turn = joy.x1;
 	if (speed < 0) turn *= -1;
 
 	d->influence.leftEngine = ::bound< int >(SHRT_MIN,
-							d->smooth(speed + turn, SHRT_MAX, d->enginePowerLeft), SHRT_MAX);
+			d->smooth(speed + turn * ::turnCoef, SHRT_MAX, d->enginePowerLeft), SHRT_MAX);
 	d->influence.rightEngine = ::bound< int >(SHRT_MIN,
-							d->smooth(speed - turn, SHRT_MAX, d->enginePowerRight), SHRT_MAX);
-
-//	qDebug() << Q_FUNC_INFO << d->influence.leftEngine << d->influence.rightEngine << speed << turn
-//		<< d->smooth(speed + turn, SHRT_MAX, d->enginePowerLeft)
-//		<< d->smooth(speed - turn, SHRT_MAX, d->enginePowerRight) << joy.axes;
-
-/*
-+  // Compute effective linear and angular speed.
-+  const auto linearSpeed = ignition::math::clamp(
-+    _msg->position().x(),
-+    -this->dataPtr->maxLinearSpeed,
-+    this->dataPtr->maxLinearSpeed);
-+
-+  const auto yaw = msgs::ConvertIgn(_msg->orientation()).Euler().Z();
-+  const auto angularSpeed = ignition::math::clamp(
-+    yaw,
-+    -this->dataPtr->maxAngularSpeed,
-+    this->dataPtr->maxAngularSpeed);
-+
-+  // Compute track velocities using the tracked vehicle kinematics model.
-+  const auto leftVelocity = linearSpeed + angularSpeed *
-+    this->dataPtr->tracksSeparation / 2 / this->dataPtr->steeringEfficiency;
-+
-+  const auto rightVelocity = linearSpeed - angularSpeed *
-+    this->dataPtr->tracksSeparation / 2 / this->dataPtr->steeringEfficiency;
-
-*/
+			d->smooth(speed - turn * ::turnCoef, SHRT_MAX, d->enginePowerRight), SHRT_MAX);
+//	qDebug() << Q_FUNC_INFO << __LINE__ << joy.x1 << joy.y1 << joy.x2 << joy.y2
+//			<< d->influence.leftEngine << d->influence.rightEngine;
 }
 
 void RoboCore::onTrackerDeviation(const QPointF& deviation)
