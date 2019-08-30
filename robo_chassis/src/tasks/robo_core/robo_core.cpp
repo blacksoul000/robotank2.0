@@ -43,8 +43,8 @@ public:
     QPointF gunPosition;
     PID pid = PID(::dt, ::maxInfluence, ::minInfluence, ::Kp, ::Kd, ::Ki);
 
-    short enginePowerLeft = SHRT_MAX;
-    short enginePowerRight = SHRT_MAX;
+    double enginePowerLeft = 1.0;
+    double enginePowerRight = 1.0;
     bool hasNewData = false;
     double requiredTowerH = 0;
 
@@ -106,14 +106,14 @@ void RoboCore::onJoyEvent(const JoyAxes& joy)
 //		qDebug() << Q_FUNC_INFO << d->influence.gunV << d->influence.towerH << joy.axes;
     }
 
-	const int speed = joy.y1;
-	int turn = joy.x1;
+	const int speed = d->smooth(joy.y1, SHRT_MAX, SHRT_MAX);
+	int turn = d->smooth(joy.x1, SHRT_MAX, SHRT_MAX);
 	if (speed < 0) turn *= -1;
 
 	d->influence.leftEngine = ::bound< int >(SHRT_MIN,
-			d->smooth(speed + turn * ::turnCoef, SHRT_MAX, d->enginePowerLeft), SHRT_MAX);
+			(speed + turn * ::turnCoef) * d->enginePowerLeft, SHRT_MAX);
 	d->influence.rightEngine = ::bound< int >(SHRT_MIN,
-			d->smooth(speed - turn * ::turnCoef, SHRT_MAX, d->enginePowerRight), SHRT_MAX);
+			(speed - turn * ::turnCoef) * d->enginePowerRight, SHRT_MAX);
 //	qDebug() << Q_FUNC_INFO << __LINE__ << joy.x1 << joy.y1 << joy.x2 << joy.y2
 //			<< d->influence.leftEngine << d->influence.rightEngine;
 }
@@ -131,8 +131,8 @@ void RoboCore::onTrackerDeviation(const QPointF& deviation)
 
 void RoboCore::onEnginePowerChanged(const QPoint& enginePower)
 {
-    d->enginePowerLeft = enginePower.x() * SHRT_MAX / 100;
-    d->enginePowerRight = enginePower.y() * SHRT_MAX / 100;
+    d->enginePowerLeft = enginePower.x() * 100.0;
+    d->enginePowerRight = enginePower.y() * 100.0;
 }
 
 void RoboCore::onGunPosition(const QPointF& position)
