@@ -45,6 +45,24 @@ struct RpiPkg
   uint16_t crc = 0;
 };
 
+void initEngine(const Engine& engine)
+{
+    Serial.print("Init engine: ");
+    Serial.print(engine.clockwisePin);
+    Serial.print("   ");
+    Serial.print(engine.counterClockwisePin);
+    Serial.print("   ");
+    Serial.print(engine.pwmPin);
+    Serial.print("   ");
+    Serial.println(engine.currentSensorPin);
+    
+    pinMode(engine.clockwisePin, OUTPUT);
+    pinMode(engine.counterClockwisePin, OUTPUT);
+    pinMode(engine.pwmPin, OUTPUT);
+    pinMode(engine.currentSensorPin, INPUT);
+    digitalWrite(engine.pwmPin, 0);  
+}
+
 void setup() {
   Serial.begin(115200); // start serial for output
 
@@ -55,15 +73,9 @@ void setup() {
   Wire.onReceive(receiveData);
 //  Wire.onRequest(sendData);
 
-  Engine engines[] = {&left, &right, &tower};
-  for (auto& eng : engines)
-  {
-    pinMode(eng.clockwisePin, OUTPUT);
-    pinMode(eng.counterClockwisePin, OUTPUT);
-    pinMode(eng.pwmPin, OUTPUT);
-    pinMode(eng.currentSensorPin, INPUT);
-    digitalWrite(eng.pwmPin, 0);
-  }
+  initEngine(left);
+  initEngine(right);
+  initEngine(tower);
 
   pinMode(voltagePin, INPUT);   // ADC pin
   analogReference(INTERNAL);    // set the ADC reference to 1.1V
@@ -108,6 +120,12 @@ void processRpiData()
   digitalWrite(leftLightPin, pkg->light);
   digitalWrite(rightLightPin, pkg->light);
 
+//  Serial.print(pkg->leftEngine / velocityCoef);
+//  Serial.print("   ");
+//  Serial.print(pkg->rightEngine / velocityCoef);
+//  Serial.print("   ");
+//  Serial.println(pkg->towerH / velocityCoef);
+
   applySpeed(pkg->leftEngine / velocityCoef, left);
   applySpeed(pkg->rightEngine / velocityCoef, right);
   applySpeed(pkg->towerH / velocityCoef, tower);
@@ -115,11 +133,10 @@ void processRpiData()
 
 void applySpeed(int16_t speed, const Engine& engine)
 {
-  int16_t absSpeed = abs(speed);
   if (speed > 0)
   {
+    digitalWrite(engine.clockwisePin, HIGH);    
     digitalWrite(engine.counterClockwisePin, LOW);
-    digitalWrite(engine.clockwisePin, HIGH);
   }
   else if (speed < 0)
   {
@@ -131,7 +148,7 @@ void applySpeed(int16_t speed, const Engine& engine)
     digitalWrite(engine.clockwisePin, LOW);
     digitalWrite(engine.counterClockwisePin, LOW);
   }
-  analogWrite(engine.pwmPin, min(absSpeed, 255));
+  analogWrite(engine.pwmPin, min(abs(speed), 255));
 }
 
 void sendData()
