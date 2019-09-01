@@ -1,5 +1,6 @@
 #include <Wire.h>
 #include "I2Cdev.h"
+#include "mpu6050_dmp.h"
 #include "LowPower.h"
 #include <avr/power.h>
 
@@ -14,9 +15,19 @@ struct Engine
   int16_t currentValue;
 };
 
+struct ImuData
+{
+  IImu* imu = nullptr;
+  bool ready = false;
+  double yawOffset = 0;
+};
+
 Engine left = Engine{8, 7, 9, 15, 0};
 Engine right = Engine{5, 4, 6, 14, 0};
 Engine tower = Engine{13, 12, 11, 16, 0};
+
+ImuData chassisImu;
+ImuData towerImu;
 
 const int8_t voltagePin = 17; // A3
 const int8_t leftLightPin = 3;
@@ -47,20 +58,20 @@ struct RpiPkg
 
 void initEngine(const Engine& engine)
 {
-    Serial.print("Init engine: ");
-    Serial.print(engine.clockwisePin);
-    Serial.print("   ");
-    Serial.print(engine.counterClockwisePin);
-    Serial.print("   ");
-    Serial.print(engine.pwmPin);
-    Serial.print("   ");
-    Serial.println(engine.currentSensorPin);
-    
-    pinMode(engine.clockwisePin, OUTPUT);
-    pinMode(engine.counterClockwisePin, OUTPUT);
-    pinMode(engine.pwmPin, OUTPUT);
-    pinMode(engine.currentSensorPin, INPUT);
-    digitalWrite(engine.pwmPin, 0);  
+  Serial.print("Init engine: ");
+  Serial.print(engine.clockwisePin);
+  Serial.print("   ");
+  Serial.print(engine.counterClockwisePin);
+  Serial.print("   ");
+  Serial.print(engine.pwmPin);
+  Serial.print("   ");
+  Serial.println(engine.currentSensorPin);
+
+  pinMode(engine.clockwisePin, OUTPUT);
+  pinMode(engine.counterClockwisePin, OUTPUT);
+  pinMode(engine.pwmPin, OUTPUT);
+  pinMode(engine.currentSensorPin, INPUT);
+  digitalWrite(engine.pwmPin, 0);
 }
 
 void setup() {
@@ -71,7 +82,19 @@ void setup() {
 
   // define callbacks for i2c communication
   Wire.onReceive(receiveData);
-//  Wire.onRequest(sendData);
+  //  Wire.onRequest(sendData);
+
+  towerImu.imu = new Mpu6050Dmp(0x69, 14, -53, 25, 825, 304, 1254);
+  chassisImu.imu = new Mpu6050Dmp(0x68, 68, -17, -31, -2364, -983, 987);
+
+  if (!towerImu.imu->init())
+  {
+    Serial.println("Failed to init 'tower' IMU");
+  }
+  if (!chassisImu.imu->init())
+  {
+    Serial.println("Failed to init 'chassis' IMU");
+  }
 
   initEngine(left);
   initEngine(right);
@@ -120,11 +143,11 @@ void processRpiData()
   digitalWrite(leftLightPin, pkg->light);
   digitalWrite(rightLightPin, pkg->light);
 
-//  Serial.print(pkg->leftEngine / velocityCoef);
-//  Serial.print("   ");
-//  Serial.print(pkg->rightEngine / velocityCoef);
-//  Serial.print("   ");
-//  Serial.println(pkg->towerH / velocityCoef);
+  //  Serial.print(pkg->leftEngine / velocityCoef);
+  //  Serial.print("   ");
+  //  Serial.print(pkg->rightEngine / velocityCoef);
+  //  Serial.print("   ");
+  //  Serial.println(pkg->towerH / velocityCoef);
 
   applySpeed(pkg->leftEngine / velocityCoef, left);
   applySpeed(pkg->rightEngine / velocityCoef, right);
@@ -135,7 +158,7 @@ void applySpeed(int16_t speed, const Engine& engine)
 {
   if (speed > 0)
   {
-    digitalWrite(engine.clockwisePin, HIGH);    
+    digitalWrite(engine.clockwisePin, HIGH);
     digitalWrite(engine.counterClockwisePin, LOW);
   }
   else if (speed < 0)
@@ -159,6 +182,15 @@ void sendData()
     int16_t currentLeft;
     int16_t currentRight;
     int16_t currentTower;
+    float yaw = 0;
+    float pitch = 0;
+    float roll = 0;
+    float towerH = 0;
+    uint8_t chassisImuOnline : 1;
+    uint8_t chassisImuReady : 1;
+    uint8_t towerImuOnline : 1;
+    uint8_t towerImuReady : 1;
+    uint8_t reserve : 4;
     uint16_t crc = 0;
   } pkg;
 
@@ -168,6 +200,23 @@ void sendData()
   pkg.currentLeft = left.currentValue * currentCoef;
   pkg.currentRight = right.currentValue * currentCoef;
   pkg.currentTower = tower.currentValue * currentCoef;
+
+  pkg.chassisImuOnline = chassisImu.imu->isOnline();
+  pkg.chassisImuReady = chassisImu.imu->isReady();
+  pkg.towerImuOnline = chassisImu.imu->isOnline();
+  pkg.towerImuReady = chassisImu.imu->isReady();
+
+  if (chassisImu.ready)
+  {
+    // imu is rotated. pitch and roll swapped.
+    pkg.yaw = chassisImu.imu->yaw() - chassisImu.yawOffset;
+    pkg.pitch = chassisImu.imu->roll();
+    pkg.roll = chassisImu.imu->pitch();
+    if (towerImu.ready)
+    {
+      pkg.towerH = towerImu.imu->yaw() - towerImu.yawOffset - pkg.yaw;
+    }
+  }
 
   uint16_t batteryValue = analogRead(voltagePin);    // read actual value
   uint16_t vcc = batteryValue * vccCoef;
@@ -190,6 +239,17 @@ void sendData()
   }
 }
 
+void readGyroData(ImuData& imuData)
+{
+  imuData.imu->readData();
+
+  if (imuData.imu->isReady() != imuData.ready)
+  {
+    imuData.ready = imuData.imu->isReady();
+    imuData.yawOffset = imuData.imu->yaw();
+  }
+}
+
 void blinkLight(uint8_t times, uint8_t interval)
 {
   for (int i = 0; i < times; ++i)
@@ -200,13 +260,13 @@ void blinkLight(uint8_t times, uint8_t interval)
     digitalWrite(leftLightPin, HIGH);
     digitalWrite(rightLightPin, HIGH);
     delay(interval);
-  } 
+  }
 }
 
 void sleepNow()
 {
   blinkLight(3, 500);
-  
+
   digitalWrite(leftLightPin, LOW);
   digitalWrite(rightLightPin, LOW);
 
@@ -234,9 +294,11 @@ void loop()
     Wire.requestFrom(RPI_ADDRESS, sizeof(RpiPkg));
   }
 
-  if (sendMs + 400 < ms)
+  if (sendMs + 50 < ms)
   {
     sendMs = ms;
+    readGyroData(chassisImu);
+    readGyroData(towerImu);
     sendData();
   }
 

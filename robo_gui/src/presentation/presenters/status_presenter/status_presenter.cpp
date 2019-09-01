@@ -45,6 +45,11 @@ StatusPresenter::StatusPresenter(domain::RoboModel *model, QObject *parent) :
     connect(d->model, &StatusModel::pitchChanged, this, &StatusPresenter::pitchChanged);
     connect(d->model, &StatusModel::rollChanged, this, &StatusPresenter::rollChanged);
 
+    connect(d->model, &StatusModel::chassisImuStatusChanged,
+    		this, &StatusPresenter::chassisImuStatusChanged);
+    connect(d->model, &StatusModel::towerImuStatusChanged,
+    		this, &StatusPresenter::towerImuStatusChanged);
+
     connect(d->model, &StatusModel::arduinoStatusChanged,
             this, &StatusPresenter::arduinoStatusChanged);
     connect(d->model, &StatusModel::gamepadStatusChanged,
@@ -126,6 +131,26 @@ bool StatusPresenter::gamepadStatus() const
 bool StatusPresenter::chassisStatus() const
 {
     return d->model->chassisStatus();
+}
+
+bool StatusPresenter::chassisImuOnline() const
+{
+    return d->model->chassisImuOnline();
+}
+
+bool StatusPresenter::chassisImuReady() const
+{
+    return d->model->chassisImuReady();
+}
+
+bool StatusPresenter::towerImuOnline() const
+{
+    return d->model->towerImuOnline();
+}
+
+bool StatusPresenter::towerImuReady() const
+{
+    return d->model->towerImuReady();
 }
 
 bool StatusPresenter::headlightStatus() const

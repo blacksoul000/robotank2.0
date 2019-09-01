@@ -38,6 +38,11 @@ namespace domain
         void onBluetoothPairStatus(const bool& pairing);
         void onBluetoothDevices(const QVector< BluetoothDeviceInfo >& devices);
 
+        void onChassisImuOnline(const bool& online);
+        void onChassisImuReady(const bool& ready);
+        void onTowerImuOnline(const bool& online);
+        void onTowerImuReady(const bool& ready);
+
     private:
         struct Impl;
         QScopedPointer< Impl > d;

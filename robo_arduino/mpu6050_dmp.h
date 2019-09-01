@@ -4,7 +4,6 @@
 #include "i_imu.h"
 
 #include <stdint.h>
-#include <cmath>
 
 class Mpu6050Dmp : public IImu
 {
@@ -15,6 +14,7 @@ public:
 
     bool init() override;
     bool isReady() const override;
+    bool isOnline() const override;
     void readData() override;
 
     float yaw() const override;

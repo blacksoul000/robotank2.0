@@ -18,6 +18,8 @@ public:
     void onJoyEvent(const quint16& joy);
     void onNewData(const QByteArray& data);
     void onPowerDown(const Empty&);
+    void onGunCalibrate(const Empty&);
+    void onGyroCalibrate(const Empty&);
 
 private:
     class Impl;

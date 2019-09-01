@@ -3,7 +3,6 @@
 
 #include "i_task.h"
 
-struct JoyButtons;
 struct Influence;
 struct Empty;
 
@@ -24,9 +23,6 @@ private:
     void onInfluence(const Influence& influence);
     void onDeviation(const double& value);
     void onGunCalibrate(const Empty&);
-    void onCameraCalibrate(const Empty&);
-    void onGyroCalibrate(const Empty&);
-    void onArduinoStatusChanged(const bool& online);
 
     static void servoTickProxy(void* data);
     void servoTick();

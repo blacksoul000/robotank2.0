@@ -2,6 +2,7 @@
 
 //msgs
 #include "influence.h"
+#include "pointf3d.h"
 #include "empty.h"
 
 #include "pub_sub.h"
@@ -18,11 +19,20 @@ namespace
 #pragma pack(push, 1)
     struct ArduinoPkg
     {
-        int16_t voltage = 0;
-        int16_t currentLeft;
-        int16_t currentRight;
-        int16_t currentTower;
-        uint16_t crc = 0;
+      int16_t voltage = 0;
+      int16_t currentLeft;
+      int16_t currentRight;
+      int16_t currentTower;
+      float yaw = 0;
+  	  float pitch = 0;
+  	  float roll = 0;
+  	  float towerH = 0;
+      uint8_t chassisImuOnline : 1;
+      uint8_t chassisImuReady : 1;
+      uint8_t towerImuOnline : 1;
+      uint8_t towerImuReady : 1;
+      uint8_t reserve : 4;
+      uint16_t crc = 0;
     };
 
     struct RaspberryPkg
@@ -49,13 +59,22 @@ public:
     IExchanger* arduino = nullptr;
     QTimer* timer = nullptr;
 
-    ArduinoPkg offsets;
+    PointF3D yprOffsets = {0, 0, 0};
+    float towerHOffset = 0;
     ArduinoPkg lastData;
     RaspberryPkg package;
+
+	double towerH = 0;
 
     Publisher< bool >* arduinoStatusP = nullptr;
     Publisher< quint16 >* voltageP = nullptr;
     Publisher< bool >* headlightP = nullptr;
+    Publisher< bool >* chassisOnlineP = nullptr;
+    Publisher< bool >* chassisReadyP = nullptr;
+    Publisher< bool >* towerOnlineP = nullptr;
+    Publisher< bool >* towerReadyP = nullptr;
+    Publisher< float >* gunHP = nullptr;
+	Publisher< PointF3D >* yprP = nullptr;
 
     void sendData();
     void readData();
@@ -84,10 +103,18 @@ ArduinoExchanger::ArduinoExchanger():
     d->arduinoStatusP = PubSub::instance()->advertise< bool >("arduino/status");
     d->voltageP = PubSub::instance()->advertise< quint16 >("chassis/voltage");
     d->headlightP = PubSub::instance()->advertise< bool >("chassis/headlight");
+	d->yprP = PubSub::instance()->advertise< PointF3D >("chassis/ypr");
+	d->gunHP = PubSub::instance()->advertise< float >("gun/position/hirizontal");
+	d->chassisOnlineP = PubSub::instance()->advertise< bool >("chassis/imu/online");
+	d->chassisReadyP = PubSub::instance()->advertise< bool >("chassis/imu/ready");
+	d->towerOnlineP = PubSub::instance()->advertise< bool >("tower/imu/online");
+	d->towerReadyP = PubSub::instance()->advertise< bool >("tower/imu/ready");
 
     PubSub::instance()->subscribe("core/influence", &ArduinoExchanger::onInfluence, this);
     PubSub::instance()->subscribe("joy/buttons", &ArduinoExchanger::onJoyEvent, this);
     PubSub::instance()->subscribe("core/powerDown", &ArduinoExchanger::onPowerDown, this);
+    PubSub::instance()->subscribe("gun/calibrate", &ArduinoExchanger::onGunCalibrate, this);
+    PubSub::instance()->subscribe("ypr/calibrate", &ArduinoExchanger::onGyroCalibrate, this);
 
     d->setArduinoOnline(false);
     d->package.powerDown = 0;
@@ -100,6 +127,12 @@ ArduinoExchanger::~ArduinoExchanger()
     delete d->arduinoStatusP;
     delete d->voltageP;
     delete d->headlightP;
+    delete d->yprP;
+    delete d->gunHP;
+    delete d->chassisOnlineP;
+    delete d->chassisReadyP;
+    delete d->towerOnlineP;
+    delete d->towerReadyP;
     delete d;
 }
 
@@ -128,13 +161,34 @@ void ArduinoExchanger::onNewData(const QByteArray& data)
 
     const ::ArduinoPkg* pkg = reinterpret_cast<const ::ArduinoPkg *>(data.data());
     if (!d->isValid(pkg)) return;
+
     d->voltageP->publish(pkg->voltage);
+
+    const PointF3D ypr = {pkg->yaw, pkg->pitch, pkg->roll};
+    d->yprP->publish(ypr - d->yprOffsets);
+
+    d->gunHP->publish(pkg->towerH - d->towerHOffset);
+
+	d->chassisOnlineP->publish(pkg->chassisImuOnline);
+	d->chassisReadyP->publish(pkg->chassisImuReady);
+	d->towerOnlineP->publish(pkg->towerImuOnline);
+	d->towerReadyP->publish(pkg->towerImuReady);
 //    qDebug() << Q_FUNC_INFO << pkg->currentLeft << pkg->currentRight << pkg->currentTower;
 }
 
 void ArduinoExchanger::onPowerDown(const Empty&)
 {
     d->package.powerDown = 1;
+}
+
+void ArduinoExchanger::onGunCalibrate(const Empty&)
+{
+    d->towerHOffset = d->lastData.towerH;
+}
+
+void ArduinoExchanger::onGyroCalibrate(const Empty&)
+{
+	d->yprOffsets = {d->lastData.yaw, d->lastData.pitch, d->lastData.roll};
 }
 
 void ArduinoExchanger::Impl::setArduinoOnline(bool online)

@@ -52,6 +52,18 @@
       <entry value="128" name="TRACKING">
         <description>Object tracking is on.</description>
       </entry>
+      <entry value="256" name="TOWER_IMU_READY">
+        <description>0b00001000 guided mode enabled, system flies waypoints / mission items.</description>
+      </entry>
+      <entry value="512" name="TOWER_IMU_ONLINE">
+        <description>0b00000100 autonomous mode enabled, system finds its own goal positions. Guided flag can be set or not, depends on the actual implementation.</description>
+      </entry>
+      <entry value="1024" name="CHASSIS_IMU_READY">
+        <description>0b00000010 system has a test mode enabled. This flag is intended for temporary system tests and should not be used for stable implementations.</description>
+      </entry>
+      <entry value="2048" name="CHASSIS_IMU_ONLINE">
+        <description>0b00000001 Reserved for future use.</description>
+      </entry>
     </enum>
     <enum name="MAV_AUTOPILOT">
       <description>Micro air vehicle / autopilot classes. This identifies the individual model.</description>
@@ -407,7 +419,7 @@
     </message>
     <message id="151" name="SYS_STATUS">
       <description>Overall system status.</description>
-      <field type="uint8_t" name="system_state" enum="MAV_SYSTEM_STATE" display="bitmask">system state</field>
+      <field type="uint16_t" name="system_state" enum="MAV_SYSTEM_STATE" display="bitmask">system state</field>
       <field type="uint16_t" name="voltage">chassis voltage</field>
       <field type="uint8_t" name="gamepad_capacity">gamepad capacity</field>
       <field type="uint16_t" name="gamepad_buttons">gamepad buttons state</field>

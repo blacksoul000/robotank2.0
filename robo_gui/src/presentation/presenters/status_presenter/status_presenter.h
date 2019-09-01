@@ -30,6 +30,11 @@ namespace presentation
         Q_PROPERTY(bool headlightStatus READ headlightStatus NOTIFY headlightStatusChanged)
         Q_PROPERTY(bool pointerStatus READ pointerStatus NOTIFY pointerStatusChanged)
 
+        Q_PROPERTY(bool chassisImuOnline READ chassisImuOnline NOTIFY chassisImuStatusChanged)
+        Q_PROPERTY(bool chassisImuReady READ chassisImuReady NOTIFY chassisImuStatusChanged)
+        Q_PROPERTY(bool towerImuOnline READ towerImuOnline NOTIFY towerImuStatusChanged)
+        Q_PROPERTY(bool towerImuReady READ towerImuReady NOTIFY towerImuStatusChanged)
+
         StatusPresenter(domain::RoboModel* model, QObject* parent = nullptr);
         ~StatusPresenter() override;
 
@@ -47,6 +52,11 @@ namespace presentation
         bool arduinoStatus() const;
         bool gamepadStatus() const;
         bool chassisStatus() const;
+
+        bool chassisImuOnline() const;
+        bool chassisImuReady() const;
+        bool towerImuOnline() const;
+        bool towerImuReady() const;
 
         bool headlightStatus() const;
         bool pointerStatus() const;
@@ -69,6 +79,9 @@ namespace presentation
 
         void headlightStatusChanged(bool on);
         void pointerStatusChanged(bool on);
+
+        void chassisImuStatusChanged();
+        void towerImuStatusChanged();
 
     private:
         class Impl;

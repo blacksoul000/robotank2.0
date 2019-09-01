@@ -60,6 +60,18 @@ namespace domain
         void setButtons(quint16 buttons);
         quint16 buttons() const;
 
+        void setChassisImuOnline(bool online);
+        bool chassisImuOnline() const;
+
+        void setChassisImuReady(bool ready);
+        bool chassisImuReady() const;
+
+        void setTowerImuOnline(bool online);
+        bool towerImuOnline() const;
+
+        void setTowerImuReady(bool ready);
+        bool towerImuReady() const;
+
     signals:
         void batteryLevelChanged(int level);
         void isChargingChanged(bool charging);
@@ -77,6 +89,9 @@ namespace domain
 
         void headlightStatusChanged(bool on);
         void pointerStatusChanged(bool on);
+
+        void chassisImuStatusChanged();
+        void towerImuStatusChanged();
 
         void buttonsChanged(quint16 buttons);
 

@@ -233,6 +233,58 @@ bool StatusModel::pointerStatus() const
 	return d->pointerStatus;
 }
 
+void StatusModel::setChassisImuOnline(bool online)
+{
+    if (online != d->chassisImuOnline)
+
+	d->chassisImuOnline = online;
+    emit chassisImuStatusChanged();
+}
+
+bool StatusModel::chassisImuOnline() const
+{
+	return d->chassisImuOnline;
+}
+
+void StatusModel::setChassisImuReady(bool ready)
+{
+    if (ready != d->chassisImuReady)
+
+	d->chassisImuReady = ready;
+    emit chassisImuStatusChanged();
+}
+
+bool StatusModel::chassisImuReady() const
+{
+	return d->chassisImuReady;
+}
+
+void StatusModel::setTowerImuOnline(bool online)
+{
+    if (online != d->towerImuOnline)
+
+	d->towerImuOnline = online;
+    emit towerImuStatusChanged();
+}
+
+bool StatusModel::towerImuOnline() const
+{
+	return d->towerImuOnline;
+}
+
+void StatusModel::setTowerImuReady(bool ready)
+{
+    if (ready != d->towerImuReady)
+
+	d->towerImuReady = ready;
+    emit towerImuStatusChanged();
+}
+
+bool StatusModel::towerImuReady() const
+{
+	return d->towerImuReady;
+}
+
 void StatusModel::setButtons(quint16 buttons)
 {
     if (buttons != d->buttons)
