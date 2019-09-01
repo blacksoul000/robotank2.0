@@ -86,7 +86,7 @@ void MavLinkCommandHandler::sendCommand(int vehicleId, const domain::CommandPtr&
 {
     if (command->type() != MAVLINK_MSG_ID_COMMAND_LONG) return;
 
-    qDebug() << "MAV:" << vehicleId << command->commandId() << command->arguments() << attempt;
+//    qDebug() << "MAV:" << vehicleId << command->commandId() << command->arguments() << attempt;
 
     VehiclePtr vehicle = m_communicator->vehicleRegistry()->vehicle(vehicleId);
     if (vehicle.isNull()) return;

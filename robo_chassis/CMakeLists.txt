@@ -77,7 +77,15 @@ include_directories(${GSTRTSP_INCLUDE_DIRS})
 
 file(GLOB_RECURSE SOURCES src src/*.cpp)
 add_executable(${PROJECT_NAME} ${SOURCES})
+
+add_custom_target(mavlink mavgen.py --lang C --wire-protocol 1.0 
+    -o ${CMAKE_CURRENT_BINARY_DIR}/mavlink_messages
+    ${CMAKE_SOURCE_DIR}/../common/mavlink/message_definitions/robotank.xml)
 add_dependencies(${PROJECT_NAME} OpenTLD)
+
+target_include_directories(${PROJECT_NAME} PRIVATE 
+    ${CMAKE_CURRENT_BINARY_DIR}/mavlink_messages
+    ${CMAKE_CURRENT_BINARY_DIR}/mavlink_messages/robotank)
 
 add_subdirectory(${CMAKE_SOURCE_DIR}/../common common)
 

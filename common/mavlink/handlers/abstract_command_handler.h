@@ -18,7 +18,8 @@ namespace domain
         ~AbstractCommandHandler() override;
 
     public slots:
-        void executeCommand(int vehicleId, const CommandPtr& command);
+        void executeCommand(int vehicleId, const CommandPtr& command,
+        					bool singleshot = false);
         void cancelCommand(int vehicleId, int type);
         void onCommandChanged(int vehicleId, const CommandPtr& command);
 

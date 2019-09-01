@@ -10,6 +10,7 @@ Item {
     property QtObject statusPresenter: factory.statusPresenter()
     property QtObject settingsPresenter: factory.settingsPresenter()
     property QtObject videoPresenter: factory.videoPresenter()
+    property QtObject gamepadPresenter: factory.gamepadPresenter()
     property double scaleX: videoPresenter.width / page.width
     property double scaleY: videoPresenter.height / page.height
 
@@ -70,6 +71,7 @@ Item {
         id: panel
         width: parent.width
         presenter: statusPresenter
+        gamepad: gamepadPresenter
     }
 
     ChassisScheme {

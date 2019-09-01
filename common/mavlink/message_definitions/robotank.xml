@@ -257,7 +257,7 @@
         <description>Onboard FLARM collision avoidance system</description>
       </entry>
     </enum>
-        <enum name="MAV_CMD">
+    <enum name="MAV_CMD">
       <description>Commands to be executed by the MAV. They can be executed on user request, or as part of a mission script. If the action is used in a mission, the parameter mapping to the waypoint/mission message is as follows: Param 1, Param 2, Param 3, Param 4, X: Param 5, Y:Param 6, Z:Param 7. This command list is similar what ARINC 424 is for commercial aircraft: A data format how to interpret waypoint/mission data.</description>
       <entry value="16" name="MAV_CMD_SET_TRACKER_CODE">
         <description>Tracker code</description>
@@ -363,6 +363,46 @@
         <description>Request bluetooth device list</description>
         <param index="1">from</param>
         <param index="2">count</param>
+        <param index="3">Empty</param>
+        <param index="4">Empty</param>
+        <param index="5">Empty</param>
+        <param index="6">Empty</param>
+        <param index="7">Empty</param>
+      </entry>
+      <entry value="27" name="MAV_CMD_JOY_EVENT">
+        <description>Joy Event</description>
+        <param index="1">x1</param>
+        <param index="2">y1</param>
+        <param index="3">x2</param>
+        <param index="4">y2</param>
+        <param index="5">Empty</param>
+        <param index="6">Empty</param>
+        <param index="7">Empty</param>
+      </entry>
+      <entry value="28" name="MAV_CMD_LIGHT">
+        <description>Switch light</description>
+        <param index="1">on</param>
+        <param index="2">Empty</param>
+        <param index="3">Empty</param>
+        <param index="4">Empty</param>
+        <param index="5">Empty</param>
+        <param index="6">Empty</param>
+        <param index="7">Empty</param>
+      </entry>
+      <entry value="29" name="MAV_CMD_POINTER">
+        <description>Switch pointer</description>
+        <param index="1">on</param>
+        <param index="2">Empty</param>
+        <param index="3">Empty</param>
+        <param index="4">Empty</param>
+        <param index="5">Empty</param>
+        <param index="6">Empty</param>
+        <param index="7">Empty</param>
+      </entry>
+      <entry value="30" name="MAV_CMD_SHOOT">
+        <description>Shoot</description>
+        <param index="1">id</param>
+        <param index="2">Empty</param>
         <param index="3">Empty</param>
         <param index="4">Empty</param>
         <param index="5">Empty</param>

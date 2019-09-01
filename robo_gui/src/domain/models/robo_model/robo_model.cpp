@@ -3,12 +3,14 @@
 #include "settings_model.h"
 #include "status_model.h"
 #include "bluetooth_model.h"
+#include "gamepad_model.h"
 
 using domain::RoboModel;
 using domain::TrackModel;
 using domain::SettingsModel;
 using domain::StatusModel;
 using domain::BluetoothModel;
+using domain::GamepadModel;
 
 RoboModel::RoboModel()
 {
@@ -16,6 +18,7 @@ RoboModel::RoboModel()
     m_settings = new SettingsModel();
     m_status = new StatusModel();
     m_bluetooth = new BluetoothModel();
+    m_gamepad = new GamepadModel();
 }
 
 RoboModel::~RoboModel()
@@ -24,6 +27,7 @@ RoboModel::~RoboModel()
     delete m_track;
     delete m_settings;
     delete m_bluetooth;
+    delete m_gamepad;
 }
 
 StatusModel* RoboModel::status() const
@@ -44,4 +48,9 @@ SettingsModel* RoboModel::settings() const
 BluetoothModel* RoboModel::bluetooth() const
 {
     return m_bluetooth;
+}
+
+GamepadModel* RoboModel::gamepad() const
+{
+    return m_gamepad;
 }

@@ -4,6 +4,7 @@
 #include "bluetooth_pair_request.h"
 #include "pointf3d.h"
 #include "empty.h"
+#include "joy_axes.h"
 
 #include "pub_sub.h"
 
@@ -41,6 +42,8 @@ public:
     Publisher< QPoint >* enginePowerP = nullptr;
     Publisher< Empty >* powerDownP = nullptr;
     Publisher< Empty >* bluetoothScanP = nullptr;
+    Publisher< JoyAxes >* joyAxesP = nullptr;
+    Publisher< quint16 >* buttonsP = nullptr;
 };
 
 CommandHandler::CommandHandler(MavLinkCommunicator* communicator):
@@ -54,7 +57,8 @@ CommandHandler::CommandHandler(MavLinkCommunicator* communicator):
     d->calibrateYprP = PubSub::instance()->advertise< Empty >("ypr/calibrate");
     d->enginePowerP = PubSub::instance()->advertise< QPoint >("core/enginePower");
     d->powerDownP = PubSub::instance()->advertise< Empty >("core/powerDown");
-    d->bluetoothScanP = PubSub::instance()->advertise< Empty >("bluetooth/scan");
+    d->joyAxesP = PubSub::instance()->advertise< JoyAxes >("joy/axes");
+    d->buttonsP = PubSub::instance()->advertise< quint16 >("joy/buttons");
 }
 
 CommandHandler::~CommandHandler()
@@ -67,6 +71,8 @@ CommandHandler::~CommandHandler()
     delete d->enginePowerP;
     delete d->powerDownP;
     delete d->bluetoothScanP;
+    delete d->joyAxesP;
+    delete d->buttonsP;
 }
 
 void CommandHandler::processCommand(const mavlink_message_t& message)
@@ -81,6 +87,7 @@ void CommandHandler::processCommand(const mavlink_message_t& message)
 
     mavlink_message_t reply;
     mavlink_command_ack_t ack;
+    bool haveAck = true;
 
     ack.command = cmd.command;
 
@@ -147,18 +154,36 @@ void CommandHandler::processCommand(const mavlink_message_t& message)
             ack.result = MAV_RESULT_ACCEPTED;
             break;
         }
+        case MAV_CMD_JOY_EVENT:
+        {
+        	JoyAxes joy;
+        	joy.x1 = cmd.param1;
+			joy.y1 = cmd.param2;
+			joy.x2 = cmd.param3;
+			joy.y2 = cmd.param4;
+			quint16 buttons = cmd.param5;
+
+            d->joyAxesP->publish(joy);
+            d->buttonsP->publish(buttons);
+
+            haveAck = false;
+            break;
+        }
         default:
             return;
     }
 
-    qDebug() << Q_FUNC_INFO << message.sysid << cmd.command;
+    if (haveAck)
+    {
+		qDebug() << Q_FUNC_INFO << message.sysid << cmd.command;
 
-    AbstractLink* link = m_communicator->mavSystemLink(message.sysid);
-    if (!link) return;
+		AbstractLink* link = m_communicator->mavSystemLink(message.sysid);
+		if (!link) return;
 
-    mavlink_msg_command_ack_encode_chan(m_communicator->systemId(),
-                                        m_communicator->componentId(),
-                                        m_communicator->linkChannel(link),
-                                        &reply, &ack);
-    m_communicator->sendMessage(reply, link);
+		mavlink_msg_command_ack_encode_chan(m_communicator->systemId(),
+											m_communicator->componentId(),
+											m_communicator->linkChannel(link),
+											&reply, &ack);
+		m_communicator->sendMessage(reply, link);
+    }
 }

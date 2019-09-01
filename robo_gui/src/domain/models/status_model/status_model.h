@@ -75,8 +75,8 @@ namespace domain
     signals:
         void batteryLevelChanged(int level);
         void isChargingChanged(bool charging);
-        void gamepadBatteryLevelChanged(int level);
-        void gamepadChargingChanged(bool charging);
+//        void gamepadBatteryLevelChanged(int level);
+//        void gamepadChargingChanged(bool charging);
         void robotBatteryLevelChanged(int level);
         void gunPositionHChanged(int position);
         void gunPositionVChanged(int position);
@@ -84,7 +84,7 @@ namespace domain
         void pitchChanged(qreal pitch);
         void rollChanged(qreal roll);
         void arduinoStatusChanged(bool status);
-        void gamepadStatusChanged(bool status);
+//        void gamepadStatusChanged(bool status);
         void chassisStatusChanged(bool status);
 
         void headlightStatusChanged(bool on);

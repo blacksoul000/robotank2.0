@@ -9,6 +9,9 @@ Rpi:
 
 * Add apt source and install Qt
     deb https://twolife.be/raspbian/ jessie main qt
+    
+* Install pymavlink with pip
+    pip3 install pymavlink    
 
 Testing:
 

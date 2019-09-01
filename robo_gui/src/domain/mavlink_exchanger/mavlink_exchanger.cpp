@@ -3,8 +3,11 @@
 #include "robo_model.h"
 #include "bluetooth_model.h"
 #include "status_model.h"
+#include "gamepad_model.h"
 #include "settings_model.h"
 #include "track_model.h"
+
+#include "gamepad.h"
 
 #include "endpoint.h"
 #include "udp_link.h"
@@ -45,6 +48,7 @@ MavlinkExchanger::MavlinkExchanger(domain::RoboModel* model, QObject *parent) :
             this, &MavlinkExchanger::onRequestScan);
     connect(d->model->bluetooth(), &domain::BluetoothModel::requestPair,
             this, &MavlinkExchanger::onRequestPair);
+
     connect(d->model->settings(), &domain::SettingsModel::enginePowerChanged,
             this, &MavlinkExchanger::onEnginePowerChanged);
     connect(d->model->settings(), &domain::SettingsModel::calibrateGun,
@@ -57,8 +61,15 @@ MavlinkExchanger::MavlinkExchanger(domain::RoboModel* model, QObject *parent) :
             this, &MavlinkExchanger::onImageSettingsChanged);
     connect(d->model->settings(), &domain::SettingsModel::contrastChanged,
             this, &MavlinkExchanger::onImageSettingsChanged);
+
     connect(d->model->track(), &domain::TrackModel::trackRequest,
             this, &MavlinkExchanger::onTrackToggle);
+
+    connect(d->model->track(), &domain::TrackModel::trackRequest,
+            this, &MavlinkExchanger::onTrackToggle);
+
+    connect(d->model->gamepad(), &domain::GamepadModel::joyChanged,
+            this, &MavlinkExchanger::onJoyChanged);
 }
 
 MavlinkExchanger::~MavlinkExchanger()
@@ -134,7 +145,7 @@ void MavlinkExchanger::onVehicleOnlineChanged(bool online)
     else
     {
         d->model->status()->setChassisStatus(false);
-        d->model->status()->setGamepadStatus(false);
+        d->model->gamepad()->setConnected(false);
         d->model->status()->setPointerStatus(false);
         d->model->status()->setHeadlightStatus(false);
         d->model->bluetooth()->setScanStatus(false);
@@ -240,7 +251,38 @@ void MavlinkExchanger::onImageSettingsChanged()
     command->addArgument(s->brightness());
     command->addArgument(s->contrast());
 
-    qDebug() << Q_FUNC_INFO << s->quality() << s->brightness() << s->contrast();
-
     d->communicator->commandService()->executeCommand(d->vehicle->sysId(), command);
+}
+
+void MavlinkExchanger::onJoyChanged()
+{
+    if (!d->vehicle) return;
+
+	using Axes = domain::GamepadModel::Axes;
+
+    domain::CommandPtr command = domain::CommandPtr::create();
+    command->setType(MAVLINK_MSG_ID_COMMAND_LONG);
+    command->setCommandId(MAV_CMD_JOY_EVENT);
+    const auto& model = d->model->gamepad();
+    const auto& axes = model->axes();
+
+    command->addArgument(axes.at(Axes::DigitalX)
+			? axes.at(Axes::DigitalX) : axes.at(Axes::X1));
+    command->addArgument(axes.at(Axes::DigitalY)
+    		? -axes.at(Axes::DigitalY) : -axes.at(Axes::Y1));
+    command->addArgument(axes.at(Axes::X2));
+    command->addArgument(-axes.at(Axes::Y2));
+    command->addArgument(model->buttons());
+
+//    qDebug() << Q_FUNC_INFO << __LINE__
+//    		<< (axes.at(Axes::DigitalX)
+//				? axes.at(Axes::DigitalX) : axes.at(Axes::X1))
+//			<< (axes.at(Axes::DigitalY)
+//				? axes.at(Axes::DigitalY) : axes.at(Axes::Y1))
+//			<< axes.at(Axes::X2)
+//			<< axes.at(Axes::Y2)
+//			<< axes
+//			<< model->buttons();
+
+    d->communicator->commandService()->executeCommand(d->vehicle->sysId(), command, true);
 }
