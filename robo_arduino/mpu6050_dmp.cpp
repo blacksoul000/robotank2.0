@@ -1,14 +1,10 @@
 #include "mpu6050_dmp.h"
 
 #include "MPU6050_6Axis_MotionApps20.h"
+#include "common.h"
 
 namespace
 {
-  bool fuzzyCompare(double a, double b)
-  {
-    return fabs(a - b) < 0.001;
-  }
-
   constexpr double radCoef = 180 / M_PI;
 } // namespace
 
@@ -28,6 +24,7 @@ class Mpu6050Dmp::Impl
     bool isOnline = false;
     bool isReady = false;
     float prevYaw = 0;
+    float yawOffset = 0;
 
     MPU6050 mpu;
 
@@ -151,9 +148,10 @@ void Mpu6050Dmp::readData()
     if (d->ypr[0] < 0) d->ypr[0] += 2 * M_PI;
     if (!d->isReady)
     {
-      if (::fuzzyCompare(d->ypr[0], d->prevYaw))
+      if (common::fuzzyCompare(d->ypr[0], d->prevYaw, 0.001))
       {
         d->isReady = true;
+        d->yawOffset = d->ypr[0];
       }
       d->prevYaw = d->ypr[0];
     }
@@ -182,7 +180,7 @@ void Mpu6050Dmp::readData()
 
 float Mpu6050Dmp::yaw() const
 {
-  return d->ypr[0] * ::radCoef;
+  return (d->ypr[0] - d->yawOffset) * ::radCoef;
 }
 
 float Mpu6050Dmp::pitch() const

@@ -3,7 +3,7 @@
 
 #include "i_task.h"
 
-struct Influence;
+struct JoyAxes;
 struct Empty;
 
 class QPointF;
@@ -18,10 +18,10 @@ public:
     void execute() override;
 
 private:
-    void readGyroData();
-    void onJoyEvent(const quint16& joy);
-    void onInfluence(const Influence& influence);
-    void onDeviation(const double& value);
+    void onJoyEvent(const JoyAxes& joy);
+    void onJoyButtons(const quint16& joy);
+    void onTrackerDeviation(const QPointF& deviation);
+    void onTrackerStatusChanged(const bool& status);
     void onGunCalibrate(const Empty&);
 
     static void servoTickProxy(void* data);

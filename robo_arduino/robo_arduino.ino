@@ -4,38 +4,21 @@
 #include "LowPower.h"
 #include <avr/power.h>
 
+#include "pinout.h"
+#include "common.h"
+//#include "pid.h"
+#include "engine.h"
+#include "chassis_control.h"
+#include "tower_control.h"
+
 #define RPI_ADDRESS 0x03
 
-struct Engine
-{
-  int8_t clockwisePin;
-  int8_t counterClockwisePin;
-  int8_t pwmPin;
-  int8_t currentSensorPin;
-  int16_t currentValue;
-};
+ChassisControl chassis;
+TowerControl tower;
 
-struct ImuData
-{
-  IImu* imu = nullptr;
-  bool ready = false;
-  double yawOffset = 0;
-};
-
-Engine left = Engine{8, 7, 9, 15, 0};
-Engine right = Engine{5, 4, 6, 14, 0};
-Engine tower = Engine{13, 12, 11, 16, 0};
-
-ImuData chassisImu;
-ImuData towerImu;
-
-const int8_t voltagePin = 17; // A3
-const int8_t leftLightPin = 3;
-const int8_t rightLightPin = 2;
-const int8_t enginesPower = 10;
-
-const double velocityCoef = 32767.0 / 255;
-const double positionCoef = 360.0 / 32767;
+constexpr double velocityCoef = 32767.0 / 255;
+constexpr double positionCoef = 360.0 / 32767;
+//constexpr double turnCoef = 13.6 / 2 / 0.5;  // tracksSeparation / 2 / steeringEfficiency
 
 constexpr float vccCoef = 1.07309486781; // 1.098 * 1000 / 1023;
 // 1.098 = (real_vcc * 1023) / (measured_vcc * 1000)
@@ -45,34 +28,44 @@ const uint16_t minVoltage = 6500; //mV
 uint32_t ms, rpiOnline, lastMs, sendMs, lowVoltageMs = 0;
 bool lowVoltage = false;
 
+struct JoyAxes
+{
+    short x1 = 0;
+    short y1 = 0;
+    short x2 = 0;
+    short y2 = 0;
+};
+
+struct ArduinoPkg
+{
+  int16_t voltage = 0;
+  int16_t currentLeft;
+  int16_t currentRight;
+  int16_t currentTower;
+  float yaw = 0;
+  float pitch = 0;
+  float roll = 0;
+  float towerH = 0;
+  uint8_t chassisImuOnline : 1;
+  uint8_t chassisImuReady : 1;
+  uint8_t towerImuOnline : 1;
+  uint8_t towerImuReady : 1;
+  uint8_t reserve : 4;
+  uint16_t crc = 0;
+} arduinoPkg;
+
 struct RpiPkg
 {
   uint8_t powerDown : 1;
   uint8_t light : 1;
-  uint8_t reserve: 6;
-  int16_t leftEngine = 0;
-  int16_t rightEngine = 0;
-  int16_t towerH = 0;
+  uint8_t enginesPower : 1;
+  uint8_t stab : 1;
+  uint8_t tracking : 1;
+  uint8_t reserve: 3;
+  JoyAxes axes;
+  float deviationX = 0.0;
   uint16_t crc = 0;
 };
-
-void initEngine(const Engine& engine)
-{
-  Serial.print("Init engine: ");
-  Serial.print(engine.clockwisePin);
-  Serial.print("   ");
-  Serial.print(engine.counterClockwisePin);
-  Serial.print("   ");
-  Serial.print(engine.pwmPin);
-  Serial.print("   ");
-  Serial.println(engine.currentSensorPin);
-
-  pinMode(engine.clockwisePin, OUTPUT);
-  pinMode(engine.counterClockwisePin, OUTPUT);
-  pinMode(engine.pwmPin, OUTPUT);
-  pinMode(engine.currentSensorPin, INPUT);
-  digitalWrite(engine.pwmPin, 0);
-}
 
 void setup() {
   Serial.begin(115200); // start serial for output
@@ -84,32 +77,16 @@ void setup() {
   Wire.onReceive(receiveData);
   //  Wire.onRequest(sendData);
 
-  towerImu.imu = new Mpu6050Dmp(0x69, 14, -53, 25, 825, 304, 1254);
-  chassisImu.imu = new Mpu6050Dmp(0x68, 68, -17, -31, -2364, -983, 987);
-
-  if (!towerImu.imu->init())
-  {
-    Serial.println("Failed to init 'tower' IMU");
-  }
-  if (!chassisImu.imu->init())
-  {
-    Serial.println("Failed to init 'chassis' IMU");
-  }
-
-  initEngine(left);
-  initEngine(right);
-  initEngine(tower);
-
-  pinMode(voltagePin, INPUT);   // ADC pin
+  pinMode(pinVoltage, INPUT);   // ADC pin
   analogReference(INTERNAL);    // set the ADC reference to 1.1V
-  burn8Readings(voltagePin);    // make 8 readings but don't use them
+  burn8Readings(pinVoltage);    // make 8 readings but don't use them
 
   // light
-  pinMode(leftLightPin, OUTPUT);
-  pinMode(rightLightPin, OUTPUT);
+  pinMode(pinLeftLight, OUTPUT);
+  pinMode(pinRightLight, OUTPUT);
 
-  pinMode(enginesPower, OUTPUT);
-  digitalWrite(enginesPower, LOW);
+  pinMode(pinEnginesPower, OUTPUT);
+  digitalWrite(pinEnginesPower, LOW);
 
   Serial.println("Ready!");
   delay(10);
@@ -139,95 +116,73 @@ void processRpiData()
   if (pkg->powerDown) sleepNow();
   rpiOnline = millis();
 
-  digitalWrite(enginesPower, HIGH);
-  digitalWrite(leftLightPin, pkg->light);
-  digitalWrite(rightLightPin, pkg->light);
+  digitalWrite(pinEnginesPower, pkg->enginesPower);
+  digitalWrite(pinLeftLight, pkg->light);
+  digitalWrite(pinRightLight, pkg->light);
 
   //  Serial.print(pkg->leftEngine / velocityCoef);
   //  Serial.print("   ");
   //  Serial.print(pkg->rightEngine / velocityCoef);
   //  Serial.print("   ");
   //  Serial.println(pkg->towerH / velocityCoef);
-
-  applySpeed(pkg->leftEngine / velocityCoef, left);
-  applySpeed(pkg->rightEngine / velocityCoef, right);
-  applySpeed(pkg->towerH / velocityCoef, tower);
-}
-
-void applySpeed(int16_t speed, const Engine& engine)
-{
-  if (speed > 0)
-  {
-    digitalWrite(engine.clockwisePin, HIGH);
-    digitalWrite(engine.counterClockwisePin, LOW);
-  }
-  else if (speed < 0)
-  {
-    digitalWrite(engine.clockwisePin, LOW);
-    digitalWrite(engine.counterClockwisePin, HIGH);
-  }
-  else
-  {
-    digitalWrite(engine.clockwisePin, LOW);
-    digitalWrite(engine.counterClockwisePin, LOW);
-  }
-  analogWrite(engine.pwmPin, min(abs(speed), 255));
+  tower.setStab(pkg->stab);
+  tower.setTracking(pkg->tracking);
+  tower.setDeviation(pkg->deviationX);
+  
+//  tracking = pkg->tracking;
+//  requiredTowerH = arduinoPkg.towerH + pkg->deviationX;
+  
+  chassis.move(pkg->axes.x1, pkg->axes.y1);
+  tower.move(pkg->axes.x2, pkg->axes.y2);
+//  const int speed = smooth(pkg->axes.y1, 32767, 255);
+//  int turn = smooth(pkg->axes.x1, 32767, 255) * turnCoef;
+//  if (speed < 0) turn *= -1;
+//	
+//  int16_t leftEngine = bound(-255, speed + turn, 255);
+//  int16_t rightEngine = bound(-255, speed - turn, 255);
+//  
+//  left.applySpeed(leftEngine);
+//  right.applySpeed(rightEngine);
+  
+//  if (!pkg->tracking) tower.applySpeed(common::smooth(pkg->axes.x2, 32767, 255));
 }
 
 void sendData()
 {
-  struct ArduinoPkg
-  {
-    int16_t voltage = 0;
-    int16_t currentLeft;
-    int16_t currentRight;
-    int16_t currentTower;
-    float yaw = 0;
-    float pitch = 0;
-    float roll = 0;
-    float towerH = 0;
-    uint8_t chassisImuOnline : 1;
-    uint8_t chassisImuReady : 1;
-    uint8_t towerImuOnline : 1;
-    uint8_t towerImuReady : 1;
-    uint8_t reserve : 4;
-    uint16_t crc = 0;
-  } pkg;
-
   //  http://forum.arduino.cc/index.php?topic=338633.0
   constexpr float currentCoef = vccCoef * 11370 / 1500;  // to convert to mA
 
-  pkg.currentLeft = left.currentValue * currentCoef;
-  pkg.currentRight = right.currentValue * currentCoef;
-  pkg.currentTower = tower.currentValue * currentCoef;
+  arduinoPkg.currentLeft = chassis.left()->currentValue * currentCoef;
+  arduinoPkg.currentRight = chassis.right()->currentValue * currentCoef;
+  arduinoPkg.currentTower = tower.engine()->currentValue * currentCoef;
 
-  pkg.chassisImuOnline = chassisImu.imu->isOnline();
-  pkg.chassisImuReady = chassisImu.imu->isReady();
-  pkg.towerImuOnline = chassisImu.imu->isOnline();
-  pkg.towerImuReady = chassisImu.imu->isReady();
+  arduinoPkg.chassisImuOnline = chassis.imu()->isOnline();
+  arduinoPkg.chassisImuReady = chassis.imu()->isReady();
+  arduinoPkg.towerImuOnline = chassis.imu()->isOnline();
+  arduinoPkg.towerImuReady = chassis.imu()->isReady();
 
-  if (chassisImu.ready)
+  if (chassis.imu()->isReady())
   {
     // imu is rotated. pitch and roll swapped.
-    pkg.yaw = chassisImu.imu->yaw() - chassisImu.yawOffset;
-    pkg.pitch = chassisImu.imu->roll();
-    pkg.roll = chassisImu.imu->pitch();
-    if (towerImu.ready)
+    arduinoPkg.yaw = chassis.imu()->yaw();
+    arduinoPkg.pitch = chassis.imu()->roll();
+    arduinoPkg.roll = chassis.imu()->pitch();
+    if (chassis.imu()->isReady())
     {
-      pkg.towerH = towerImu.imu->yaw() - towerImu.yawOffset - pkg.yaw;
+      arduinoPkg.towerH = tower.position();
     }
   }
 
-  uint16_t batteryValue = analogRead(voltagePin);    // read actual value
+  uint16_t batteryValue = analogRead(pinVoltage);    // read actual value
   uint16_t vcc = batteryValue * vccCoef;
-  pkg.voltage = vcc * dividerCoef; // mV
-  pkg.crc = crc16(reinterpret_cast< unsigned char* >(&pkg), sizeof(ArduinoPkg) - sizeof(pkg.crc));
+  arduinoPkg.voltage = vcc * dividerCoef; // mV
+  arduinoPkg.crc = crc16(reinterpret_cast< unsigned char* >(&arduinoPkg), sizeof(ArduinoPkg) - sizeof(arduinoPkg.crc));
 
   Wire.beginTransmission(RPI_ADDRESS); // transmit to rpi
-  Wire.write(reinterpret_cast< const unsigned char* >(&pkg), sizeof(pkg));
+  Wire.write(reinterpret_cast< const unsigned char* >(&arduinoPkg), sizeof(arduinoPkg));
   Wire.endTransmission();    // stop transmitting
 
-  if (pkg.voltage < minVoltage)
+  if (arduinoPkg.voltage < minVoltage)
   {
     if (!lowVoltage)
     {
@@ -239,26 +194,15 @@ void sendData()
   }
 }
 
-void readGyroData(ImuData& imuData)
-{
-  imuData.imu->readData();
-
-  if (imuData.imu->isReady() != imuData.ready)
-  {
-    imuData.ready = imuData.imu->isReady();
-    imuData.yawOffset = imuData.imu->yaw();
-  }
-}
-
 void blinkLight(uint8_t times, uint8_t interval)
 {
   for (int i = 0; i < times; ++i)
   {
-    digitalWrite(leftLightPin, LOW);
-    digitalWrite(rightLightPin, LOW);
+    digitalWrite(pinLeftLight, LOW);
+    digitalWrite(pinRightLight, LOW);
     delay(interval);
-    digitalWrite(leftLightPin, HIGH);
-    digitalWrite(rightLightPin, HIGH);
+    digitalWrite(pinLeftLight, HIGH);
+    digitalWrite(pinRightLight, HIGH);
     delay(interval);
   }
 }
@@ -267,8 +211,8 @@ void sleepNow()
 {
   blinkLight(3, 500);
 
-  digitalWrite(leftLightPin, LOW);
-  digitalWrite(rightLightPin, LOW);
+  digitalWrite(pinLeftLight, LOW);
+  digitalWrite(pinRightLight, LOW);
 
   power_all_disable();
   LowPower.powerDown(SLEEP_FOREVER, ADC_OFF, BOD_OFF); // POWER OFF
@@ -279,26 +223,30 @@ void loop()
   ms = millis();
   if (rpiOnline + 1000 < ms)
   {
-    digitalWrite(enginesPower, LOW);
-    digitalWrite(left.pwmPin, 0);
-    digitalWrite(right.pwmPin, 0);
-    digitalWrite(tower.pwmPin, 0);
+    digitalWrite(pinEnginesPower, LOW);
+    digitalWrite(pinLeftPwm, 0);
+    digitalWrite(pinRightPwm, 0);
+    digitalWrite(pinTowerPwm, 0);
   }
 
   if (lastMs + 20 < ms)
   {
     lastMs = ms;
-    left.currentValue = analogRead(left.currentSensorPin);
-    right.currentValue = analogRead(right.currentSensorPin);
-    tower.currentValue = analogRead(tower.currentSensorPin);
     Wire.requestFrom(RPI_ADDRESS, sizeof(RpiPkg));
   }
 
   if (sendMs + 50 < ms)
   {
     sendMs = ms;
-    readGyroData(chassisImu);
-    readGyroData(towerImu);
+//    left.currentValue = analogRead(left.currentSensorPin);
+//    right.currentValue = analogRead(right.currentSensorPin);
+//    tower.currentValue = analogRead(tower.currentSensorPin);
+    chassis.updateCurrentData();
+    chassis.updateImuData();
+    
+    tower.updateCurrentData();
+    tower.updateImuData();
+    tower.setChassisYaw(chassis.imu()->yaw());
     sendData();
   }
 
@@ -306,6 +254,13 @@ void loop()
   {
     sleepNow();
   }
+  
+  tower.updatePosition();
+  
+//  if (tracking && !common::fuzzyCompare(requiredTowerH, arduinoPkg.towerH, 0.1))
+//  {
+//	  tower.applySpeed(pid.calculate(requiredTowerH, arduinoPkg.towerH));
+//  }
 }
 
 void burn8Readings(int pin)

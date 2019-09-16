@@ -20,6 +20,7 @@ public:
     void start() override;
     void execute() override;
 
+    void onDotsPerDegreeChanged(const QPointF& dpd);
     void onToggleRequest(const QRectF& rect);
     void onSwitchTrackerRequest(const quint8& code);
     void onNewFrame(const QSharedPointer< cv::Mat >& frame);

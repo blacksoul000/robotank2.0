@@ -61,9 +61,8 @@ MavlinkExchanger::MavlinkExchanger(domain::RoboModel* model, QObject *parent) :
             this, &MavlinkExchanger::onImageSettingsChanged);
     connect(d->model->settings(), &domain::SettingsModel::contrastChanged,
             this, &MavlinkExchanger::onImageSettingsChanged);
-
-    connect(d->model->track(), &domain::TrackModel::trackRequest,
-            this, &MavlinkExchanger::onTrackToggle);
+    connect(d->model->settings(), &domain::SettingsModel::trackerChanged,
+            this, &MavlinkExchanger::onSelectedTrackerChanged);
 
     connect(d->model->track(), &domain::TrackModel::trackRequest,
             this, &MavlinkExchanger::onTrackToggle);
@@ -266,23 +265,13 @@ void MavlinkExchanger::onJoyChanged()
     const auto& model = d->model->gamepad();
     const auto& axes = model->axes();
 
-    command->addArgument(axes.at(Axes::DigitalX)
-			? axes.at(Axes::DigitalX) : axes.at(Axes::X1));
-    command->addArgument(axes.at(Axes::DigitalY)
-    		? -axes.at(Axes::DigitalY) : -axes.at(Axes::Y1));
-    command->addArgument(axes.at(Axes::X2));
-    command->addArgument(-axes.at(Axes::Y2));
+    command->addArgument(axes.value(Axes::DigitalX, 0)
+			? axes.value(Axes::DigitalX, 0) : axes.value(Axes::X1, 0));
+    command->addArgument(axes.value(Axes::DigitalY, 0)
+    		? -axes.value(Axes::DigitalY, 0) : -axes.value(Axes::Y1, 0));
+    command->addArgument(axes.value(Axes::X2, 0));
+    command->addArgument(-axes.value(Axes::Y2, 0));
     command->addArgument(model->buttons());
-
-//    qDebug() << Q_FUNC_INFO << __LINE__
-//    		<< (axes.at(Axes::DigitalX)
-//				? axes.at(Axes::DigitalX) : axes.at(Axes::X1))
-//			<< (axes.at(Axes::DigitalY)
-//				? axes.at(Axes::DigitalY) : axes.at(Axes::Y1))
-//			<< axes.at(Axes::X2)
-//			<< axes.at(Axes::Y2)
-//			<< axes
-//			<< model->buttons();
 
     d->communicator->commandService()->executeCommand(d->vehicle->sysId(), command, true);
 }

@@ -1,12 +1,13 @@
 #include "gpio_controller.h"
 
 #include "pub_sub.h"
-#include "influence.h"
+#include "joy_axes.h"
 #include "empty.h"
 
 #include <pigpio.h>
 #include <cmath>
 
+#include <QPointF>
 #include <QDebug>
 
 #define ENABLE_SERVO
@@ -47,6 +48,9 @@ public:
     bool shoting = false;
     bool shotClosing = false;
     bool pointer = false;
+
+    bool stabOn = false;
+    bool tracking = false;
 
     QMap< uint8_t, ServoInfo > servo;
 
@@ -92,10 +96,10 @@ void GpioController::start()
         qWarning() << "Failed to initialize GPIO";
     }
 
-
-    PubSub::instance()->subscribe("joy/buttons", &GpioController::onJoyEvent, this);
-    PubSub::instance()->subscribe("core/influence", &GpioController::onInfluence, this);
-    PubSub::instance()->subscribe("core/deviationV", &GpioController::onDeviation, this);
+    PubSub::instance()->subscribe("joy/axes", &GpioController::onJoyEvent, this);
+    PubSub::instance()->subscribe("joy/buttons", &GpioController::onJoyButtons, this);
+    PubSub::instance()->subscribe("tracker/status", &GpioController::onTrackerStatusChanged, this);
+    PubSub::instance()->subscribe("tracker/deviation", &GpioController::onTrackerDeviation, this);
     PubSub::instance()->subscribe("gun/calibrate", &GpioController::onGunCalibrate, this);
 }
 
@@ -118,7 +122,7 @@ void GpioController::execute()
     d->gunVP->publish(((d->servo[::gunVPin].maxPulse - d->servo[::gunVPin].realPulse) / d->servo[::gunVPin].pulsePerDegree));
 }
 
-void GpioController::onJoyEvent(const quint16& joy)
+void GpioController::onJoyButtons(const quint16& joy)
 {
     if ((((joy >> 6) & 1) == 1) && (((joy >> 7) & 1) == 1)) // both triggers
     {
@@ -127,16 +131,25 @@ void GpioController::onJoyEvent(const quint16& joy)
     if (((joy >> 5) & 1) == 1) d->onPointerTriggered();
 }
 
-void GpioController::onInfluence(const Influence& influence)
+void GpioController::onJoyEvent(const JoyAxes& joy)
 {
-    d->servo[::gunVPin].tick = std::ceil(influence.gunV * ::gunTickCoef);
-//    qDebug() << Q_FUNC_INFO << __LINE__ << influence.gunV << ::tickCoef << d->servo[::gunVPin].tick << d->servo[::gunVPin].pulse;
+	if (!d->tracking && !d->stabOn)
+	{
+		d->servo[::gunVPin].tick = std::ceil(joy.y2 * ::gunTickCoef);
+	}
 }
 
-void GpioController::onDeviation(const double& value)
+void GpioController::onTrackerStatusChanged(const bool& status)
 {
+    d->tracking = status;
+}
+
+void GpioController::onTrackerDeviation(const QPointF& deviation)
+{
+	if (!d->tracking) return;
+
     d->servo[::gunVPin].tick = 0;
-    d->servo[::gunVPin].pulse = d->servo[::gunVPin].maxPulse - value * d->servo[::gunVPin].pulsePerDegree;
+    d->servo[::gunVPin].pulse = d->servo[::gunVPin].maxPulse - deviation.y() * d->servo[::gunVPin].pulsePerDegree;
 //    qDebug() << Q_FUNC_INFO << __LINE__ << value << ((d->servo[::gunVPin].maxPulse - d->servo[::gunVPin].pulse) / d->servo[::gunVPin].pulsePerDegree);
 }
 

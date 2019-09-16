@@ -3,7 +3,6 @@
 
 // tasks
 #include "gpio_controller.h"
-#include "robo_core.h"
 #include "arduino_exchanger.h"
 #include "gamepad_controller.h"
 #include "tracker_task.h"
@@ -37,7 +36,6 @@ TaskManager::~TaskManager()
 bool TaskManager::createTasks()
 {
     this->addTask(ITaskPtr(new GamepadController), 30);
-    this->addTask(ITaskPtr(new RoboCore), 10);
     this->addTask(ITaskPtr(new GpioController), 20);
     this->addTask(ITaskPtr(new ArduinoExchanger), 20);
     this->addTask(ITaskPtr(new BluetoothManager), 2);

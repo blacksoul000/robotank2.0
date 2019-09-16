@@ -3,8 +3,8 @@
 
 #include "i_task.h"
 
-struct Influence;
 struct Empty;
+struct JoyAxes;
 
 class ArduinoExchanger : public ITask
 {
@@ -14,12 +14,14 @@ public:
 
     void execute() override;
 
-    void onInfluence(const Influence& influence);
-    void onJoyEvent(const quint16& joy);
+	void onTrackerStatusChanged(const bool& status);
+    void onJoyButtonsEvent(const quint16& buttons);
+    void onTrackerDeviation(const QPointF& deviation);
     void onNewData(const QByteArray& data);
     void onPowerDown(const Empty&);
     void onGunCalibrate(const Empty&);
     void onGyroCalibrate(const Empty&);
+    void onJoyEvent(const JoyAxes& axes);
 
 private:
     class Impl;

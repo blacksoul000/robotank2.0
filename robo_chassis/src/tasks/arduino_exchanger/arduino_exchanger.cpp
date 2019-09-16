@@ -3,6 +3,7 @@
 //msgs
 #include "influence.h"
 #include "pointf3d.h"
+#include "joy_axes.h"
 #include "empty.h"
 
 #include "pub_sub.h"
@@ -11,6 +12,7 @@
 #include "i2c_slave.h"
 
 #include <QElapsedTimer>
+#include <QPointF>
 #include <QTimer>
 #include <QDebug>
 
@@ -41,10 +43,12 @@ namespace
 
         uint8_t powerDown: 1;
         uint8_t light: 1;
-        uint8_t reserve: 6;
-        int16_t leftEngine = 0;
-        int16_t rightEngine = 0;
-        int16_t towerH = 0;
+        uint8_t enginesPower : 1;
+        uint8_t stab : 1;
+        uint8_t tracking : 1;
+        uint8_t reserve: 3;
+        JoyAxes axes;
+        float deviationX = 0.0;
         uint16_t crc = 0;
     };
 #pragma pack(pop)
@@ -110,8 +114,10 @@ ArduinoExchanger::ArduinoExchanger():
 	d->towerOnlineP = PubSub::instance()->advertise< bool >("tower/imu/online");
 	d->towerReadyP = PubSub::instance()->advertise< bool >("tower/imu/ready");
 
-    PubSub::instance()->subscribe("core/influence", &ArduinoExchanger::onInfluence, this);
-    PubSub::instance()->subscribe("joy/buttons", &ArduinoExchanger::onJoyEvent, this);
+    PubSub::instance()->subscribe("joy/axes", &ArduinoExchanger::onJoyEvent, this);
+    PubSub::instance()->subscribe("tracker/status", &ArduinoExchanger::onTrackerStatusChanged, this);
+    PubSub::instance()->subscribe("tracker/deviation", &ArduinoExchanger::onTrackerDeviation, this);
+    PubSub::instance()->subscribe("joy/buttons", &ArduinoExchanger::onJoyButtonsEvent, this);
     PubSub::instance()->subscribe("core/powerDown", &ArduinoExchanger::onPowerDown, this);
     PubSub::instance()->subscribe("gun/calibrate", &ArduinoExchanger::onGunCalibrate, this);
     PubSub::instance()->subscribe("ypr/calibrate", &ArduinoExchanger::onGyroCalibrate, this);
@@ -119,6 +125,9 @@ ArduinoExchanger::ArduinoExchanger():
     d->setArduinoOnline(false);
     d->package.powerDown = 0;
     d->package.light = 0;
+    d->package.stab = 0;
+    d->package.tracking = 0;
+    d->package.enginesPower = 1;  // TODO - from GUI or gamepad button
 }
 
 ArduinoExchanger::~ArduinoExchanger()
@@ -142,16 +151,9 @@ void ArduinoExchanger::execute()
     d->sendData();
 }
 
-void ArduinoExchanger::onInfluence(const Influence& influence)
+void ArduinoExchanger::onJoyButtonsEvent(const quint16& buttons)
 {
-    d->package.leftEngine = influence.leftEngine;
-    d->package.rightEngine = influence.rightEngine;
-    d->package.towerH = influence.towerH;
-}
-
-void ArduinoExchanger::onJoyEvent(const quint16& joy)
-{
-    if (((joy >> 4) & 1) == 1) d->onLightTriggered(); // L1 button
+    if (((buttons >> 4) & 1) == 1) d->onLightTriggered(); // L1 button
 }
 
 void ArduinoExchanger::onNewData(const QByteArray& data)
@@ -186,9 +188,25 @@ void ArduinoExchanger::onGunCalibrate(const Empty&)
     d->towerHOffset = d->lastData.towerH;
 }
 
+void ArduinoExchanger::onJoyEvent(const JoyAxes& joy)
+{
+	d->package.axes = joy;
+}
+
 void ArduinoExchanger::onGyroCalibrate(const Empty&)
 {
 	d->yprOffsets = {d->lastData.yaw, d->lastData.pitch, d->lastData.roll};
+}
+
+void ArduinoExchanger::onTrackerDeviation(const QPointF& deviation)
+{
+    d->package.deviationX = deviation.x();
+}
+
+void ArduinoExchanger::onTrackerStatusChanged(const bool& status)
+{
+    d->package.tracking = status;
+    d->package.deviationX = 0;
 }
 
 void ArduinoExchanger::Impl::setArduinoOnline(bool online)
@@ -216,7 +234,6 @@ bool ArduinoExchanger::Impl::isArduinoOnline() const
 void ArduinoExchanger::Impl::onLightTriggered()
 {
     package.light = !package.light;
-    if (arduinoOnline) this->sendData();
     headlightP->publish(package.light);
 }
 

@@ -38,6 +38,8 @@ public:
     QElapsedTimer fpsTimer;
     QPointF gunPosition;
 
+    QPointF dotsPerDegree;
+
     void onNewFrame(const cv::Mat& image);
 
     void publishTarget(const cv::Rect2d& rect);
@@ -55,6 +57,7 @@ TrackerTask::TrackerTask() :
     PubSub::instance()->subscribe("camera/image", &TrackerTask::onNewFrame, this);
     PubSub::instance()->subscribe("tracker/toggle", &TrackerTask::onToggleRequest, this);
     PubSub::instance()->subscribe("tracker/selector", &TrackerTask::onSwitchTrackerRequest, this);
+    PubSub::instance()->subscribe("camera/dotsPerDegree", &TrackerTask::onDotsPerDegreeChanged, this);
     PubSub::instance()->subscribe("gun/position", &TrackerTask::onGunPosition, this);
     PubSub::instance()->subscribe("connection", &TrackerTask::onConnectionChanged, this);
 
@@ -103,6 +106,11 @@ void TrackerTask::onNewFrame(const QSharedPointer< cv::Mat >& frame)
 
     d->publishTarget(d->tracker->target());
     d->publishDeviation(d->tracker->target());
+}
+
+void TrackerTask::onDotsPerDegreeChanged(const QPointF& dpd)
+{
+    d->dotsPerDegree = dpd;
 }
 
 void TrackerTask::onToggleRequest(const QRectF& rect)
@@ -177,6 +185,6 @@ void TrackerTask::Impl::publishDeviation(const cv::Rect2d& rect)
     const double targetCenterY = rect.y + rect.height / 2;
     const double imageCenterX = imageWidth / 2;
     const double imageCenterY = imageHeight / 2;
-    deviationP->publish(QPointF((targetCenterX / scaleX) - imageCenterX,
-                                (targetCenterY / scaleY - imageCenterY)));
+    deviationP->publish(QPointF(((targetCenterX / scaleX) - imageCenterX) / dotsPerDegree.x(),
+                                ((targetCenterY / scaleY - imageCenterY))  / dotsPerDegree.y()));
 }
