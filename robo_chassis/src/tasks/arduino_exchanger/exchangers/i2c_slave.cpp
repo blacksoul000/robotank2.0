@@ -1,8 +1,11 @@
 #include "i2c_slave.h"
 
 #include <pigpio.h>
+#include <unistd.h>
 #include <iostream>
 #include <functional>
+
+#include <QDebug>
 
 //https://raspberrypi.stackexchange.com/questions/76109/raspberry-as-an-i2c-slave?utm_medium=organic&utm_source=google_rich_qa&utm_campaign=google_rich_qa
 
@@ -13,10 +16,9 @@ static void onEventProxy(int event, uint32_t tick, void* obj)
 
 struct I2CSlave::Impl
 {
-    bsc_xfer_t xfer; // Struct to control data flow
-
     uint8_t address = 0x42;
     bool isOpen = false;
+    QByteArray buffer;
 
     uint32_t getControlBits(uint32_t address /* max 127 */, bool open);
 };
@@ -36,29 +38,27 @@ I2CSlave::~I2CSlave()
 bool I2CSlave::open()
 {
     // Close old device (if any)
-    d->xfer.control = d->getControlBits(d->address, false); // To avoid conflicts when restarting
-    bscXfer(&d->xfer);
+    bsc_xfer_t xfer;
+    xfer.control = d->getControlBits(d->address, false); // To avoid conflicts when restarting
+    bscXfer(&xfer);
     // Set I2C slave Address
-    d->xfer.control = d->getControlBits(d->address, true);
-    int status = bscXfer(&d->xfer); // Should now be visible in I2C-Scanners
-    d->xfer.rxCnt = 0;
+    xfer.control = d->getControlBits(d->address, true);
+    int status = bscXfer(&xfer); // Should now be visible in I2C-Scanners
 
     if (status >= 0 )
     {
         std::cout << "Opened slave\n";
         eventSetFuncEx(PI_EVENT_BSC, &onEventProxy, this);
-
         d->isOpen = true;
-        return true;
     }
-    
-    return false;
+    return d->isOpen;
 }
 
 void I2CSlave::close()
 {
-    d->xfer.control = d->getControlBits(d->address, false);
-    bscXfer(&d->xfer);
+    bsc_xfer_t xfer;
+    xfer.control = d->getControlBits(d->address, false);
+    bscXfer(&xfer);
 }
 
 bool I2CSlave::isOpen() const
@@ -68,19 +68,27 @@ bool I2CSlave::isOpen() const
 
 bool I2CSlave::sendData(const QByteArray& data)
 {
-    memcpy(d->xfer.txBuf, data.data(), data.size());
-    d->xfer.txCnt = data.size();
-    auto res = bscXfer(&d->xfer);
-    std::cout << "res = " << res << std::endl;
-    return res >= 0;
+    d->buffer = data;
+    return true;
 }
 
 void I2CSlave::onEvent(int, uint32_t)
 {
-    bscXfer(&d->xfer);
-    if(d->xfer.rxCnt > 0)
+    bsc_xfer_t xfer;
+    xfer.control = d->getControlBits(d->address, true);
+    int status = bscXfer(&xfer);
+    if (status < 0) return;
+
+    if(xfer.rxCnt > 0)
     {
-        emit dataAvailable(QByteArray(d->xfer.rxBuf, d->xfer.rxCnt));
+        emit dataAvailable(QByteArray(xfer.rxBuf, xfer.rxCnt));
+    }
+    else
+    {
+//        qDebug() << "request: " << d->buffer.toHex();
+        memcpy(xfer.txBuf, d->buffer.data(), d->buffer.size());
+        xfer.txCnt = d->buffer.size();
+        bscXfer(&xfer);
     }
 }
 
