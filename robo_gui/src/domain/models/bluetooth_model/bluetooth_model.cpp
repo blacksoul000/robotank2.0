@@ -54,7 +54,7 @@ bool BluetoothModel::pairStatus() const
 void BluetoothModel::setDevices(const QVector< BluetoothDeviceInfo >& devices)
 {
     d->devices = devices;
-    emit devicesChanged(devices);
+    emit devicesChanged(d->devices);
 }
 
 QVector< BluetoothDeviceInfo > BluetoothModel::devices() const
