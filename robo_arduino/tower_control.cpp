@@ -57,10 +57,12 @@ void TowerControl::updatePosition()
 {
 	if (m_tracking)
 	{
+    if (!m_imu->isReady()) return;
+    
 		if (common::fuzzyCompare(m_requiredTowerH, m_position, 0.1))
 			return;
 
-        m_engine->applySpeed(m_pid.calculate(m_requiredTowerH, m_position));
+    m_engine->applySpeed(m_pid.calculate(m_requiredTowerH, m_position));
 	}
 	else if (m_stab)
 	{
