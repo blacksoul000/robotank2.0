@@ -28,13 +28,13 @@ GamepadController::GamepadController() :
     ITask(),
     d(new Impl)
 {
-	d->gamepad.reset(new Gamepad("/dev/input/js0", this));
-	connect(d->gamepad.data(), &Gamepad::capacityChanged,
-			this, &GamepadController::onCapacityChanged);
-	connect(d->gamepad.data(), &Gamepad::chargingChanged,
-			this, &GamepadController::onChargingChanged);
-	connect(d->gamepad.data(), &Gamepad::connectedChanged,
-			this, &GamepadController::onConnectedChanged);
+    d->gamepad.reset(new Gamepad("/dev/input/js0", this));
+    connect(d->gamepad.data(), &Gamepad::capacityChanged,
+            this, &GamepadController::onCapacityChanged);
+    connect(d->gamepad.data(), &Gamepad::chargingChanged,
+            this, &GamepadController::onChargingChanged);
+    connect(d->gamepad.data(), &Gamepad::connectedChanged,
+            this, &GamepadController::onConnectedChanged);
 
     d->joyStatusP = PubSub::instance()->advertise< bool >("joy/status");
     d->axesP = PubSub::instance()->advertise< JoyAxes >("joy/axes");
@@ -45,7 +45,7 @@ GamepadController::GamepadController() :
 
 GamepadController::~GamepadController()
 {
-	d->gamepad.reset();
+    d->gamepad.reset();
 
     delete d->joyStatusP;
     delete d->axesP;
@@ -57,19 +57,20 @@ GamepadController::~GamepadController()
 
 void GamepadController::execute()
 {
-	d->gamepad->execute();
-	if (!d->gamepad->isConnected()) return;
+    d->gamepad->execute();
+    if (!d->gamepad->isConnected()) return;
 
-	const auto& axes = d->gamepad->axes();
-	d->axes.x1 = axes.at(Axes::DigitalX)
-							? axes.at(Axes::DigitalX) : axes.at(Axes::X1);
-	d->axes.y1 = axes.at(Axes::DigitalY)
-				    		? -axes.at(Axes::DigitalY) : -axes.at(Axes::Y1);
-	d->axes.x2 = axes.at(Axes::X2);
-	d->axes.y2 = axes.at(Axes::Y2);
+    const auto& axes = d->gamepad->axes();
+    d->axes.x1 = axes.at(Axes::DigitalX)
+                 ? axes.at(Axes::DigitalX) : axes.at(Axes::X1);
+    d->axes.y1 = axes.at(Axes::DigitalY)
+                 ? -axes.at(Axes::DigitalY) : -axes.at(Axes::Y1);
+    d->axes.x2 = axes.at(Axes::X2);
+    d->axes.y2 = axes.at(Axes::Y2);
 
-	d->axesP->publish(d->axes);
-	d->buttonsP->publish(d->gamepad->buttons());
+//    qDebug() << Q_FUNC_INFO << d->axes.x1 << d->axes.y1  << d->axes.x2 << d->axes.y2 << axes;
+    d->axesP->publish(d->axes);
+    d->buttonsP->publish(d->gamepad->buttons());
 }
 
 void GamepadController::onConnectedChanged(bool connected)

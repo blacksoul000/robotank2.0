@@ -14,7 +14,7 @@ public:
 
     void execute() override;
 
-	void onTrackerStatusChanged(const bool& status);
+    void onTrackerStatusChanged(const bool& status);
     void onJoyButtonsEvent(const quint16& buttons);
     void onTrackerDeviation(const QPointF& deviation);
     void onNewData(const QByteArray& data);

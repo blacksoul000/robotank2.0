@@ -5,10 +5,10 @@
 
 struct JoyAxes
 {
-    short x1;
-    short y1;
-    short x2;
-    short y2;
+    short x1 = 0;
+    short y1 = 0;
+    short x2 = 0;
+    short y2 = 0;
 };
 
 #endif // JOY_AXES_H

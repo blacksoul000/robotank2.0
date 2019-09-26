@@ -57,6 +57,7 @@ CommandHandler::CommandHandler(MavLinkCommunicator* communicator):
     d->calibrateYprP = PubSub::instance()->advertise< Empty >("ypr/calibrate");
     d->enginePowerP = PubSub::instance()->advertise< QPoint >("core/enginePower");
     d->powerDownP = PubSub::instance()->advertise< Empty >("core/powerDown");
+    d->bluetoothScanP = PubSub::instance()->advertise< Empty >("bluetooth/scan");
     d->joyAxesP = PubSub::instance()->advertise< JoyAxes >("joy/axes");
     d->buttonsP = PubSub::instance()->advertise< quint16 >("joy/buttons");
 }
@@ -156,15 +157,15 @@ void CommandHandler::processCommand(const mavlink_message_t& message)
         }
         case MAV_CMD_JOY_EVENT:
         {
-        	JoyAxes joy;
-        	joy.x1 = cmd.param1;
-			joy.y1 = cmd.param2;
-			joy.x2 = cmd.param3;
-			joy.y2 = cmd.param4;
-			quint16 buttons = cmd.param5;
+            JoyAxes joy;
+            joy.x1 = cmd.param1;
+            joy.y1 = cmd.param2;
+            joy.x2 = cmd.param3;
+            joy.y2 = cmd.param4;
+            quint16 buttons = cmd.param5;
 
-            d->joyAxesP->publish(joy);
-            d->buttonsP->publish(buttons);
+//            d->joyAxesP->publish(joy);
+//            d->buttonsP->publish(buttons);
 
             haveAck = false;
             break;
@@ -175,15 +176,15 @@ void CommandHandler::processCommand(const mavlink_message_t& message)
 
     if (haveAck)
     {
-		qDebug() << Q_FUNC_INFO << message.sysid << cmd.command;
+        qDebug() << Q_FUNC_INFO << message.sysid << cmd.command;
 
-		AbstractLink* link = m_communicator->mavSystemLink(message.sysid);
-		if (!link) return;
+        AbstractLink* link = m_communicator->mavSystemLink(message.sysid);
+        if (!link) return;
 
-		mavlink_msg_command_ack_encode_chan(m_communicator->systemId(),
-											m_communicator->componentId(),
-											m_communicator->linkChannel(link),
-											&reply, &ack);
-		m_communicator->sendMessage(reply, link);
+        mavlink_msg_command_ack_encode_chan(m_communicator->systemId(),
+                                            m_communicator->componentId(),
+                                            m_communicator->linkChannel(link),
+                                            &reply, &ack);
+        m_communicator->sendMessage(reply, link);
     }
 }
