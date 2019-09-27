@@ -73,7 +73,7 @@ ArduinoExchanger::ArduinoExchanger():
     ITask(),
     d(new Impl)
 {
-    d->arduino = new I2CMaster("/dev/i2c-3", sizeof(::ArduinoPkg), this);
+    d->arduino = new I2CMaster("/dev/i2c-1", sizeof(::ArduinoPkg), this);
     connect(d->arduino, &IExchanger::dataAvailable, this, &ArduinoExchanger::onNewData);
 
     d->timer = new QTimer(this);
@@ -113,6 +113,7 @@ void ArduinoExchanger::onInfluence(const Influence& influence)
     d->package.leftEngine = influence.leftEngine;
     d->package.rightEngine = influence.rightEngine;
     d->package.towerH = influence.towerH;
+//    qDebug() << Q_FUNC_INFO << influence.leftEngine << influence.rightEngine << influence.towerH;
 }
 
 void ArduinoExchanger::onJoyEvent(const quint16& joy)
