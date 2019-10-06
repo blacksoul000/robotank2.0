@@ -57,6 +57,7 @@ CommandHandler::CommandHandler(MavLinkCommunicator* communicator):
     d->calibrateYprP = PubSub::instance()->advertise< Empty >("ypr/calibrate");
     d->enginePowerP = PubSub::instance()->advertise< QPoint >("core/enginePower");
     d->powerDownP = PubSub::instance()->advertise< Empty >("core/powerDown");
+    d->bluetoothScanP = PubSub::instance()->advertise< Empty >("bluetooth/scan");
     d->joyAxesP = PubSub::instance()->advertise< JoyAxes >("joy/axes");
     d->buttonsP = PubSub::instance()->advertise< quint16 >("joy/buttons");
 }

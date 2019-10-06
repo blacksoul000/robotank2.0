@@ -57,6 +57,11 @@ void SysStatusHandler::processMessage(const mavlink_message_t& message)
     bluetooth->setScanStatus(systemStatus.system_state & BLUETOOTH_SCANNING);
     bluetooth->setPairStatus(systemStatus.system_state & BLUETOOTH_PAIRING);
 
+    status->setChassisImuOnline(systemStatus.system_state & CHASSIS_IMU_ONLINE);
+    status->setChassisImuReady(systemStatus.system_state & CHASSIS_IMU_READY);
+    status->setTowerImuOnline(systemStatus.system_state & TOWER_IMU_ONLINE);
+    status->setTowerImuReady(systemStatus.system_state & TOWER_IMU_READY);
+
 //    qDebug() << Q_FUNC_INFO << message.sysid << message.msgid << systemStatus.system_state
 //            << systemStatus.voltage << systemStatus.gamepad_capacity
 //            << systemStatus.gamepad_buttons;

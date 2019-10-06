@@ -17,11 +17,15 @@ using data_source::AbstractLink;
 
 struct SendStatusHandler::Impl
 {
-    quint8 status = 0;
+    quint16 status = 0;
     quint16 voltage = 0;
     quint8 gamepadCapacity = 0;
     quint16 buttons = 0;
     quint8 deviceCount = 0;
+    bool chassisImuOnline = false;
+    bool chassisImuReady = false;
+    bool towerImuOnline = false;
+    bool towerImuReady = false;
 };
 
 SendStatusHandler::SendStatusHandler(MavLinkCommunicator* communicator):
@@ -47,6 +51,11 @@ SendStatusHandler::SendStatusHandler(MavLinkCommunicator* communicator):
     PubSub::instance()->subscribe("bluetooth/scanning", &SendStatusHandler::onBluetoothScanStatus, this);
     PubSub::instance()->subscribe("bluetooth/pairing", &SendStatusHandler::onBluetoothPairStatus, this);
     PubSub::instance()->subscribe("bluetooth/devices", &SendStatusHandler::onBluetoothDevices, this);
+
+    PubSub::instance()->subscribe("chassis/imu/online", &SendStatusHandler::onChassisImuOnline, this);
+    PubSub::instance()->subscribe("chassis/imu/ready", &SendStatusHandler::onChassisImuReady, this);
+    PubSub::instance()->subscribe("tower/imu/online", &SendStatusHandler::onTowerImuOnline, this);
+    PubSub::instance()->subscribe("tower/imu/ready", &SendStatusHandler::onTowerImuReady, this);
 }
 
 void SendStatusHandler::processMessage(const mavlink_message_t& message)
@@ -135,4 +144,24 @@ void SendStatusHandler::onBluetoothPairStatus(const bool& pairing)
 void SendStatusHandler::onBluetoothDevices(const QVector< BluetoothDeviceInfo >& devices)
 {
     d->deviceCount = devices.count();
+}
+
+void SendStatusHandler::onChassisImuOnline(const bool& online)
+{
+	online ? d->status |= CHASSIS_IMU_ONLINE : d->status &= ~CHASSIS_IMU_ONLINE;
+}
+
+void SendStatusHandler::onChassisImuReady(const bool& ready)
+{
+	ready ? d->status |= CHASSIS_IMU_READY : d->status &= ~CHASSIS_IMU_READY;
+}
+
+void SendStatusHandler::onTowerImuOnline(const bool& online)
+{
+	online ? d->status |= TOWER_IMU_ONLINE : d->status &= ~TOWER_IMU_ONLINE;
+}
+
+void SendStatusHandler::onTowerImuReady(const bool& ready)
+{
+	ready ? d->status |= TOWER_IMU_READY : d->status &= ~TOWER_IMU_READY;
 }
