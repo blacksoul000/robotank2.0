@@ -26,7 +26,9 @@ public:
 
 #ifdef WITH_OPENCV_TRACKING
     Ptr<Tracker> tracker;
+    Ptr<Tracker> createTracker();
 #endif // WITH_OPENCV_TRACKING
+
     bool inited = false;
 };
 
@@ -68,7 +70,8 @@ void TrackerKeypoints::track(const cv::Mat& image)
 #ifdef WITH_OPENCV_TRACKING
     if (!d->inited)
     {
-        d->tracker = Tracker::create(d->algo);
+        d->tracker = d->createTracker();
+        if (!d->tracker) return;
 
         if (!d->tracker->init(image, d->target)) return;
         d->inited = true;
@@ -76,3 +79,26 @@ void TrackerKeypoints::track(const cv::Mat& image)
     d->tracker->update(image, d->target);
 #endif // WITH_OPENCV_TRACKING
 }
+
+#ifdef WITH_OPENCV_TRACKING
+Ptr<Tracker> TrackerKeypoints::Impl::createTracker()
+{
+    #if (CV_MINOR_VERSION < 3)
+    {
+        return Tracker::create(algo);
+    }
+    #else
+    {
+        if (algo == "BOOSTING") return TrackerBoosting::create();
+        if (algo == "MIL") return TrackerMIL::create();
+        if (algo == "KCF") return TrackerKCF::create();
+        if (algo == "TLD") return TrackerTLD::create();
+        if (algo == "MEDIANFLOW") return TrackerMedianFlow::create();
+        if (algo == "GOTURN") return TrackerGOTURN::create();
+        if (algo == "MOSSE") return TrackerMOSSE::create();
+        if (algo == "CSRT") return TrackerCSRT::create();
+    }
+    #endif
+    return Ptr<Tracker>();
+}
+#endif // WITH_OPENCV_TRACKING

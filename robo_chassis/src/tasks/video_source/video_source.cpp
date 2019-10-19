@@ -27,11 +27,12 @@ namespace
 {
     const int defaultBrightness = 65;
     const int defaultContrast = 75;
-//    const int width = 640;
-//  const int height = 480;
 
-    const int width = 1296;
-    const int height = 730;
+//    const int width = 1296;
+//    const int height = 730;
+
+    const int width = 1280;
+    const int height = 720;
 
 #ifdef PICAM
     const double fieldOfViewH = 53.5; // +/- 0.13 degrees
@@ -104,6 +105,10 @@ void VideoSource::onNewFrame(const void* data, int size)
     memcpy(mat->data, data, ::height * ::width); // read only Y from YUV420.
 //    cv::putText(*mat, ts.toStdString(), cvPoint(30,300), cv::FONT_HERSHEY_COMPLEX_SMALL, 4, cv::Scalar(100,200,250), 1, CV_AA);
     d->imageP->publish(mat);
+
+//    static int i = 0;
+//    cv::imwrite(QString("/tmp/11/%1.jpg").arg(i).toStdString(), *mat);
+//    ++i;
 }
 
 void VideoSource::onImageSettingsChanged(const ImageSettings& settings)
@@ -155,8 +160,8 @@ void VideoSource::Impl::initRtspServer()
     rtsp = new rtsp_server::RtspServer(
                QString("rpicamsrc do-timestamp=true name=src ! "
                        "video/x-raw,width=%1,height=%2,framerate=%3/1,format=I420 ! "
-//                       "omxh264enc ! video/x-h264,profile=baseline,quality=1,low-latency=true,key-int-max=1,speed-preset=ultrafast,control-rate=3 ! "
-                       "omxh264enc ! video/x-h264,profile=baseline,speed-preset=ultrafast,tune=zerolatency ! "
+                       "omxh264enc ! video/x-h264,profile=baseline,quality=1,low-latency=true,key-int-max=1,speed-preset=ultrafast,control-rate=3 ! "
+//                       "omxh264enc ! video/x-h264,profile=baseline,speed-preset=ultrafast,tune=zerolatency ! "
                        "rtph264pay name=pay0 pt=96")
                                        .arg(::width)
                                        .arg(::height)
