@@ -129,7 +129,7 @@ void ArduinoExchanger::onNewData(const QByteArray& data)
     const ::ArduinoPkg* pkg = reinterpret_cast<const ::ArduinoPkg *>(data.data());
     if (!d->isValid(pkg)) return;
     d->voltageP->publish(pkg->voltage);
-//    qDebug() << Q_FUNC_INFO << pkg->currentLeft << pkg->currentRight << pkg->currentTower;
+//    qDebug() << Q_FUNC_INFO << pkg->currentLeft << pkg->currentRight << pkg->currentTower << pkg->voltage << data.toHex();
 }
 
 void ArduinoExchanger::onPowerDown(const Empty&)

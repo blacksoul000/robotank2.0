@@ -19,7 +19,7 @@ ExternalProject_Add(OpenTLD
 
 include(RecurseDirs)
 
-find_package(OpenCV 3 COMPONENTS core imgproc video OPTIONAL_COMPONENTS tracking)
+find_package(OpenCV COMPONENTS core imgproc video OPTIONAL_COMPONENTS tracking)
 find_package(pigpio)
 
 find_package(Qt5Core)
