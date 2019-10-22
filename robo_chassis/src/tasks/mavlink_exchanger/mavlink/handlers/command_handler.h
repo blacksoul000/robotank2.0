@@ -14,6 +14,7 @@ namespace domain
 
     protected:
         void processCommand(const mavlink_message_t& message) override;
+        void onGamepadStatusChanged(const bool& status);
 
     private:
         class Impl;

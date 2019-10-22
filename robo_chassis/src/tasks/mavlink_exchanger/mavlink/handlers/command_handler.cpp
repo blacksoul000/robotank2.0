@@ -44,6 +44,8 @@ public:
     Publisher< Empty >* bluetoothScanP = nullptr;
     Publisher< JoyAxes >* joyAxesP = nullptr;
     Publisher< quint16 >* buttonsP = nullptr;
+
+    bool gamepadConnected = false;
 };
 
 CommandHandler::CommandHandler(MavLinkCommunicator* communicator):
@@ -60,6 +62,8 @@ CommandHandler::CommandHandler(MavLinkCommunicator* communicator):
     d->bluetoothScanP = PubSub::instance()->advertise< Empty >("bluetooth/scan");
     d->joyAxesP = PubSub::instance()->advertise< JoyAxes >("joy/axes");
     d->buttonsP = PubSub::instance()->advertise< quint16 >("joy/buttons");
+
+    PubSub::instance()->subscribe("joy/status", &CommandHandler::onGamepadStatusChanged, this);
 }
 
 CommandHandler::~CommandHandler()
@@ -157,6 +161,8 @@ void CommandHandler::processCommand(const mavlink_message_t& message)
         }
         case MAV_CMD_JOY_EVENT:
         {
+            if (d->gamepadConnected) break;  // Local gamepad has priority
+            
         	JoyAxes joy;
         	joy.x1 = cmd.param1;
 			joy.y1 = cmd.param2;
@@ -187,4 +193,9 @@ void CommandHandler::processCommand(const mavlink_message_t& message)
 											&reply, &ack);
 		m_communicator->sendMessage(reply, link);
     }
+}
+
+void CommandHandler::onGamepadStatusChanged(const bool& status)
+{
+    d->gamepadConnected = status;
 }
