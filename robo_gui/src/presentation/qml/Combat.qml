@@ -95,7 +95,7 @@ Item {
             stackView.push({
                 item: Qt.resolvedUrl("qrc:/qml/Settings.qml"), 
                 properties:{ presenter: settingsPresenter, 
-                             statusPresenter: statusPresenter,
+                             gamepad: gamepadPresenter,
                              topMargin: panel.height + 10,
                              margins: 10
                             }})
