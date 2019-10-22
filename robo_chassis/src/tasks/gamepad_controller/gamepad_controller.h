@@ -7,12 +7,12 @@ class GamepadController : public ITask
 {
     Q_OBJECT
 public:
-    enum Axes // Bluetooth
+    enum Axes
     {
         X1 = 0,
         Y1 = 1,
-        X2 = 2,
-        Y2 = 5,
+        X2 = 3,
+        Y2 = 4,
         DigitalX = 6,
         DigitalY = 7,
     };
