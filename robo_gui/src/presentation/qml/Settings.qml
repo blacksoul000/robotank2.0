@@ -14,7 +14,7 @@ Item {
     property int rowSpacing: 10
     property int columnSpacing: 30
     property QtObject presenter
-    property QtObject statusPresenter
+    property QtObject gamepad
     
     Rectangle {
         anchors {
@@ -139,8 +139,8 @@ Item {
                             Text {
                                 color: roboPalette.textColor
                                 font.pixelSize: roboPalette.textSize
-                                text: statusPresenter.gamepadStatus ? qsTr("Connected")
-                                                                    : qsTr("Unconnected")
+                                text: gamepad.connected ? qsTr("Connected")
+                                                        : qsTr("Unconnected")
                             }
                         }
     
