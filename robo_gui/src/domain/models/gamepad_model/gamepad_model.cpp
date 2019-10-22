@@ -39,6 +39,8 @@ GamepadModel::GamepadModel(QObject* parent) :
 			this, &GamepadModel::capacityChanged);
 	connect(d->gamepad.data(), &Gamepad::connectedChanged,
 			this, &GamepadModel::chargingChanged);
+	connect(d->gamepad.data(), &Gamepad::connectedChanged,
+			this, &GamepadModel::joyChanged);
 	this->startTimer(::checkInterval);
 }
 
@@ -53,7 +55,7 @@ void GamepadModel::timerEvent(QTimerEvent* event)
 	Q_UNUSED(event)
 
 	d->gamepad->execute();
-	emit joyChanged();
+	if (d->gamepad->isConnected()) emit joyChanged();
 }
 
 int GamepadModel::capacity() const
