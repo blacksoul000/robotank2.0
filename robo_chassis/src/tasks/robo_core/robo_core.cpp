@@ -17,7 +17,8 @@ namespace
     constexpr float defaultDotsPerDegree = 100;
     constexpr double influenceCoef = 90.0 / 32767;
 
-    constexpr double turnCoef = 13.6 / 2 / 0.5;  // tracksSeparation / 2 / steeringEfficiency
+    // constexpr double turnCoef = 13.6 / 2 / 0.5;  // tracksSeparation / 2 / steeringEfficiency
+    constexpr double turnCoef = 1.0;  // tracksSeparation / 2 / steeringEfficiency
 
     // towerH pid
     const double Kp = 5.5;
@@ -125,14 +126,14 @@ void RoboCore::onTrackerDeviation(const QPointF& deviation)
     d->requiredTowerH = d->gunPosition.x() + (deviation.x() / d->dotsPerDegree.x());
 
     double gunV = d->gunPosition.y() - qMin((deviation.y() / d->dotsPerDegree.y()), 1.0);
-//    qDebug() << Q_FUNC_INFO << d->gunPosition.y() << deviation.y() << d->dotsPerDegree.y() << gunV << (deviation.y() / d->dotsPerDegree.y());
+    // qDebug() << Q_FUNC_INFO << d->gunPosition.y() << deviation.y() << d->dotsPerDegree.y() << gunV << (deviation.y() / d->dotsPerDegree.y());
     d->deviationVP->publish(gunV);
 }
 
 void RoboCore::onEnginePowerChanged(const QPoint& enginePower)
 {
-    d->enginePowerLeft = enginePower.x() * 100.0;
-    d->enginePowerRight = enginePower.y() * 100.0;
+    d->enginePowerLeft = enginePower.x();
+    d->enginePowerRight = enginePower.y();
 }
 
 void RoboCore::onGunPosition(const QPointF& position)
