@@ -14,7 +14,7 @@ public:
 	bool isReady = true;
 
 	MPU6050 mpu;
-	int16_t ax, ay, az, gx, gy, gz, mx, my, mz;
+	int16_t ax, ay, az, gx, gy, gz;
 
 	domain::ComplementaryFilter filter;
 

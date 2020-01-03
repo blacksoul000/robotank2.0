@@ -77,9 +77,17 @@ public:
     PointF3D chassisGyroData;
     QMap< uint8_t, ServoInfo > servo;
 
+    quint16 buttons = 0;
+
     void onShotStatusChanged(bool shot);
     bool initMpu();
     void onPointerTriggered();
+
+    template< class T >
+    bool isBitSet(T value, quint8 bit) const
+    {
+        return (value & (1 << bit));
+    }
 };
 
 GpioController::GpioController():
@@ -206,13 +214,29 @@ void GpioController::readGyroData()
     d->towerH = d->tower.imu->yaw() - d->chassis.imu->yaw();
 }
 
-void GpioController::onJoyEvent(const quint16& joy)
+void GpioController::onJoyEvent(const quint16& buttons)
 {
-    if ((((joy >> 6) & 1) == 1) && (((joy >> 7) & 1) == 1)) // both triggers
+    if (d->buttons == buttons) return;
+
+    const bool triggersPressed = d->isBitSet(buttons, 6) && d->isBitSet(buttons, 7);
+    const bool pointerPressed = d->isBitSet(buttons, 5);
+
+    if (triggersPressed != (d->isBitSet(d->buttons, 6) && d->isBitSet(d->buttons, 7)))
     {
-        d->onShotStatusChanged(!d->shoting); // if we are already shoting - stop!
+        if (triggersPressed)
+        {
+            d->onShotStatusChanged(!d->shoting); // if we are already shoting - stop!
+        }
     }
-    if (((joy >> 5) & 1) == 1) d->onPointerTriggered();
+
+    if (pointerPressed != d->isBitSet(d->buttons, 5))
+    {
+        if (pointerPressed)
+        {
+            d->onPointerTriggered();
+        }
+    }
+    d->buttons = buttons;
 }
 
 void GpioController::onInfluence(const Influence& influence)

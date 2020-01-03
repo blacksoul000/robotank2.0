@@ -29,7 +29,7 @@ BluetoothManager::BluetoothManager() :
     ITask(),
     d(new Impl)
 {
-    d->scanStatusP = PubSub::instance()->advertise< bool >("bluetooth/scanning");
+    d->scanStatusP = PubSub::instance()->advertise< bool >("bluetooth/status");
     d->pairStatusP = PubSub::instance()->advertise< bool >("bluetooth/pairing");
     d->deviceListP = PubSub::instance()->advertise< QVector< BluetoothDeviceInfo > >("bluetooth/devices");
 
@@ -58,8 +58,8 @@ void BluetoothManager::start()
             this, &BluetoothManager::onScanFinished);
     connect(d->localDevice, &QBluetoothLocalDevice::pairingFinished,
             this, &BluetoothManager::onPairingFinished);
-    connect(d->agent, static_cast<void(QBluetoothDeviceDiscoveryAgent::*)
-            (QBluetoothDeviceDiscoveryAgent::Error)>(&QBluetoothDeviceDiscoveryAgent::error),
+    connect(d->agent, QOverload<QBluetoothDeviceDiscoveryAgent::Error>::of(
+                &QBluetoothDeviceDiscoveryAgent::error),
             [&](){
         qDebug() << Q_FUNC_INFO << __LINE__  << d->agent->errorString();
     });
@@ -69,7 +69,7 @@ void BluetoothManager::onRequestScan(const Empty&)
 {
     d->devices.clear();
     d->agent->start();
-    d->scanStatusP->publish(true);
+    d->scanStatusP->publish(d->agent->isActive());
     d->deviceListP->publish(d->devices);
 }
 

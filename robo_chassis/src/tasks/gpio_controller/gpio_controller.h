@@ -20,7 +20,7 @@ public:
 
 private:
     void readGyroData();
-    void onJoyEvent(const quint16& joy);
+    void onJoyEvent(const quint16& buttons);
     void onInfluence(const Influence& influence);
     void onDeviation(const double& value);
     void onGunCalibrate(const Empty&);

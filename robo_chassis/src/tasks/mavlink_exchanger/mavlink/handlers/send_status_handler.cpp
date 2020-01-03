@@ -48,7 +48,7 @@ SendStatusHandler::SendStatusHandler(MavLinkCommunicator* communicator):
     PubSub::instance()->subscribe("chassis/headlight", &SendStatusHandler::onHeadlightChanged, this);
     PubSub::instance()->subscribe("chassis/pointer", &SendStatusHandler::onPointerChanged, this);
 
-    PubSub::instance()->subscribe("bluetooth/scanning", &SendStatusHandler::onBluetoothScanStatus, this);
+    PubSub::instance()->subscribe("bluetooth/status", &SendStatusHandler::onBluetoothScanStatus, this);
     PubSub::instance()->subscribe("bluetooth/pairing", &SendStatusHandler::onBluetoothPairStatus, this);
     PubSub::instance()->subscribe("bluetooth/devices", &SendStatusHandler::onBluetoothDevices, this);
 

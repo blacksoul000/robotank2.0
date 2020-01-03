@@ -47,6 +47,8 @@ class ArduinoExchanger::Impl
 public:
     IExchanger* arduino = nullptr;
     QTimer* timer = nullptr;
+    
+    quint16 buttons = 0;
 
     ArduinoPkg offsets;
     ArduinoPkg lastData;
@@ -64,6 +66,12 @@ public:
 
     bool isValid(const ArduinoPkg* pkg) const;
     uint16_t crc16(const unsigned char* data, unsigned short len) const;
+
+    template< class T >
+    bool isBitSet(T value, quint8 bit) const
+    {
+        return (value & (1 << bit));
+    }
 
 private:
     bool arduinoOnline = true;
@@ -116,9 +124,20 @@ void ArduinoExchanger::onInfluence(const Influence& influence)
 //    qDebug() << Q_FUNC_INFO << influence.leftEngine << influence.rightEngine << influence.towerH;
 }
 
-void ArduinoExchanger::onJoyEvent(const quint16& joy)
+void ArduinoExchanger::onJoyEvent(const quint16& buttons)
 {
-    if (((joy >> 4) & 1) == 1) d->onLightTriggered(); // L1 button
+    if (d->buttons == buttons) return;
+
+    const bool lightPressed = d->isBitSet(buttons, 4);
+
+    if (lightPressed != d->isBitSet(d->buttons, 4))
+    {
+        if (lightPressed)
+        {
+            d->onLightTriggered(); // L1 button
+        }
+    }
+    d->buttons = buttons;
 }
 
 void ArduinoExchanger::onNewData(const QByteArray& data)
