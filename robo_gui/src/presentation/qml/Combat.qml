@@ -83,10 +83,10 @@ Item {
         azimuth: statusPresenter.gunPositionH
     }
 
-    RButton {
+    RToolButton {
         anchors.left: parent.left
         anchors.bottom: parent.bottom
-        anchors.margins: 10
+        anchors.margins: 5
         width: 50
         height: 50
 
@@ -96,8 +96,8 @@ Item {
                 item: Qt.resolvedUrl("qrc:/qml/Settings.qml"), 
                 properties:{ presenter: settingsPresenter, 
                              gamepad: gamepadPresenter,
-                             topMargin: panel.height + 10,
-                             margins: 10
+                             topMargin: panel.height + 5,
+                             margins: 5
                             }})
         }
     }

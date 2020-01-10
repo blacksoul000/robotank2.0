@@ -44,6 +44,7 @@ public:
     Publisher< Empty >* bluetoothScanP = nullptr;
     Publisher< JoyAxes >* joyAxesP = nullptr;
     Publisher< quint16 >* buttonsP = nullptr;
+    Publisher< quint8 >* vehicleP = nullptr;
 
     bool gamepadConnected = false;
 };
@@ -62,6 +63,7 @@ CommandHandler::CommandHandler(MavLinkCommunicator* communicator):
     d->bluetoothScanP = PubSub::instance()->advertise< Empty >("bluetooth/scan");
     d->joyAxesP = PubSub::instance()->advertise< JoyAxes >("joy/axes");
     d->buttonsP = PubSub::instance()->advertise< quint16 >("joy/buttons");
+    d->vehicleP = PubSub::instance()->advertise< quint8 >("vehicle");
 
     PubSub::instance()->subscribe("joy/status", &CommandHandler::onGamepadStatusChanged, this);
 }
@@ -78,6 +80,7 @@ CommandHandler::~CommandHandler()
     delete d->bluetoothScanP;
     delete d->joyAxesP;
     delete d->buttonsP;
+    delete d->vehicleP;
 }
 
 void CommandHandler::processCommand(const mavlink_message_t& message)
@@ -174,6 +177,18 @@ void CommandHandler::processCommand(const mavlink_message_t& message)
             d->buttonsP->publish(buttons);
 
             haveAck = false;
+            break;
+        }
+        case MAV_CMD_HANDSHAKE:
+        {
+            d->vehicleP->publish(message.sysid);
+            ack.result = MAV_RESULT_ACCEPTED;
+            break;
+        }
+        case MAV_CMD_DISMISS:
+        {
+            d->vehicleP->publish(0);
+            ack.result = MAV_RESULT_ACCEPTED;
             break;
         }
         default:

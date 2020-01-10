@@ -1,24 +1,23 @@
-import QtQuick 2.0
-import QtQuick.Controls 1.4
+import QtQuick 2.12
+import QtQuick.Controls 2.12
 import QtQuick.Controls.Styles 1.2
 
-ToolButton {
-    width: 32
-    height: 32
-    property alias imageSource: icon.source
+Button {
+    id: btn
 
-    Image {
-        id: icon
-        anchors.fill: parent
-        anchors.margins: 1
-    }
+    font.pixelSize: roboPalette.textSize
+    // highlighted: true
+    // color: roboPalette.backgroundColor
 
-    style: ButtonStyle {
-        padding {
-            left: 0
-            right: 0
-            top: 0
-            bottom: 0
-        }
-    }
+
+    // style: ButtonStyle {
+    //     label: Text {
+    //         renderType: Text.NativeRendering
+    //         verticalAlignment: Text.AlignVCenter
+    //         horizontalAlignment: Text.AlignHCenter
+    //         font.pixelSize: roboPalette.textSize
+    //         color: roboPalette.backgroundColor
+    //         text: btn.text
+    //     }
+    // }
 }

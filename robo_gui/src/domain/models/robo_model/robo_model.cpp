@@ -4,6 +4,7 @@
 #include "status_model.h"
 #include "bluetooth_model.h"
 #include "gamepad_model.h"
+#include "mavlink_exchanger.h"
 
 using domain::RoboModel;
 using domain::TrackModel;
@@ -11,6 +12,7 @@ using domain::SettingsModel;
 using domain::StatusModel;
 using domain::BluetoothModel;
 using domain::GamepadModel;
+using domain::MavlinkExchanger;
 
 RoboModel::RoboModel()
 {
@@ -19,6 +21,7 @@ RoboModel::RoboModel()
     m_status = new StatusModel();
     m_bluetooth = new BluetoothModel();
     m_gamepad = new GamepadModel();
+    m_mavlink= new MavlinkExchanger(this);
 }
 
 RoboModel::~RoboModel()
@@ -28,6 +31,7 @@ RoboModel::~RoboModel()
     delete m_settings;
     delete m_bluetooth;
     delete m_gamepad;
+    delete m_mavlink;
 }
 
 StatusModel* RoboModel::status() const
@@ -53,4 +57,9 @@ BluetoothModel* RoboModel::bluetooth() const
 GamepadModel* RoboModel::gamepad() const
 {
     return m_gamepad;
+}
+
+MavlinkExchanger* RoboModel::mavlink() const
+{
+    return m_mavlink;
 }

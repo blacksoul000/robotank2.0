@@ -31,7 +31,9 @@ Item {
         ListView {
             id: view
             anchors.fill: parent
+            anchors.margins: root.margins
             model: presenter.devices
+            spacing: root.margins
             delegate: itemDelegate
         }
     
@@ -43,12 +45,12 @@ Item {
                 border.width: 1
     
                 anchors.horizontalCenter: parent.horizontalCenter
-                width: rect.width - 10
+                width: rect.width - root.margins
                 height: 60
     
                 Column {
                     anchors.fill: parent
-                    anchors.margins: 5
+                    anchors.margins: root.margins
                     Text {
                         text: modelData.name
                         color: roboPalette.textColor
@@ -61,21 +63,12 @@ Item {
                     }
                 }
     
-                Button {
+                RButton {
                     anchors.right: parent.right
                     anchors.verticalCenter: parent.verticalCenter
-                    anchors.rightMargin: 10
+                    anchors.rightMargin: root.margins
                     width: 100
-                    style: ButtonStyle {
-                        label: Text {
-                            renderType: Text.NativeRendering
-                            verticalAlignment: Text.AlignVCenter
-                            horizontalAlignment: Text.AlignHCenter
-                            font.pixelSize: roboPalette.textSize
-                            color: roboPalette.backgroundColor
-                            text: modelData.isPaired ? qsTr("Disc.") : qsTr("Conn.")
-                        }
-                    }
+                    text: modelData.isPaired ? qsTr("Disc.") : qsTr("Conn.")
                     onClicked: {
                         presenter.requestPair(modelData.address, !modelData.isPaired)
                     }
@@ -83,26 +76,18 @@ Item {
             }
         }
     
-        Button {
+        RButton {
             anchors {
-                margins: 5
+                margins: root.margins
                 bottom: parent.bottom
                 horizontalCenter: parent.horizontalCenter
             }
-            
-            style: ButtonStyle {
-                label: Text {
-                    renderType: Text.NativeRendering
-                    verticalAlignment: Text.AlignVCenter
-                    horizontalAlignment: Text.AlignHCenter
-                    font.pixelSize: roboPalette.textSize
-                    color: roboPalette.backgroundColor
-                    text: qsTr("Scan")
-                }
-            }
+
+            width: view.width
+            text: qsTr("Scan")
             
             BusyIndicator {
-                anchors.fill: parent
+                anchors.centerIn: parent
                 running: presenter.scanStatus
             }
             

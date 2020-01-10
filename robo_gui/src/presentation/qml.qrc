@@ -3,6 +3,8 @@
         <file>qml/Battery.qml</file>
         <file>qml/BatteryIndicator.qml</file>
         <file>qml/BluetoothManager.qml</file>
+        <file>qml/VehicleManager.qml</file>
+        <file>qml/TrackerManager.qml</file>
         <file>qml/CaptureArea.qml</file>
         <file>qml/ChassisScheme.qml</file>
         <file>qml/Combat.qml</file>
@@ -13,6 +15,7 @@
         <file>qml/SelectArea.qml</file>
         <file>qml/Settings.qml</file>
         <file>qml/RButton.qml</file>
+        <file>qml/RToolButton.qml</file>
         <file>qml/RSpinBox.qml</file>
         <file>qml/StatusIndicator.qml</file>
         <file>qml/StatusPanel.qml</file>

@@ -17,10 +17,11 @@ namespace domain
     {
         Q_OBJECT
 
-        Q_PROPERTY(int sysId READ sysId WRITE setSysId)
-        Q_PROPERTY(QString name READ name WRITE setName)
-        Q_PROPERTY(data_source::AbstractLink* link READ link WRITE setLink)
-        Q_PROPERTY(Type type READ type WRITE setType)
+        Q_PROPERTY(int sysId READ sysId WRITE setSysId NOTIFY vehicleChanged)
+        Q_PROPERTY(QString name READ name WRITE setName NOTIFY vehicleChanged)
+        Q_PROPERTY(data_source::AbstractLink* link READ link WRITE setLink NOTIFY vehicleChanged)
+        Q_PROPERTY(Type type READ type WRITE setType NOTIFY vehicleChanged)
+        Q_PROPERTY(QString typeString READ typeString NOTIFY vehicleChanged)
         Q_PROPERTY(bool online READ isOnline WRITE setOnline NOTIFY onlineChanged)
 
     public:
@@ -49,6 +50,7 @@ namespace domain
             Ornithopter = 62,
 
             Rover = 70,
+            Tank = 71,
         };
 
         int sysId() const;
@@ -62,12 +64,14 @@ namespace domain
 
         Type type() const;
         void setType(Type type);
+        QString typeString() const;
 
         bool isOnline() const;
         void setOnline(bool isOnline);
 
     signals:
         void onlineChanged(bool online);
+        void vehicleChanged();
 
     private:
         int m_sysId = 0;

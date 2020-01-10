@@ -26,6 +26,8 @@ namespace domain
         VehiclePtr vehicle(int systemId) const;
         bool removeLink(data_source::AbstractLink* link);
 
+        QMap< int, VehiclePtr > vehicles() const;
+
     public slots:
         bool removeVehicle(int sysId);
         bool removeVehicle(const VehiclePtr& vehicle);

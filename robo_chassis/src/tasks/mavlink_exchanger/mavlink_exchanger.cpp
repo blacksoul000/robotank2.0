@@ -29,6 +29,7 @@ MavlinkExchanger::MavlinkExchanger() :
     d(new Impl)
 {
     d->connectionP = PubSub::instance()->advertise< data_source::AbstractLinkPtr >("connection");
+    PubSub::instance()->subscribe("vehicle", &MavlinkExchanger::onVehicleSelected, this);
 
     CommunicatorBuilder builder;
     builder.initCommunicator();
@@ -74,12 +75,7 @@ void MavlinkExchanger::start()
 
 void MavlinkExchanger::onVehicleAdded(domain::VehiclePtr vehicle)
 {
-    if (d->vehicle) return;
-    if (!vehicle) return;
-
-    d->vehicle = vehicle;
-    connect(vehicle.data(), &domain::Vehicle::onlineChanged,
-            this, &MavlinkExchanger::onVehicleOnlineChanged);
+    Q_UNUSED(vehicle)
 }
 
 void MavlinkExchanger::onVehicleRemoved(domain::VehiclePtr vehicle)
@@ -94,9 +90,28 @@ void MavlinkExchanger::onVehicleRemoved(domain::VehiclePtr vehicle)
 
 void MavlinkExchanger::onVehicleOnlineChanged(bool online)
 {
-    Q_UNUSED(online)
+    d->connectionP->publish((online && d->vehicle) 
+        ? d->vehicle->link() : data_source::AbstractLinkPtr());
+}
 
-    if (!d->vehicle) return;
+void MavlinkExchanger::onVehicleSelected(const quint8& sysId)
+{
+    if (d->vehicle && d->vehicle->sysId() != sysId)
+    {
+        disconnect(d->vehicle.data(), &domain::Vehicle::onlineChanged,
+            this, &MavlinkExchanger::onVehicleOnlineChanged);
+        this->onVehicleOnlineChanged(false);
+        d->vehicle.clear();
+    }
 
-    d->connectionP->publish(d->vehicle->link());
+    if (sysId > 0)
+    {
+        d->vehicle = d->communicator->vehicleRegistry()->vehicle(sysId);
+        if (d->vehicle)
+        {
+            connect(d->vehicle.data(), &domain::Vehicle::onlineChanged,
+                    this, &MavlinkExchanger::onVehicleOnlineChanged);
+            this->onVehicleOnlineChanged(d->vehicle->isOnline());
+        }
+    }
 }

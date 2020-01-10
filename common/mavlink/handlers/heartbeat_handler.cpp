@@ -46,6 +46,7 @@ namespace
             case MAV_TYPE_KITE: return Vehicle::Kite;
             case MAV_TYPE_FLAPPING_WING: return Vehicle::Ornithopter;
             case MAV_TYPE_GROUND_ROVER: return Vehicle::Rover;
+            case MAV_TYPE_TANK: return Vehicle::Tank;
             case MAV_TYPE_GCS: return Vehicle::GCS;
             case MAV_TYPE_GENERIC:
             default: return Vehicle::UnknownType;

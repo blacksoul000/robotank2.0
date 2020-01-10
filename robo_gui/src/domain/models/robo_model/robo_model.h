@@ -8,6 +8,7 @@ namespace domain
     class SettingsModel;
     class BluetoothModel;
     class GamepadModel;
+    class MavlinkExchanger;
 
     class RoboModel
     {
@@ -20,6 +21,7 @@ namespace domain
         SettingsModel* settings() const;
         BluetoothModel* bluetooth() const;
         GamepadModel* gamepad() const;
+        MavlinkExchanger* mavlink() const;
 
     private:
         StatusModel* m_status = nullptr;
@@ -27,6 +29,7 @@ namespace domain
         SettingsModel* m_settings = nullptr;
         BluetoothModel* m_bluetooth = nullptr;
         GamepadModel* m_gamepad = nullptr;
+        MavlinkExchanger* m_mavlink = nullptr;
     };
 }
 

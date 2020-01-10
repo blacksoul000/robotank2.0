@@ -60,6 +60,11 @@ bool VehicleRegistry::removeLink(data_source::AbstractLink* link)
     return true;
 }
 
+QMap< int, VehiclePtr > VehicleRegistry::vehicles() const
+{
+    return d->vehicles;
+}
+
 VehiclePtr VehicleRegistry::addVehicle(int sysId, data_source::AbstractLink* link)
 {
     if (d->vehicles.contains(sysId)) return VehiclePtr();

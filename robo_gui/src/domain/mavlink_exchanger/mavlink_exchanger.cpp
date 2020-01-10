@@ -21,6 +21,7 @@
 
 #include <mavlink.h>
 
+#include <QSettings>
 #include <QBluetoothAddress>
 #include <QNetworkInterface>
 #include <QHostAddress>
@@ -36,6 +37,7 @@ public:
     domain::MavLinkCommunicator* communicator = nullptr;
     domain::RoboModel* model = nullptr;
     domain::VehiclePtr vehicle;
+    int vehicleId = 0;
 };
 
 MavlinkExchanger::MavlinkExchanger(domain::RoboModel* model, QObject *parent) :
@@ -73,6 +75,7 @@ MavlinkExchanger::MavlinkExchanger(domain::RoboModel* model, QObject *parent) :
 
 MavlinkExchanger::~MavlinkExchanger()
 {
+    this->onDismiss();
     delete d->communicator;
     delete d;
 }
@@ -106,26 +109,33 @@ void MavlinkExchanger::start()
             }
         }
     }
+
+    d->vehicleId = QSettings().value("vehicleId", 0).toInt();
 }
 
 void MavlinkExchanger::onVehicleAdded(VehiclePtr vehicle)
 {
     if (d->vehicle) return;
-    if (!vehicle) return;
 
-    d->vehicle = vehicle;
-    connect(vehicle.data(), &domain::Vehicle::onlineChanged,
-            this, &MavlinkExchanger::onVehicleOnlineChanged);
+    if (vehicle && vehicle->sysId() == d->vehicleId)
+    {
+        this->setCurrentVehicle(vehicle);
+    }
 }
 
 void MavlinkExchanger::onVehicleRemoved(VehiclePtr vehicle)
 {
     if (!d->vehicle || !vehicle) return;
-    if (vehicle->sysId() != vehicle->sysId()) return;
+    if (d->vehicle->sysId() != vehicle->sysId()) return;
 
     disconnect(d->vehicle.data(), &domain::Vehicle::onlineChanged,
             this, &MavlinkExchanger::onVehicleOnlineChanged);
     d->vehicle.clear();
+}
+
+QMap< int, domain::VehiclePtr > MavlinkExchanger::vehicles() const
+{
+    return d->communicator->vehicleRegistry()->vehicles();
 }
 
 void MavlinkExchanger::onVehicleOnlineChanged(bool online)
@@ -135,6 +145,7 @@ void MavlinkExchanger::onVehicleOnlineChanged(bool online)
     if (online)
     {
         d->model->status()->setChassisStatus(true);
+        this->onHandshake();
 
         domain::CommandPtr command = domain::CommandPtr::create();
         command->setType(MAVLINK_MSG_ID_COMMAND_LONG);
@@ -253,6 +264,28 @@ void MavlinkExchanger::onImageSettingsChanged()
     d->communicator->commandService()->executeCommand(d->vehicle->sysId(), command);
 }
 
+void MavlinkExchanger::onHandshake()
+{
+    if (!d->vehicle) return;
+    qDebug() << Q_FUNC_INFO;
+
+    domain::CommandPtr command = domain::CommandPtr::create();
+    command->setType(MAVLINK_MSG_ID_COMMAND_LONG);
+    command->setCommandId(MAV_CMD_HANDSHAKE);
+    d->communicator->commandService()->executeCommand(d->vehicle->sysId(), command);
+}
+
+void MavlinkExchanger::onDismiss()
+{
+    if (!d->vehicle) return;
+    qDebug() << Q_FUNC_INFO;
+
+    domain::CommandPtr command = domain::CommandPtr::create();
+    command->setType(MAVLINK_MSG_ID_COMMAND_LONG);
+    command->setCommandId(MAV_CMD_DISMISS);
+    d->communicator->commandService()->executeCommand(d->vehicle->sysId(), command);
+}
+
 void MavlinkExchanger::onJoyChanged()
 {
     if (!d->vehicle) return;
@@ -274,4 +307,35 @@ void MavlinkExchanger::onJoyChanged()
     command->addArgument(model->buttons());
 
     d->communicator->commandService()->executeCommand(d->vehicle->sysId(), command, true);
+}
+
+domain::VehiclePtr MavlinkExchanger::currentVehicle() const
+{
+    return d->vehicle;
+}
+
+void MavlinkExchanger::setCurrentVehicle(const domain::VehiclePtr& vehicle)
+{
+    if (vehicle == d->vehicle) return;
+    
+    if (d->vehicle)
+    {
+        this->onDismiss();
+        disconnect(vehicle.data(), &domain::Vehicle::onlineChanged,
+            this, &MavlinkExchanger::onVehicleOnlineChanged);
+        d->vehicleId = 0;
+    }
+
+    d->vehicle = vehicle;
+
+    if (d->vehicle)
+    {
+        d->vehicleId = d->vehicle->sysId();
+        connect(vehicle.data(), &domain::Vehicle::onlineChanged,
+            this, &MavlinkExchanger::onVehicleOnlineChanged);
+        this->onHandshake();
+    }
+
+    QSettings().setValue("vehicleId", d->vehicleId);
+    emit currentVehicleChanged();
 }
