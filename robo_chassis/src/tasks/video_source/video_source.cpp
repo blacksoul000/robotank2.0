@@ -1,8 +1,6 @@
 #include "video_source.h"
 
-#ifdef WITH_RTSP
-	#include "rtsp_server.h"
-#endif // WITH_RTSP
+#include "video_server.h"
 
 //msgs
 #include "image_settings.h"
@@ -22,17 +20,19 @@
 #include "opencv2/imgproc/imgproc.hpp"
 
 using MatPtr = QSharedPointer< cv::Mat >;
+using std::placeholders::_1;
+using std::placeholders::_2;
 
 namespace
 {
     const int defaultBrightness = 65;
     const int defaultContrast = 75;
 
-//    const int width = 1296;
-//    const int height = 730;
-
     const int width = 1280;
     const int height = 720;
+    const int fps = 25;
+
+    const int videoPort = 5050;
 
 #ifdef PICAM
     const double fieldOfViewH = 53.5; // +/- 0.13 degrees
@@ -45,19 +45,21 @@ namespace
 #endif // PICAM
 } //namespace
 
+// gst-launch-1.0 videotestsrc do-timestamp=true ! video/x-raw,width=800,height=600,framerate=25/1 ! 
+// autovideoconvert ! jpegenc ! rtpjpegpay ! udpsink host=127.0.0.1 port=5000
+
+// gst-launch-1.0 udpsrc port=5000 ! application/x-rtp,encoding-name=JPEG,payload=26 ! 
+// rtpjpegdepay ! jpegdec ! autovideosink
+
+
 class VideoSource::Impl
 {
 public:
-    bool started = false;
-
     Publisher< MatPtr >* imageP = nullptr;
     Publisher< QPointF >* dotsPerDegreeP = nullptr;
     Publisher< QString >* videoSourceP = nullptr;
 
-#ifdef WITH_RTSP
-    rtsp_server::RtspServer* rtsp = nullptr;
-    void initRtspServer();
-#endif // WITH_RTSP
+    VideoServer* video = nullptr;
 
     void setBrightness(int brightness);
     void setContrast(int contrast);
@@ -79,11 +81,6 @@ VideoSource::~VideoSource()
     delete d->imageP;
     delete d->dotsPerDegreeP;
     delete d->videoSourceP;
-
-#ifdef WITH_RTSP
-    delete d->rtsp;
-#endif // WITH_RTSP
-
     delete d;
 }
 
@@ -91,11 +88,9 @@ void VideoSource::start()
 {
     d->dotsPerDegreeP->publish(QPointF(::width / ::fieldOfViewH, ::height / ::fieldOfViewV));
 
-#ifdef WITH_RTSP
-    d->initRtspServer();
-    d->rtsp->setDataCallback(std::bind(&VideoSource::onNewFrame, this,
-                                       std::placeholders::_1, std::placeholders::_2));
-#endif // WITH_RTSP
+    d->video = new VideoServer(::videoPort, ::width, ::height, ::fps, this);
+    d->video->setDataCallback(std::bind(&VideoSource::onNewFrame, this, _1, _2));
+    d->video->start();
 }
 
 void VideoSource::onNewFrame(const void* data, int size)
@@ -119,28 +114,15 @@ void VideoSource::onImageSettingsChanged(const ImageSettings& settings)
 
 void VideoSource::onConnectionChanged(const data_source::AbstractLinkPtr& link)
 {
-#ifdef WITH_RTSP
     if (link)
     {
-        if (d->started) return;
-
-        for (const QHostAddress &address: QNetworkInterface::allAddresses())
-        {
-            if (address.isInSubnet(link->send().address(), 24))
-            {
-                QString path = QString("rtsp://%1:%2/%3")
-                    .arg(address.toString())
-                    .arg(d->rtsp->port())
-                    .arg(QString::fromStdString(d->rtsp->streamName()));
-                qDebug() << "Stream path:" << path;
-                d->videoSourceP->publish(path);
-                d->started = true;
-
-                break;
-            }
-        }
+        d->video->setUdpHost(link->send().address());
+        QString path = QString("%1").arg(d->video->port());
+        qDebug() << QString("Stream path: host=%1, port=%2")
+            .arg(link->send().address().toString())
+            .arg(d->video->port());
+        d->videoSourceP->publish(path);
     }
-#endif // WITH_RTSP
 }
 
 //----------------------------------------------------------------------------
@@ -153,20 +135,3 @@ void VideoSource::Impl::setContrast(int contrast)
 {
 //    capturer.set(CV_CAP_PROP_CONTRAST, contrast);
 }
-
-#ifdef WITH_RTSP
-void VideoSource::Impl::initRtspServer()
-{
-    rtsp = new rtsp_server::RtspServer(
-               QString("rpicamsrc do-timestamp=true name=src ! "
-                       "video/x-raw,width=%1,height=%2,framerate=%3/1,format=I420 ! "
-                       "omxh264enc ! video/x-h264,profile=baseline,quality=1,low-latency=true,key-int-max=1,speed-preset=ultrafast,control-rate=3 ! "
-//                       "omxh264enc ! video/x-h264,profile=baseline,speed-preset=ultrafast,tune=zerolatency ! "
-                       "rtph264pay name=pay0 pt=96")
-                                       .arg(::width)
-                                       .arg(::height)
-                                       .arg(25)
-                                       .toStdString());
-    rtsp->start();
-}
-#endif // WITH_RTSP

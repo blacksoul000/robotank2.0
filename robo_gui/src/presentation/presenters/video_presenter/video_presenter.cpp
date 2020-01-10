@@ -100,8 +100,9 @@ VideoPresenter::~VideoPresenter()
 void VideoPresenter::setUri(const QString& uri)
 {
 	qDebug() << Q_FUNC_INFO << uri;
+	// uri now contains only video port
 	if (!d->src || uri.isEmpty()) return;
-	g_object_set (d->src, "location", uri.toLatin1().data(), nullptr);
+	g_object_set (d->src, "port", uri.toUInt(), nullptr);
 	this->play();
 }
 
@@ -151,8 +152,9 @@ bool VideoPresenter::createPipeline()
 	}
 	else
 	{
-		pipe = "rtspsrc name=src latency=0 ! "
-			   "rtph264depay ! h264parse ! avdec_h264 ! ";
+		pipe = "udpsrc name=src port=5000 ! "
+			   "application/x-rtp,encoding-name=H264,payload=96 ! rtph264depay ! "
+			   "h264parse ! avdec_h264 ! ";
 	}
 
 	pipe += "glupload ! glcolorconvert ! qmlglsink name=sink";
