@@ -50,8 +50,8 @@ VideoServer::VideoServer(quint16 port, quint16 width, quint16 height, quint8 fps
         "videotestsrc do-timestamp=true name=source ! "
 #endif  // PICAM
         "video/x-raw,width=%1,height=%2,framerate=%3/1 ! "
-        "omxh264enc ! video/x-h264,profile=baseline,quality=1,low-latency=true,key-int-max=1,"
-            "speed-preset=ultrafast,control-rate=3 ! "
+        "omxh264enc control-rate=1 target-bitrate=1000000 !"
+        "video/x-h264,profile=baseline,low-latency=true,speed-preset=ultrafast ! "
         "rtph264pay pt=96 ! udpsink host=%4 port=%5 name=udpsink")
             .arg(d->width).arg(d->height).arg(fps).arg(d->host.toString())
             .arg(d->port).toLocal8Bit().data(), nullptr);
@@ -82,7 +82,9 @@ void VideoServer::setUdpHost(const QHostAddress& host)
     d->host = host;
 
 #ifdef WITH_GST
-    g_object_set (d->sink, "host", d->host.toString().toLocal8Bit().data(), NULL);
+    gst_element_set_state(d->pipeline, GST_STATE_PAUSED);
+    g_object_set(d->sink, "host", d->host.toString().toLocal8Bit().data(), NULL);
+    gst_element_set_state(d->pipeline, GST_STATE_PLAYING);
 #endif  // WITH_GST
 }
 
