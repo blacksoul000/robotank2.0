@@ -256,6 +256,9 @@
       <entry value="32" name="MAV_TYPE_FLARM">
         <description>Onboard FLARM collision avoidance system</description>
       </entry>
+      <entry value="33" name="MAV_TYPE_TANK">
+        <description>Tank</description>
+      </entry>
     </enum>
     <enum name="MAV_CMD">
       <description>Commands to be executed by the MAV. They can be executed on user request, or as part of a mission script. If the action is used in a mission, the parameter mapping to the waypoint/mission message is as follows: Param 1, Param 2, Param 3, Param 4, X: Param 5, Y:Param 6, Z:Param 7. This command list is similar what ARINC 424 is for commercial aircraft: A data format how to interpret waypoint/mission data.</description>
@@ -402,6 +405,26 @@
       <entry value="30" name="MAV_CMD_SHOOT">
         <description>Shoot</description>
         <param index="1">id</param>
+        <param index="2">Empty</param>
+        <param index="3">Empty</param>
+        <param index="4">Empty</param>
+        <param index="5">Empty</param>
+        <param index="6">Empty</param>
+        <param index="7">Empty</param>
+      </entry>
+      <entry value="31" name="MAV_CMD_HANDSHAKE">
+        <description>Handshake</description>
+        <param index="1">Empty</param>
+        <param index="2">Empty</param>
+        <param index="3">Empty</param>
+        <param index="4">Empty</param>
+        <param index="5">Empty</param>
+        <param index="6">Empty</param>
+        <param index="7">Empty</param>
+      </entry>
+      <entry value="32" name="MAV_CMD_DISMISS">
+        <description>Dismiss</description>
+        <param index="1">Empty</param>
         <param index="2">Empty</param>
         <param index="3">Empty</param>
         <param index="4">Empty</param>

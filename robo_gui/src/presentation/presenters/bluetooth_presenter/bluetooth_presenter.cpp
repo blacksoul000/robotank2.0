@@ -80,6 +80,7 @@ void BluetoothPresenter::stop()
 void BluetoothPresenter::onDevicesChanged(const QVector< BluetoothDeviceInfo >& devices)
 {
     const bool countChanged = (d->devices.count() != devices.count());
+    qDebug() << Q_FUNC_INFO << devices.count() << d->devices.count() << countChanged;
 
     while(d->devices.count() > devices.count()) delete d->devices.takeLast();
     while(d->devices.count() < devices.count()) d->devices.append(new BluetoothDevice(this));

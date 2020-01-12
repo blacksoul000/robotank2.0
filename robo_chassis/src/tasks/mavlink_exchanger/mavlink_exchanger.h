@@ -17,6 +17,7 @@ protected slots:
     void onVehicleAdded(domain::VehiclePtr vehicle);
     void onVehicleRemoved(domain::VehiclePtr vehicle);
     void onVehicleOnlineChanged(bool online);
+    void onVehicleSelected(const quint8& sysId);
 
 private:
     class Impl;

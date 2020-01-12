@@ -29,6 +29,7 @@ find_package(Qt5Bluetooth)
 
 include(FindPkgConfig)
 pkg_check_modules(GSTRTSP gstreamer-rtsp-server-1.0)
+pkg_check_modules(GST gstreamer-1.0)
 
 set(LIBS
     Qt5::Core
@@ -55,12 +56,13 @@ else (${PIGPIO_FOUND})
     set (FEATURES ${FEATURES} "GPIO control")
 endif(${PIGPIO_FOUND})
 
-if (${GSTRTSP_FOUND})
-    set(LIBS ${LIBS} gstrtsp-1.0 gstapp-1.0 ${GSTRTSP_LIBRARIES})
-    add_definitions(-DWITH_RTSP)
-else (${GSTRTSP_FOUND})
+if (${GST_FOUND})
+    set(LIBS ${LIBS} ${GST_LIBRARIES})
+    add_definitions(-DWITH_GST)
+    include_directories(${GST_INCLUDE_DIRS})
+else (${GST_FOUND})
     set(FEATURES ${FEATURES} "FPV")
-endif(${GSTRTSP_FOUND})
+endif(${GST_FOUND})
 
 if(PICAM)
     message("** Enabling RPi Camera **")
@@ -73,7 +75,6 @@ HEADER_DIRECTORIES(src DIRS)
 include_directories(${DIRS})
 include_directories(${OpenTLD_DIR}/src)
 include_directories(${OpenCV_INCLUDE_DIRS})
-include_directories(${GSTRTSP_INCLUDE_DIRS})
 
 file(GLOB_RECURSE SOURCES src src/*.cpp)
 add_executable(${PROJECT_NAME} ${SOURCES})

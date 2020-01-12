@@ -14,7 +14,7 @@ Row {
 
     spacing: 5
 
-    RButton {
+    RToolButton {
         id: down
         width: height
         height: parent.height
@@ -34,7 +34,7 @@ Row {
         verticalAlignment: Text.AlignVCenter
     }
 
-    RButton {
+    RToolButton {
         id: up
         width: height
         height: parent.height

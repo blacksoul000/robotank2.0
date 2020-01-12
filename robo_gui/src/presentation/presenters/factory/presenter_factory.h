@@ -24,6 +24,7 @@ namespace presentation
         QObject* bluetoothPresenter();
         QObject* videoPresenter();
         QObject* gamepadPresenter();
+        QObject* mavlinkPresenter();
 
     private:
         class Impl;

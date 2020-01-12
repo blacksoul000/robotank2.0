@@ -1,7 +1,8 @@
 import QtQuick 2.2
-import QtQuick.Controls 1.4
+import QtQuick.Controls 2.12
 import QtQuick.Layouts 1.1
 import QtQuick.Controls.Styles 1.2
+import QtQuick.Controls.Material 2.12
 
 import Robotank 1.0
 
@@ -15,6 +16,10 @@ Item {
     property int columnSpacing: 30
     property QtObject presenter
     property QtObject gamepad
+    property QtObject mavlink: factory.mavlinkPresenter()
+
+    Material.theme: Material.Dark
+    Material.accent: Material.Purple
     
     Rectangle {
         anchors {
@@ -62,55 +67,10 @@ Item {
             }
         }
     
-        Component {
-            id: trackerDelegate
-            Item {
-                property int offset: 10;
-                width: label.width + box.width + offset
-                height: 20
-                Row {
-                    id: itemRow
-                    anchors.fill: parent
-                    spacing: offset
-                    Rectangle {
-                        id: box
-                        width: 20
-                        height: 20
-    
-                        anchors.verticalCenter: parent.verticalCenter
-    
-                        property bool checked: presenter.trackerCode === code
-    
-                        border.color: "white"
-                        Image {
-                            anchors.fill: parent
-                            source: "qrc:/icons/ok.svg"
-                            visible: box.checked
-                        }
-    
-                        MouseArea {
-                            anchors.fill: parent
-                            onClicked: {
-                                if (box.checked) return;
-                                presenter.trackerCode = code
-                            }
-                        }
-                    }
-                    Text {
-                        id: label
-                        color: roboPalette.textColor
-                        font.pixelSize: roboPalette.textSize
-                        anchors.verticalCenter: parent.verticalCenter
-                        text: name
-                    }
-                }
-            }
-        }
-    
         Flickable {
             id: flow
             anchors.fill: parent
-            anchors.margins: 5
+            anchors.margins: root.margins
             contentHeight: col.height
             clip: true
     
@@ -118,52 +78,74 @@ Item {
                 id: col
                 spacing: root.rowSpacing
                 anchors.fill: parent
-    
-                GroupBox {
-                    Layout.fillHeight: true
+
+                RButton {
+                    height: 50
                     width: parent.width
-                    title: qsTr("Gamepad")
-    
-                    Column {
-                        anchors.fill: parent
-                        spacing: root.rowSpacing
-    
-                        Row {
-                            spacing: root.columnSpacing
-    
-                            Text {
-                                color: roboPalette.textColor
-                                font.pixelSize: roboPalette.textSize
-                                text: qsTr("Status") + ":"
-                            }
-                            Text {
-                                color: roboPalette.textColor
-                                font.pixelSize: roboPalette.textSize
-                                text: gamepad.connected ? qsTr("Connected")
-                                                        : qsTr("Unconnected")
+
+                    property QtObject vehicle: mavlink.currentVehicle
+
+                    text: qsTr("Vehicle") + ": " +
+                         (vehicle ? vehicle.name + " (" + vehicle.typeString + ")" : qsTr("None"))
+
+                    onClicked: {
+                        stackView.push({
+                            item: Qt.resolvedUrl("qrc:/qml/VehicleManager.qml"), 
+                            properties:{
+                                topMargin: root.topMargin, 
+                                margins: root.margins,
+                                presenter: root.mavlink
+                            }})
+                    }
+                }
+
+                RButton {
+                    height: 50
+                    width: parent.width
+
+                    property QtObject vehicle: mavlink.currentVehicle
+
+                    text: qsTr("Gamepad") + ": " +
+                         (gamepad.connected ? qsTr("Connected"): qsTr("Unconnected"))
+
+                    onClicked: {
+                        stackView.push({
+                            item: Qt.resolvedUrl("qrc:/qml/BluetoothManager.qml"), 
+                            properties:{topMargin: root.topMargin, 
+                                        margins: root.margins 
+                            }})
+                    }
+                }
+
+                RButton {
+                    id: trackerBtn
+                    height: 50
+                    width: parent.width
+                    property var tracker
+                    property int code: presenter.trackerCode
+
+                    text: qsTr("Tracker") + ": " + (tracker ? tracker.name : qsTr("None"))
+
+                    onCodeChanged: {
+                        for (var i = 0; i < trackersModel.count; ++i)
+                        {
+                            var item = trackersModel.get(i)
+                            if (trackerBtn.code == item.code)
+                            {
+                                trackerBtn.tracker = item
+                                break
                             }
                         }
-    
-                        Button {
-                            anchors.horizontalCenter: parent.horizontalCenter
-                            style: ButtonStyle {
-                                label: Text {
-                                    renderType: Text.NativeRendering
-                                    verticalAlignment: Text.AlignVCenter
-                                    horizontalAlignment: Text.AlignHCenter
-                                    font.pixelSize: roboPalette.textSize
-                                    color: roboPalette.backgroundColor
-                                    text: qsTr("Manage")
-                                }
-                            }
-                            onClicked: {
-                                stackView.push({
-                                    item: Qt.resolvedUrl("qrc:/qml/BluetoothManager.qml"), 
-                                    properties:{topMargin: root.topMargin, 
-                                                margins: root.margins 
-                                    }})
-                            }
-                        }
+                    }
+
+                    onClicked: {
+                        stackView.push({
+                            item: Qt.resolvedUrl("qrc:/qml/TrackerManager.qml"), 
+                            properties:{topMargin: root.topMargin, 
+                                        margins: root.margins,
+                                        presenter: presenter,
+                                        model: trackersModel
+                            }})
                     }
                 }
     
@@ -182,7 +164,7 @@ Item {
                             id: brightnessLabel
                             color: roboPalette.textColor
                             font.pixelSize: roboPalette.textSize
-                            text: "Brightness"
+                            text: qsTr("Brightness")
                         }
                         RSpinBox {
                             height: brightnessLabel.height
@@ -195,31 +177,13 @@ Item {
                             id: contrastLabel
                             color: roboPalette.textColor
                             font.pixelSize: roboPalette.textSize
-                            text: "Contrast"
+                            text: qsTr("Contrast")
                         }
                         RSpinBox {
                             height: contrastLabel.height
                             Layout.alignment: Qt.AlignRight
                             inputValue: presenter.contrast
                             onValueChanged: presenter.contrast = value
-                        }
-                    }
-                }
-    
-                GroupBox {
-                    Layout.fillHeight: true
-                    width: parent.width
-                    title: qsTr("Trackers")
-    
-                    GridLayout {
-                        rowSpacing: root.rowSpacing
-                        columnSpacing: root.columnSpacing
-                        anchors.fill: parent
-                        columns: 2
-    
-                        Repeater {
-                            model: trackersModel
-                            delegate: trackerDelegate
                         }
                     }
                 }
@@ -239,7 +203,7 @@ Item {
                             id: leftEngineLabel
                             color: roboPalette.textColor
                             font.pixelSize: roboPalette.textSize
-                            text: "Left"
+                            text: qsTr("Left")
                         }
                         RSpinBox {
                             id: leftEngine
@@ -252,7 +216,7 @@ Item {
                             id: rightEngineLabel
                             color: roboPalette.textColor
                             font.pixelSize: roboPalette.textSize
-                            text: "Right"
+                            text: qsTr("Right")
                         }
                         RSpinBox {
                             id: rightEngine
@@ -268,37 +232,20 @@ Item {
                     width: parent.width
                     title: qsTr("Sensors calibration")
     
-                    GridLayout {
-                        rowSpacing: root.rowSpacing
-                        columnSpacing: root.columnSpacing
+                    RowLayout {
+                        spacing: root.rowSpacing
                         anchors.fill: parent
-    
-                        Button {
-                            style: ButtonStyle {
-                                label: Text {
-                                    renderType: Text.NativeRendering
-                                    verticalAlignment: Text.AlignVCenter
-                                    horizontalAlignment: Text.AlignHCenter
-                                    font.pixelSize: roboPalette.textSize
-                                    color: roboPalette.backgroundColor
-                                    text: qsTr("Gun")
-                                }
-                            }
+
+                        RButton {
+                            Layout.fillWidth: true
+                            text: qsTr("Gun")
                             onClicked: {
                                 presenter.calibrateGun()
                             }
                         }
-                        Button {
-                            style: ButtonStyle {
-                                label: Text {
-                                    renderType: Text.NativeRendering
-                                    verticalAlignment: Text.AlignVCenter
-                                    horizontalAlignment: Text.AlignHCenter
-                                    font.pixelSize: roboPalette.textSize
-                                    color: roboPalette.backgroundColor
-                                    text: qsTr("Gyro")
-                                }
-                            }
+                        RButton {
+                            Layout.fillWidth: true
+                            text: qsTr("Gyro")
                             onClicked: {
                                 presenter.calibrateGyro()
                             }
