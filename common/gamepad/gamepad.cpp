@@ -11,6 +11,7 @@
 #include <unistd.h>
 #include <linux/joystick.h>
 #include <fcntl.h>
+#include <errno.h>
 
 class Gamepad::Impl
 {

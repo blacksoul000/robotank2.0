@@ -16,11 +16,11 @@
 #include <QTimer>
 #include <QDebug>
 
-//Android
-#ifdef ANDROID
-#include <QtAndroid>
-#include <QAndroidJniObject>
-#endif
+////Android
+//#ifdef ANDROID
+//#include <QtAndroid>
+//#include <QAndroidJniObject>
+//#endif
 
 using robo::MainWindow;
 using domain::MavlinkExchanger;
@@ -45,10 +45,10 @@ public:
         return (value & (1 << bit));
     }
 
-#ifdef ANDROID
-    QAndroidJniObject wakeLock;
-    bool wakeLocked = false;
-#endif
+//#ifdef ANDROID
+//    QAndroidJniObject wakeLock;
+//    bool wakeLocked = false;
+//#endif
 };
 
 MainWindow::MainWindow() :
@@ -69,20 +69,20 @@ MainWindow::MainWindow() :
             this, &MainWindow::onButtonsUpdated);
 
 
-#ifdef ANDROID
-    QAndroidJniObject activity = QtAndroid::androidActivity();
+//#ifdef ANDROID
+//    QAndroidJniObject activity = QtAndroid::androidActivity();
 
-    QAndroidJniObject serviceName = QAndroidJniObject::getStaticObjectField<jstring>(
-                "android/content/Context","POWER_SERVICE");
-    QAndroidJniObject powerMgr = activity.callObjectMethod("getSystemService",
-                                            "(Ljava/lang/String;)Ljava/lang/Object;",
-                                            serviceName.object<jobject>());
-    QAndroidJniObject tag = QAndroidJniObject::fromString("Robotank");
-    d->wakeLock = powerMgr.callObjectMethod("newWakeLock",
-                                        "(ILjava/lang/String;)Landroid/os/PowerManager$WakeLock;",
-                                        6, //SCREEN_DIM_WAKE_LOCK
-                                        tag.object<jstring>());
-#endif
+//    QAndroidJniObject serviceName = QAndroidJniObject::getStaticObjectField<jstring>(
+//                "android/content/Context","POWER_SERVICE");
+//    QAndroidJniObject powerMgr = activity.callObjectMethod("getSystemService",
+//                                            "(Ljava/lang/String;)Ljava/lang/Object;",
+//                                            serviceName.object<jobject>());
+//    QAndroidJniObject tag = QAndroidJniObject::fromString("Robotank");
+//    d->wakeLock = powerMgr.callObjectMethod("newWakeLock",
+//                                        "(ILjava/lang/String;)Landroid/os/PowerManager$WakeLock;",
+//                                        6, //SCREEN_DIM_WAKE_LOCK
+//                                        tag.object<jstring>());
+//#endif
 
     connect(d->viewer->engine(), &QQmlEngine::quit, qApp, &QCoreApplication::quit);
 }
