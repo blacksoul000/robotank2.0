@@ -24,6 +24,7 @@ namespace data_source
 
         Endpoint send() const;
         Endpoint receive() const;
+        virtual Endpoint lastSender() const = 0;
         virtual Endpoint local() const;
 
         QByteArray lastReceivedData() const;

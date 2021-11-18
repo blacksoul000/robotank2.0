@@ -98,7 +98,7 @@ void HeartbeatHandler::processMessage(const mavlink_message_t& message)
     {
         const auto lastLink = m_communicator->lastReceivedLink();
         auto link = lastLink->clone(
-                Endpoint(lastLink->send().address(), lastLink->send().port() + m_communicator->systemId()),
+                Endpoint(lastLink->lastSender().address(), lastLink->send().port() + m_communicator->systemId()),
                 Endpoint(QHostAddress::Any, lastLink->send().port() + message.sysid));
 
         link->connectLink();

@@ -22,6 +22,7 @@ namespace data_source
         bool waitData(int timeout = 5000) override;
 
         AbstractLink* clone(const Endpoint& send, const Endpoint& receive) override;
+        Endpoint lastSender() const override;
 
     public slots:
         void connectLink() override;
@@ -36,6 +37,7 @@ namespace data_source
     private:
         QUdpSocket* m_socket = nullptr;
         QUdpSocket* m_sendSocket = nullptr;
+        Endpoint m_lastSender;
     };
 }
 

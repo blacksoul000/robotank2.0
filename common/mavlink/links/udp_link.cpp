@@ -73,7 +73,16 @@ void UdpLink::onReadyRead()
     {
         QByteArray datagram;
         datagram.resize(m_socket->pendingDatagramSize());
-        m_socket->readDatagram(datagram.data(), datagram.size());
+        QHostAddress sender;
+        quint16 port;
+        m_socket->readDatagram(datagram.data(), datagram.size(), &sender, &port);
+        m_lastSender.setAddress(sender);
+        m_lastSender.setPort(port);
         this->receiveData(datagram);
     }
+}
+
+Endpoint UdpLink::lastSender() const
+{
+    return m_lastSender;
 }
