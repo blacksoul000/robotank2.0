@@ -132,8 +132,8 @@ void RoboCore::onTrackerDeviation(const QPointF& deviation)
 
 void RoboCore::onEnginePowerChanged(const QPoint& enginePower)
 {
-    d->enginePowerLeft = enginePower.x();
-    d->enginePowerRight = enginePower.y();
+    d->enginePowerLeft = enginePower.x() / 100.0;
+    d->enginePowerRight = enginePower.y() / 100.0;
 }
 
 void RoboCore::onGunPosition(const QPointF& position)
