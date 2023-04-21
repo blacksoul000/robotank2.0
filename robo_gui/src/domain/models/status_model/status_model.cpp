@@ -1,5 +1,7 @@
 #include "status_model.h"
 
+#include <QMutex>
+#include <QMutexLocker>
 #include <QDebug>
 
 using domain::StatusModel;
@@ -27,6 +29,8 @@ public:
     bool towerImuReady = false;
 
     quint16 buttons = 0;
+
+    QMutex mutex;
 };
 
 StatusModel::StatusModel(QObject* parent) :
@@ -42,6 +46,7 @@ StatusModel::~StatusModel()
 
 void StatusModel::setBatteryLevel(int level)
 {
+    QMutexLocker locker(&d->mutex);
     if (d->batteryLevel == level) return;
 
     d->batteryLevel = level;
@@ -50,11 +55,13 @@ void StatusModel::setBatteryLevel(int level)
 
 int StatusModel::batteryLevel() const
 {
+    QMutexLocker locker(&d->mutex);
     return d->batteryLevel;
 }
 
 void StatusModel::setCharging(bool charging)
 {
+    QMutexLocker locker(&d->mutex);
     if (d->isCharging == charging) return;
 
     d->isCharging = charging;
@@ -63,11 +70,13 @@ void StatusModel::setCharging(bool charging)
 
 bool StatusModel::isCharging() const
 {
+    QMutexLocker locker(&d->mutex);
     return d->isCharging;
 }
 
 void StatusModel::setRobotBatteryLevel(int level)
 {
+    QMutexLocker locker(&d->mutex);
     if (d->robotBatteryLevel == level) return;
 
     d->robotBatteryLevel = level;
@@ -76,11 +85,13 @@ void StatusModel::setRobotBatteryLevel(int level)
 
 int StatusModel::robotBatteryLevel() const
 {
+    QMutexLocker locker(&d->mutex);
     return d->robotBatteryLevel;
 }
 
 void StatusModel::setGunPositionH(qreal position)
 {
+    QMutexLocker locker(&d->mutex);
     if (qFuzzyCompare(d->gunPositionH, position)) return;
 
     d->gunPositionH = position;
@@ -89,11 +100,13 @@ void StatusModel::setGunPositionH(qreal position)
 
 qreal StatusModel::gunPositionH() const
 {
+    QMutexLocker locker(&d->mutex);
     return d->gunPositionH;
 }
 
 void StatusModel::setGunPositionV(qreal position)
 {
+    QMutexLocker locker(&d->mutex);
     if (qFuzzyCompare(d->gunPositionV, position)) return;
 
     d->gunPositionV = position;
@@ -102,11 +115,13 @@ void StatusModel::setGunPositionV(qreal position)
 
 qreal StatusModel::gunPositionV() const
 {
+    QMutexLocker locker(&d->mutex);
     return d->gunPositionV;
 }
 
 void StatusModel::setYaw(qreal yaw)
 {
+    QMutexLocker locker(&d->mutex);
     if (qFuzzyCompare(d->yaw, yaw)) return;
 
     d->yaw = yaw;
@@ -115,11 +130,13 @@ void StatusModel::setYaw(qreal yaw)
 
 qreal StatusModel::yaw() const
 {
+    QMutexLocker locker(&d->mutex);
     return d->yaw;
 }
 
 void StatusModel::setPitch(qreal pitch)
 {
+    QMutexLocker locker(&d->mutex);
     if (qFuzzyCompare(d->pitch, pitch)) return;
 
     d->pitch = pitch;
@@ -128,11 +145,13 @@ void StatusModel::setPitch(qreal pitch)
 
 qreal StatusModel::pitch() const
 {
+    QMutexLocker locker(&d->mutex);
     return d->pitch;
 }
 
 void StatusModel::setRoll(qreal roll)
 {
+    QMutexLocker locker(&d->mutex);
     if (qFuzzyCompare(d->roll, roll)) return;
 
     d->roll = roll;
@@ -141,11 +160,13 @@ void StatusModel::setRoll(qreal roll)
 
 qreal StatusModel::roll() const
 {
+    QMutexLocker locker(&d->mutex);
     return d->roll;
 }
 
 void StatusModel::setArduinoStatus(bool status)
 {
+    QMutexLocker locker(&d->mutex);
     if (status != d->arduinoStatus)
 
     d->arduinoStatus = status;
@@ -154,24 +175,28 @@ void StatusModel::setArduinoStatus(bool status)
 
 bool StatusModel::arduinoStatus() const
 {
+    QMutexLocker locker(&d->mutex);
     return d->arduinoStatus;
 }
 
 void StatusModel::setChassisStatus(bool status)
 {
+    QMutexLocker locker(&d->mutex);
     if (status != d->chassisStatus)
 
-	d->chassisStatus = status;
+    d->chassisStatus = status;
     emit chassisStatusChanged(status);
 }
 
 bool StatusModel::chassisStatus() const
 {
+    QMutexLocker locker(&d->mutex);
     return d->chassisStatus;
 }
 
 void StatusModel::setHeadlightStatus(bool on)
 {
+    QMutexLocker locker(&d->mutex);
     if (on != d->headlightStatus)
 
 	d->headlightStatus = on;
@@ -180,11 +205,13 @@ void StatusModel::setHeadlightStatus(bool on)
 
 bool StatusModel::headlightStatus() const
 {
+    QMutexLocker locker(&d->mutex);
 	return d->headlightStatus;
 }
 
 void StatusModel::setPointerStatus(bool on)
 {
+    QMutexLocker locker(&d->mutex);
     if (on != d->pointerStatus)
 
 	d->pointerStatus = on;
@@ -193,70 +220,91 @@ void StatusModel::setPointerStatus(bool on)
 
 bool StatusModel::pointerStatus() const
 {
+    QMutexLocker locker(&d->mutex);
 	return d->pointerStatus;
 }
 
 void StatusModel::setChassisImuOnline(bool online)
 {
+    QMutexLocker locker(&d->mutex);
     if (online != d->chassisImuOnline)
 
 	d->chassisImuOnline = online;
+    locker.unlock();
+
     emit chassisImuStatusChanged();
 }
 
 bool StatusModel::chassisImuOnline() const
 {
+    QMutexLocker locker(&d->mutex);
 	return d->chassisImuOnline;
 }
 
 void StatusModel::setChassisImuReady(bool ready)
 {
+    QMutexLocker locker(&d->mutex);
     if (ready != d->chassisImuReady)
 
 	d->chassisImuReady = ready;
+    locker.unlock();
+
     emit chassisImuStatusChanged();
 }
 
 bool StatusModel::chassisImuReady() const
 {
+    QMutexLocker locker(&d->mutex);
 	return d->chassisImuReady;
 }
 
 void StatusModel::setTowerImuOnline(bool online)
 {
+    QMutexLocker locker(&d->mutex);
     if (online != d->towerImuOnline)
 
 	d->towerImuOnline = online;
+    locker.unlock();
+
     emit towerImuStatusChanged();
 }
 
 bool StatusModel::towerImuOnline() const
 {
+    QMutexLocker locker(&d->mutex);
 	return d->towerImuOnline;
 }
 
 void StatusModel::setTowerImuReady(bool ready)
 {
+    QMutexLocker locker(&d->mutex);
     if (ready != d->towerImuReady)
 
 	d->towerImuReady = ready;
+    locker.unlock();
+
     emit towerImuStatusChanged();
 }
 
 bool StatusModel::towerImuReady() const
 {
+    QMutexLocker locker(&d->mutex);
 	return d->towerImuReady;
 }
 
 void StatusModel::setButtons(quint16 buttons)
 {
+    QMutexLocker locker(&d->mutex);
     if (buttons != d->buttons)
 
     d->buttons = buttons;
+    locker.unlock();
+
     emit buttonsChanged(buttons);
 }
 
 quint16 StatusModel::buttons() const
 {
+    QMutexLocker locker(&d->mutex);
     return d->buttons;
 }

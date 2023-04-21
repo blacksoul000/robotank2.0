@@ -86,7 +86,7 @@ Item {
                     property QtObject vehicle: mavlink.currentVehicle
 
                     text: qsTr("Vehicle") + ": " +
-                         (vehicle ? vehicle.name + " (" + vehicle.typeString + ")" : qsTr("None"))
+                         (vehicle ? vehicle.name + " (" + vehicle.type + ")" : qsTr("None"))
 
                     onClicked: {
                         stackView.push({

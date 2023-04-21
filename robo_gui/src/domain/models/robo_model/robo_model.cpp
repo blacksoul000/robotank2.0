@@ -14,13 +14,14 @@ using domain::BluetoothModel;
 using domain::GamepadModel;
 using domain::MavlinkExchanger;
 
-RoboModel::RoboModel()
+RoboModel::RoboModel(QObject* parent) :
+    QObject(parent)
 {
-    m_track = new TrackModel();
-    m_settings = new SettingsModel();
-    m_status = new StatusModel();
-    m_bluetooth = new BluetoothModel();
-    m_gamepad = new GamepadModel();
+    m_track = new TrackModel(this);
+    m_settings = new SettingsModel(this);
+    m_status = new StatusModel(this);
+    m_bluetooth = new BluetoothModel(this);
+    m_gamepad = new GamepadModel(this);
     m_mavlink= new MavlinkExchanger(this);
 }
 

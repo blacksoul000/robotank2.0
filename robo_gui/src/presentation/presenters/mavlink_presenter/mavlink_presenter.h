@@ -27,6 +27,9 @@ namespace presentation
 
         void setCurrentVehicle(QObject* vehicle);
 
+        void onVehiclesChanged();
+        void onCurrentVehicleChanged();
+
     signals:
         void vehiclesChanged();
         void currentVehicleChanged();

@@ -55,6 +55,7 @@ namespace
 
     const int heartbeatInterval = 1000; // ms
     const int systemOfflineTimeout = 3000; // ms
+    const int maxBroadcastCount = 3;
 }  // namespace
 
 class HeartbeatHandler::Impl
@@ -62,6 +63,7 @@ class HeartbeatHandler::Impl
 public:
     VehicleRegistryPtr registry;
     int sendTimer;
+    int counter = 0;
 
     QMap< int, QBasicTimer* > vehicleTimers;
 };
@@ -110,6 +112,7 @@ void HeartbeatHandler::processMessage(const mavlink_message_t& message)
 
         auto timer = new QBasicTimer();
         d->vehicleTimers.insert(message.sysid, timer);
+        d->counter = 0;
 
         qDebug() << Q_FUNC_INFO << "Added link" << vehicle->sysId()
                 << link->receive().address() << link->receive().port()
@@ -122,19 +125,37 @@ void HeartbeatHandler::processMessage(const mavlink_message_t& message)
 
 void HeartbeatHandler::sendHeartbeat()
 {
+    qDebug() << Q_FUNC_INFO << d->registry->vehicles();
     mavlink_message_t message;
     mavlink_heartbeat_t heartbeat;
 
     heartbeat.type = m_communicator->mavType();
 
-    for (AbstractLink* link: m_communicator->heartbeatLinks())
+    const auto& list = (d->counter < ::maxBroadcastCount)
+        ? m_communicator->heartbeatLinks() : m_communicator->links();
+
+    if (d->counter < ::maxBroadcastCount)
     {
-        mavlink_msg_heartbeat_encode_chan(m_communicator->systemId(),
-                                          m_communicator->componentId(),
-                                          m_communicator->linkChannel(link),
-                                          &message, &heartbeat);
-        m_communicator->sendMessage(message, link);
+        ++d->counter;
+        for (AbstractLink* link: m_communicator->heartbeatLinks())
+        {
+            mavlink_msg_heartbeat_encode_chan(m_communicator->systemId(),
+                                              m_communicator->componentId(),
+                                              m_communicator->linkChannel(link),
+                                              &message, &heartbeat);
+            m_communicator->sendMessage(message, link);
+        }
+    } else {
+        for (const auto& v: d->registry->vehicles())
+        {
+            mavlink_msg_heartbeat_encode_chan(m_communicator->systemId(),
+                                              m_communicator->componentId(),
+                                              m_communicator->linkChannel(v->link()),
+                                              &message, &heartbeat);
+            m_communicator->sendMessage(message, v->link());
+        }
     }
+
 }
 
 void HeartbeatHandler::timerEvent(QTimerEvent* event)
@@ -168,6 +189,7 @@ void HeartbeatHandler::clearVehicleLink(const domain::VehiclePtr& vehicle)
     auto link = vehicle->link();
     link->disconnectLink();
     m_communicator->removeLink(link);
+
     vehicle->setLink(nullptr);
     delete link;
 }

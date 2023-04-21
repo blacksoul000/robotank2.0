@@ -16,10 +16,13 @@
 #include <QHostAddress>
 #include <QDateTime>
 
+#ifdef WITH_TRACKING
 #include <opencv2/highgui/highgui.hpp>
 #include "opencv2/imgproc/imgproc.hpp"
 
 using MatPtr = QSharedPointer< cv::Mat >;
+#endif  // WITH_TRACKING
+
 using std::placeholders::_1;
 using std::placeholders::_2;
 
@@ -55,7 +58,9 @@ namespace
 class VideoSource::Impl
 {
 public:
+#ifdef WITH_TRACKING
     Publisher< MatPtr >* imageP = nullptr;
+#endif  // WITH_TRACKING
     Publisher< QPointF >* dotsPerDegreeP = nullptr;
     Publisher< QString >* videoSourceP = nullptr;
 
@@ -68,7 +73,9 @@ public:
 VideoSource::VideoSource() :
     d(new Impl)
 {
+#ifdef WITH_TRACKING
     d->imageP = PubSub::instance()->advertise< MatPtr >("camera/image");
+#endif  // WITH_TRACKING
     d->dotsPerDegreeP = PubSub::instance()->advertise< QPointF >("camera/dotsPerDegree");
     d->videoSourceP = PubSub::instance()->advertise< QString >("camera/source");
 
@@ -78,7 +85,9 @@ VideoSource::VideoSource() :
 
 VideoSource::~VideoSource()
 {
+#ifdef WITH_TRACKING
     delete d->imageP;
+#endif  // WITH_TRACKING
     delete d->dotsPerDegreeP;
     delete d->videoSourceP;
     delete d;
@@ -95,15 +104,16 @@ void VideoSource::start()
 
 void VideoSource::onNewFrame(const void* data, int size)
 {
+#ifdef WITH_TRACKING
 //    auto ts = QDateTime::currentDateTime().toString("hh.mm.ss.zzz");
     MatPtr mat = MatPtr::create(::height, ::width, CV_8UC1);
     memcpy(mat->data, data, ::height * ::width); // read only Y from YUV420.
 //    cv::putText(*mat, ts.toStdString(), cvPoint(30,300), cv::FONT_HERSHEY_COMPLEX_SMALL, 4, cv::Scalar(100,200,250), 1, CV_AA);
     d->imageP->publish(mat);
-
 //    static int i = 0;
 //    cv::imwrite(QString("/tmp/11/%1.jpg").arg(i).toStdString(), *mat);
 //    ++i;
+#endif  // WITH_TRACKING
 }
 
 void VideoSource::onImageSettingsChanged(const ImageSettings& settings)

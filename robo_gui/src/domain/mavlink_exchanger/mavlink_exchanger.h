@@ -13,7 +13,7 @@ namespace domain
     {
         Q_OBJECT
     public:
-        explicit MavlinkExchanger(RoboModel* model, QObject* parent = nullptr);
+        explicit MavlinkExchanger(RoboModel* model);
         ~MavlinkExchanger();
 
         void start();
@@ -42,7 +42,7 @@ namespace domain
         void onVehicleAdded(VehiclePtr vehicle);
         void onVehicleRemoved(VehiclePtr vehicle);
 
-        void onVehicleOnlineChanged(bool online);
+        void onVehicleOnlineChanged();
 
     private:
         class Impl;

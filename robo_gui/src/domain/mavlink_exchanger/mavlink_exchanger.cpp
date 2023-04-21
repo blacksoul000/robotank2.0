@@ -40,8 +40,8 @@ public:
     int vehicleId = 0;
 };
 
-MavlinkExchanger::MavlinkExchanger(domain::RoboModel* model, QObject *parent) :
-    QObject(parent),
+MavlinkExchanger::MavlinkExchanger(domain::RoboModel* model) :
+    QObject(model),
     d(new Impl)
 {
     d->model = model;
@@ -102,7 +102,7 @@ void MavlinkExchanger::start()
                 if (!entry.broadcast().isNull())
                 {
                     auto link = new data_source::UdpLink({entry.broadcast(), 14550},
-                                                         {QHostAddress::Any, 14550});
+                                                         {QHostAddress::AnyIPv4, 14550});
                     d->communicator->addHeartbeatLink(link);
                     link->connectLink();
                 }
@@ -138,11 +138,11 @@ QMap< int, domain::VehiclePtr > MavlinkExchanger::vehicles() const
     return d->communicator->vehicleRegistry()->vehicles();
 }
 
-void MavlinkExchanger::onVehicleOnlineChanged(bool online)
+void MavlinkExchanger::onVehicleOnlineChanged()
 {
     if (!d->vehicle) return;
 
-    if (online)
+    if (d->vehicle->isOnline())
     {
         d->model->status()->setChassisStatus(true);
         this->onHandshake();
@@ -316,6 +316,7 @@ domain::VehiclePtr MavlinkExchanger::currentVehicle() const
 
 void MavlinkExchanger::setCurrentVehicle(const domain::VehiclePtr& vehicle)
 {
+    qDebug() << Q_FUNC_INFO << vehicle;
     if (vehicle == d->vehicle) return;
     
     if (d->vehicle)

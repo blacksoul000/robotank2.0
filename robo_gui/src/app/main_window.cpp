@@ -13,6 +13,7 @@
 #include <QQmlContext>
 #include <QQuickView>
 #include <QQmlEngine>
+#include <QThread>
 #include <QTimer>
 #include <QDebug>
 
@@ -34,6 +35,7 @@ namespace
 class MainWindow::Impl
 {
 public:
+    QThread* thread = nullptr;
     domain::RoboModel* model = nullptr;
     QQuickView* viewer = nullptr;
 
@@ -55,8 +57,11 @@ MainWindow::MainWindow() :
     QObject(),
     d(new Impl)
 {
+    d->thread = new QThread;
     d->model = new domain::RoboModel;
-    d->model->mavlink()->start();
+    d->model->moveToThread(d->thread);
+    connect(d->thread, &QThread::started, d->model->mavlink(), &MavlinkExchanger::start);
+    d->thread->start();
 
     d->viewer = new QQuickView;
     d->viewer->rootContext()->setContextProperty("factory",
@@ -89,6 +94,10 @@ MainWindow::MainWindow() :
 
 MainWindow::~MainWindow()
 {
+    d->thread->quit();
+    d->thread->wait();
+    delete d->thread;
+
     delete d->viewer;
     delete d->model;
     delete d;

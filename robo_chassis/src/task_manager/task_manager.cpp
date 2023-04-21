@@ -2,11 +2,15 @@
 #include "thread_controller.h"
 
 // tasks
+#ifdef WITH_GPIO
 #include "gpio_controller.h"
+#endif  // WITH_GPIO
 #include "robo_core.h"
 #include "arduino_exchanger.h"
 #include "gamepad_controller.h"
+#ifdef WITH_TRACKING
 #include "tracker_task.h"
+#endif  // WITH_TRACKING
 #include "video_source.h"
 #include "bluetooth_manager.h"
 #include "mavlink_exchanger.h"
@@ -38,11 +42,15 @@ bool TaskManager::createTasks()
 {
     this->addTask(ITaskPtr(new GamepadController), 30);
     this->addTask(ITaskPtr(new RoboCore), 10);
+#ifdef WITH_GPIO
     this->addTask(ITaskPtr(new GpioController), 20);
+#endif  // WITH_GPIO
     this->addTask(ITaskPtr(new ArduinoExchanger), 20);
     this->addTask(ITaskPtr(new BluetoothManager), 2);
     this->addTask(ITaskPtr(new VideoSource), 100);
+#ifdef WITH_TRACKING
     this->addTask(ITaskPtr(new TrackerTask), 100);
+#endif  // WITH_TRACKING
     this->addTask(ITaskPtr(new MavlinkExchanger), 0);
     this->addTask(ITaskPtr(new ConfigHandler), 0); // last one
     return true;

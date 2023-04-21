@@ -56,7 +56,7 @@ Item {
                         font.pixelSize: roboPalette.textSize
                     }
                     Text {
-                        text: modelData.typeString
+                        text: modelData.type
                         color: roboPalette.backgroundColor
                         font.pixelSize: roboPalette.textSize / 2
                     }

@@ -1,6 +1,8 @@
 #ifndef ROBO_MODEL_H
 #define ROBO_MODEL_H
 
+#include <QObject>
+
 namespace domain
 {
     class StatusModel;
@@ -10,10 +12,10 @@ namespace domain
     class GamepadModel;
     class MavlinkExchanger;
 
-    class RoboModel
+    class RoboModel: public QObject
     {
     public:
-        RoboModel();
+        RoboModel(QObject* parent = nullptr);
         ~RoboModel();
 
         StatusModel* status() const;

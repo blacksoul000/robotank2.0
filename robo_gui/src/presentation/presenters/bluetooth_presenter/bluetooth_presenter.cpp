@@ -77,7 +77,7 @@ void BluetoothPresenter::stop()
     d->statusTimer->stop();
 }
 
-void BluetoothPresenter::onDevicesChanged(const QVector< BluetoothDeviceInfo >& devices)
+void BluetoothPresenter::onDevicesChanged(QVector< BluetoothDeviceInfo > devices)
 {
     const bool countChanged = (d->devices.count() != devices.count());
     qDebug() << Q_FUNC_INFO << devices.count() << d->devices.count() << countChanged;

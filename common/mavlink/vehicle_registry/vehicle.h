@@ -17,13 +17,6 @@ namespace domain
     {
         Q_OBJECT
 
-        Q_PROPERTY(int sysId READ sysId WRITE setSysId NOTIFY vehicleChanged)
-        Q_PROPERTY(QString name READ name WRITE setName NOTIFY vehicleChanged)
-        Q_PROPERTY(data_source::AbstractLink* link READ link WRITE setLink NOTIFY vehicleChanged)
-        Q_PROPERTY(Type type READ type WRITE setType NOTIFY vehicleChanged)
-        Q_PROPERTY(QString typeString READ typeString NOTIFY vehicleChanged)
-        Q_PROPERTY(bool online READ isOnline WRITE setOnline NOTIFY onlineChanged)
-
     public:
         enum Type: quint8
         {
@@ -64,14 +57,16 @@ namespace domain
 
         Type type() const;
         void setType(Type type);
-        QString typeString() const;
 
         bool isOnline() const;
         void setOnline(bool isOnline);
 
     signals:
-        void onlineChanged(bool online);
-        void vehicleChanged();
+        void sysIdChanged();
+        void nameChanged();
+        void typeChanged();
+        void onlineChanged();
+        void linkChanged();
 
     private:
         int m_sysId = 0;

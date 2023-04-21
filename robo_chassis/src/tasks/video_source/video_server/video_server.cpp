@@ -50,7 +50,7 @@ VideoServer::VideoServer(quint16 port, quint16 width, quint16 height, quint8 fps
         "videotestsrc do-timestamp=true name=source ! "
 #endif  // PICAM
         "video/x-raw,width=%1,height=%2,framerate=%3/1 ! "
-        "omxh264enc control-rate=1 target-bitrate=1000000 !"
+        "omxh264enc control-rate=1 target-bitrate=1000000 ! "
         "video/x-h264,profile=baseline,low-latency=true,speed-preset=ultrafast ! "
         "rtph264pay pt=96 ! udpsink host=%4 port=%5 name=udpsink")
             .arg(d->width).arg(d->height).arg(fps).arg(d->host.toString())

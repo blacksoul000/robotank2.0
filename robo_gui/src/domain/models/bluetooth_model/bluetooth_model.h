@@ -4,7 +4,7 @@
 #include <QObject>
 #include <QVector>
 
-struct BluetoothDeviceInfo;
+#include "bluetooth_device_info.h"
 
 namespace domain
 {

@@ -1,6 +1,8 @@
 #include "gamepad.h"
 
 //Qt
+#include <QMutex>
+#include <QMutexLocker>
 #include <QScopedPointer>
 #include <QDebug>
 #include "gamepad_model.h"
@@ -20,6 +22,7 @@ public:
     bool isCharging = false;
     int capacity = 0;
     bool isConnected = false;
+    QMutex mutex;
 };
 
 GamepadModel::GamepadModel(QObject* parent) :
@@ -52,6 +55,7 @@ GamepadModel::~GamepadModel()
 
 void GamepadModel::timerEvent(QTimerEvent* event)
 {
+    QMutexLocker locker(&d->mutex);
 	Q_UNUSED(event)
 
 	d->gamepad->execute();
@@ -60,16 +64,19 @@ void GamepadModel::timerEvent(QTimerEvent* event)
 
 int GamepadModel::capacity() const
 {
+    QMutexLocker locker(&d->mutex);
 	return d->gamepad->isConnected() ? d->gamepad->capacity() : d->capacity;
 }
 
 bool GamepadModel::isCharging() const
 {
+    QMutexLocker locker(&d->mutex);
 	return d->gamepad->isConnected() ? d->gamepad->isCharging() : d->isCharging;
 }
 
 bool GamepadModel::isConnected() const
 {
+    QMutexLocker locker(&d->mutex);
 	return d->gamepad->isConnected() ? d->gamepad->isConnected() : d->isConnected;
 }
 
@@ -85,24 +92,33 @@ quint16 GamepadModel::buttons() const
 
 void GamepadModel::setCharging(bool charging)
 {
+    QMutexLocker locker(&d->mutex);
     if (d->isCharging == charging) return;
 
     d->isCharging = charging;
+    locker.unlock();
+
     emit chargingChanged(charging);
 }
 
 void GamepadModel::setCapacity(int capacity)
 {
+    QMutexLocker locker(&d->mutex);
     if (d->capacity == capacity) return;
 
     d->capacity = capacity;
+    locker.unlock();
+
     emit capacityChanged(capacity);
 }
 
 void GamepadModel::setConnected(bool connected)
 {
+    QMutexLocker locker(&d->mutex);
     if (connected != d->isConnected)
 
     d->isConnected = connected;
+    locker.unlock();
+
     emit connectedChanged(connected);
 }

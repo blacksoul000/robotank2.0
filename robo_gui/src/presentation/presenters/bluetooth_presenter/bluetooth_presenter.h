@@ -40,7 +40,7 @@ namespace presentation
         void scanStatusChanged(bool isScanning);
 
     private slots:
-        void onDevicesChanged(const QVector< BluetoothDeviceInfo >& devices);
+        void onDevicesChanged(QVector< BluetoothDeviceInfo > devices);
 
     private:
         class Impl;

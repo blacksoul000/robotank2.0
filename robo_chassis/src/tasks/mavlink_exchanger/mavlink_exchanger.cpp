@@ -33,7 +33,7 @@ MavlinkExchanger::MavlinkExchanger() :
 
     CommunicatorBuilder builder;
     builder.initCommunicator();
-    builder.buildIdentification(42, 0, MAV_TYPE_GROUND_ROVER);
+    builder.buildIdentification(42, 0, MAV_TYPE_TANK);
     builder.buildHandlers(); // later
     d->communicator = builder.getCommunicator();
     d->communicator->setParent(this);
@@ -63,7 +63,7 @@ void MavlinkExchanger::start()
                 if (!entry.broadcast().isNull())
                 {
                     auto link = new data_source::UdpLink({entry.broadcast(), 14550},
-                                                         {QHostAddress::Any, 14550},
+                                                         {QHostAddress::AnyIPv4, 14550},
                                                          d->communicator);
                     d->communicator->addHeartbeatLink(link);
                     link->connectLink();
@@ -88,9 +88,9 @@ void MavlinkExchanger::onVehicleRemoved(domain::VehiclePtr vehicle)
     d->vehicle.clear();
 }
 
-void MavlinkExchanger::onVehicleOnlineChanged(bool online)
+void MavlinkExchanger::onVehicleOnlineChanged()
 {
-    d->connectionP->publish((online && d->vehicle) 
+    d->connectionP->publish((d->vehicle && d->vehicle->isOnline())
         ? d->vehicle->link() : data_source::AbstractLinkPtr());
 }
 
@@ -100,8 +100,8 @@ void MavlinkExchanger::onVehicleSelected(const quint8& sysId)
     {
         disconnect(d->vehicle.data(), &domain::Vehicle::onlineChanged,
             this, &MavlinkExchanger::onVehicleOnlineChanged);
-        this->onVehicleOnlineChanged(false);
         d->vehicle.clear();
+        this->onVehicleOnlineChanged();
     }
 
     if (sysId > 0)
@@ -111,7 +111,7 @@ void MavlinkExchanger::onVehicleSelected(const quint8& sysId)
         {
             connect(d->vehicle.data(), &domain::Vehicle::onlineChanged,
                     this, &MavlinkExchanger::onVehicleOnlineChanged);
-            this->onVehicleOnlineChanged(d->vehicle->isOnline());
+            this->onVehicleOnlineChanged();
         }
     }
 }

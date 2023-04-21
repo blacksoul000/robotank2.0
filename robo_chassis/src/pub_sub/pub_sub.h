@@ -33,7 +33,7 @@ public:
             auto sub = static_cast< Subscriber< T >* >(ptr);
             pub->subscribe(sub);
         }
-        m_publishers.insertMulti(topic, pub);
+        m_publishers.insert(topic, pub);
         return pub;
     }
 
@@ -49,7 +49,7 @@ public:
             auto pub = static_cast< Publisher < M >* const >(ptr);
             pub->subscribe(sub);
         }
-        m_subscribers.insertMulti(topic, sub);
+        m_subscribers.insert(topic, sub);
     }
 
 private:
@@ -57,8 +57,8 @@ private:
     ~PubSub() = default;
 
     QMutex m_mutex;
-    QHash< QString, void* > m_publishers;
-    QHash< QString, void* > m_subscribers;
+    QMultiHash< QString, void* > m_publishers;
+    QMultiHash< QString, void* > m_subscribers;
 };
 
 #endif // PUBSUB_H
