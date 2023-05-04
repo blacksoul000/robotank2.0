@@ -11,6 +11,7 @@
 
 #include <mavlink.h>
 
+#include <QNetworkConfigurationManager>
 #include <QNetworkInterface>
 #include <QHostAddress>
 #include <QDebug>
@@ -18,6 +19,7 @@
 class MavlinkExchanger::Impl
 {
 public:
+    QNetworkConfigurationManager manager;
     domain::MavLinkCommunicator* communicator = nullptr;
     domain::VehiclePtr vehicle;
 
@@ -52,23 +54,15 @@ void MavlinkExchanger::start()
             this, &MavlinkExchanger::onVehicleAdded);
     connect(d->communicator->vehicleRegistry().data(), &domain::VehicleRegistry::vehicleRemoved,
             this, &MavlinkExchanger::onVehicleRemoved);
+    connect(&d->manager, &QNetworkConfigurationManager::configurationChanged,
+            this, &MavlinkExchanger::onNetworkConfigurationChanged);
 
     for (const QNetworkInterface& iface: QNetworkInterface::allInterfaces())
     {
         if (iface.flags().testFlag(QNetworkInterface::IsUp)
-                && !iface.flags().testFlag(QNetworkInterface::IsLoopBack))
+            && !iface.flags().testFlag(QNetworkInterface::IsLoopBack))
         {
-            for (const QNetworkAddressEntry& entry: iface.addressEntries())
-            {
-                if (!entry.broadcast().isNull())
-                {
-                    auto link = new data_source::UdpLink({entry.broadcast(), 14550},
-                                                         {QHostAddress::AnyIPv4, 14550},
-                                                         d->communicator);
-                    d->communicator->addHeartbeatLink(link);
-                    link->connectLink();
-                }
-            }
+            this->onInterfaceOnlineChanged(iface, !iface.addressEntries().empty());
         }
     }
 }
@@ -96,12 +90,19 @@ void MavlinkExchanger::onVehicleOnlineChanged()
 
 void MavlinkExchanger::onVehicleSelected(const quint8& sysId)
 {
-    if (d->vehicle && d->vehicle->sysId() != sysId)
+    if (d->vehicle)
     {
-        disconnect(d->vehicle.data(), &domain::Vehicle::onlineChanged,
-            this, &MavlinkExchanger::onVehicleOnlineChanged);
-        d->vehicle.clear();
-        this->onVehicleOnlineChanged();
+        if (d->vehicle->sysId() != sysId)
+        {
+            disconnect(d->vehicle.data(), &domain::Vehicle::onlineChanged,
+                this, &MavlinkExchanger::onVehicleOnlineChanged);
+            d->vehicle.clear();
+            this->onVehicleOnlineChanged();
+        }
+        else
+        {
+            return;
+        }
     }
 
     if (sysId > 0)
@@ -112,6 +113,44 @@ void MavlinkExchanger::onVehicleSelected(const quint8& sysId)
             connect(d->vehicle.data(), &domain::Vehicle::onlineChanged,
                     this, &MavlinkExchanger::onVehicleOnlineChanged);
             this->onVehicleOnlineChanged();
+        }
+    }
+}
+
+void MavlinkExchanger::onNetworkConfigurationChanged(const QNetworkConfiguration& config)
+{
+    auto iface = QNetworkInterface::interfaceFromName(config.name());
+    if (!iface.isValid()) return;
+    if (iface.flags().testFlag(QNetworkInterface::IsLoopBack)) return;
+
+    this->onInterfaceOnlineChanged(iface, !iface.addressEntries().empty());
+}
+
+void MavlinkExchanger::onInterfaceOnlineChanged(const QNetworkInterface& iface, bool online)
+{
+    qDebug() << Q_FUNC_INFO << iface.name() << online;
+    if (online)
+    {
+        for (const QNetworkAddressEntry& entry: iface.addressEntries())
+        {
+            if (!entry.broadcast().isNull())
+            {
+                qDebug() << "Found broadcast entry: " << entry.broadcast();
+                auto link = new data_source::UdpLink(iface.name(), {entry.broadcast(), 14550},
+                                                     {QHostAddress::AnyIPv4, 14550});
+                d->communicator->addHeartbeatLink(link);
+                link->connectLink();
+            }
+        }
+    } else {
+        for (const auto& link: d->communicator->heartbeatLinks())
+        {
+            if (link->interface() == iface.name())
+            {
+                qDebug() << "Try remove link: " << link;
+                link->disconnectLink();
+                d->communicator->removeHeartbeatLink(link);
+            }
         }
     }
 }

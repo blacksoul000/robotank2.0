@@ -14,7 +14,8 @@ namespace data_source
         Q_OBJECT
 
     public:
-        explicit AbstractLink(const Endpoint& send, const Endpoint& receive, QObject* parent = nullptr);
+        explicit AbstractLink(const QString& interface, const Endpoint& send, const Endpoint& receive,
+                              QObject* parent = nullptr);
         virtual ~AbstractLink() = default;
 
         virtual bool isConnected() const = 0;
@@ -22,6 +23,7 @@ namespace data_source
 
         virtual AbstractLink* clone(const Endpoint& send, const Endpoint& receive) = 0;
 
+        QString interface() const;
         Endpoint send() const;
         Endpoint receive() const;
         virtual Endpoint lastSender() const = 0;
@@ -55,6 +57,7 @@ namespace data_source
 
     private:
         QByteArray m_lastReceivedData;
+        QString m_interface;
         Endpoint m_send;
         Endpoint m_receive;
         int m_bytesReceived = 0;

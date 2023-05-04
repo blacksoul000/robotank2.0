@@ -6,12 +6,18 @@
 
 using namespace data_source;
 
-AbstractLink::AbstractLink(const Endpoint& send, const Endpoint& receive, QObject* parent):
+AbstractLink::AbstractLink(const QString& interface, const Endpoint& send, const Endpoint& receive, QObject* parent):
     QObject(parent),
+    m_interface(interface),
     m_send(send),
     m_receive(receive)
 {
     qRegisterMetaType < data_source::Endpoint > ("data_source::Endpoint");
+}
+
+QString AbstractLink::interface() const
+{
+    return m_interface;
 }
 
 Endpoint AbstractLink::send() const

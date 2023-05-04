@@ -111,12 +111,25 @@ CommandServicePtr MavLinkCommunicator::commandService() const
 
 void MavLinkCommunicator::addHeartbeatLink(data_source::AbstractLink* link)
 {
+    if (d->heartbeatLinks.contains(link)) return;
     d->heartbeatLinks.append(link);
 
     link->setParent(this);
 
     connect(link, &AbstractLink::dataReceived, this, &MavLinkCommunicator::onDataReceived);
     emit linkAdded(link);
+}
+
+void MavLinkCommunicator::removeHeartbeatLink(data_source::AbstractLink* link)
+{
+    if (!d->heartbeatLinks.contains(link)) return;
+
+    qDebug() << Q_FUNC_INFO << link->send().address();
+    disconnect(link, &AbstractLink::dataReceived, this, &MavLinkCommunicator::onDataReceived);
+    link->setParent(nullptr);
+
+    d->heartbeatLinks.removeAll(link);
+    emit linkRemoved(link);
 }
 
 void MavLinkCommunicator::addLink(data_source::AbstractLink* link)

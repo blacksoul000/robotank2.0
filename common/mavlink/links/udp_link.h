@@ -15,7 +15,7 @@ namespace data_source
         Q_OBJECT
 
     public:
-        UdpLink(const Endpoint& send, const Endpoint& receive, QObject* parent = nullptr);
+        UdpLink(const QString& interface, const Endpoint& send, const Endpoint& receive, QObject* parent = nullptr);
         ~UdpLink();
 
         bool isConnected() const override;

@@ -22,8 +22,8 @@ public:
     domain::RoboModel* model = nullptr;
 	GstElement* pipeline = nullptr;
 	QQuickItem* surface = nullptr;
-	GstElement* src = nullptr;
 	GstElement* sink = nullptr;
+    quint16 port = 5000;
 
 	const bool test = false; // Set "true" for test video
 
@@ -37,7 +37,6 @@ public:
     	if (pipeline)
     	{
     		gst_element_set_state (pipeline, GST_STATE_NULL);
-    		src = nullptr;
     		sink = nullptr;
     		gst_object_unref (pipeline);
     		pipeline = nullptr;
@@ -99,11 +98,11 @@ VideoPresenter::~VideoPresenter()
 
 void VideoPresenter::setUri(const QString& uri)
 {
-	qDebug() << Q_FUNC_INFO << uri;
+    this->stop();
 	// uri now contains only video port
-	if (!d->src || uri.isEmpty()) return;
-	g_object_set (d->src, "port", uri.toUInt(), nullptr);
-	this->play();
+	if (uri.isEmpty()) return;
+	qDebug() << Q_FUNC_INFO << uri;
+    d->port = uri.toUInt();
 }
 
 QObject* VideoPresenter::surface() const
@@ -139,8 +138,9 @@ void VideoPresenter::onVideoSourceChanged()
 
 	const auto& uri = d->model->settings()->videoSource();
 	if (uri.isEmpty()) return;
-	if (!this->createPipeline()) return;
 	this->setUri(uri);
+	if (!this->createPipeline()) return;
+    this->play();
 }
 
 bool VideoPresenter::createPipeline()
@@ -152,7 +152,7 @@ bool VideoPresenter::createPipeline()
 	}
 	else
 	{
-		pipe = "udpsrc name=src port=5000 ! "
+		pipe = "udpsrc name=src port=" + QString::number(d->port) + " ! "
 			   "application/x-rtp,encoding-name=H264,payload=96 ! rtph264depay ! "
 			   "h264parse ! avdec_h264 ! ";
 	}
@@ -169,11 +169,10 @@ bool VideoPresenter::createPipeline()
         return false;
 	}
 
-	d->src = gst_bin_get_by_name(GST_BIN(d->pipeline), "src");
 	d->sink = gst_bin_get_by_name(GST_BIN(d->pipeline), "sink");
-	if (!d->src || !d->sink)
+	if (!d->sink)
 	{
-        qWarning() << "*** GStreamer ***" << "'src' or 'sink' element not found";
+        qWarning() << "*** GStreamer ***" << "'sink' element not found";
         return false;
 	}
 

@@ -9,6 +9,8 @@
 
 typedef struct _GstPad GstPad;
 typedef struct _GstPadProbeInfo GstPadProbeInfo;
+typedef struct _GstBus GstBus;
+typedef struct _GstMessage GstMessage;
 
 
 class VideoServer : public QObject
@@ -24,6 +26,7 @@ public:
 
     void setDataCallback(const std::function< void(const void* data, int size) >& callback);
     int bufferProbe(GstPad* pad, GstPadProbeInfo* info);
+    bool onBusMessage(GstBus* bus, GstMessage* message);
 
 private:
     class Impl;

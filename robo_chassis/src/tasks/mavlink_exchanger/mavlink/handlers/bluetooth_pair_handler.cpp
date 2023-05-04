@@ -70,7 +70,7 @@ void BluetoothPairHandler::processCommand(const mavlink_message_t& message)
         case MAV_CMD_BLUETOOTH_PAIR:
         {
             const quint64 address = cmd.address;
-            const quint8 pair = cmd.pair;
+            const bool pair = cmd.pair;
 
             d->bluetoothPairP->publish({QBluetoothAddress(address).toString(), pair});
             ack.result = MAV_RESULT_ACCEPTED;

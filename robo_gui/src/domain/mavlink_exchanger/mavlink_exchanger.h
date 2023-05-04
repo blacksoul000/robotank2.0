@@ -5,6 +5,9 @@
 
 #include "mavlink_traits.h"
 
+class QNetworkConfiguration;
+class QNetworkInterface;
+
 namespace domain
 {
     class RoboModel;
@@ -43,6 +46,8 @@ namespace domain
         void onVehicleRemoved(VehiclePtr vehicle);
 
         void onVehicleOnlineChanged();
+        void onNetworkConfigurationChanged(const QNetworkConfiguration& config);
+        void onInterfaceOnlineChanged(const QNetworkInterface& iface, bool online);
 
     private:
         class Impl;

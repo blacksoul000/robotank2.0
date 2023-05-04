@@ -30,7 +30,7 @@ set(LIBS
 
 if(WITH_TRACKING)
     message("** Enabling Tracking **")
-    add_definitions(-DTRACKING)
+    add_definitions(-DWITH_TRACKING)
 
     set (OpenTLD_DIR ${CMAKE_SOURCE_DIR}/3rdparty/OpenTLD)
     include(ExternalProject)

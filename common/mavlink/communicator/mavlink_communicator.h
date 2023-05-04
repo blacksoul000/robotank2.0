@@ -48,6 +48,7 @@ namespace domain
         QList< data_source::AbstractLink* > heartbeatLinks() const;
 
         void addHeartbeatLink(data_source::AbstractLink* link);
+        void removeHeartbeatLink(data_source::AbstractLink* link);
 
     public slots:
         void addLink(data_source::AbstractLink* link) override;

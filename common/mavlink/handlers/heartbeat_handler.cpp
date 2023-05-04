@@ -75,6 +75,10 @@ HeartbeatHandler::HeartbeatHandler(MavLinkCommunicator* communicator):
 {
     d->registry = communicator->vehicleRegistry();
     d->sendTimer = this->startTimer(::heartbeatInterval);
+
+    connect(communicator, &MavLinkCommunicator::linkAdded, this, [&](){
+        d->counter = 0;
+    });
 }
 
 HeartbeatHandler::~HeartbeatHandler()
@@ -98,25 +102,30 @@ void HeartbeatHandler::processMessage(const mavlink_message_t& message)
 
     if (!vehicle->isOnline())
     {
-        const auto lastLink = m_communicator->lastReceivedLink();
-        auto link = lastLink->clone(
-                Endpoint(lastLink->lastSender().address(), lastLink->send().port() + m_communicator->systemId()),
-                Endpoint(QHostAddress::Any, lastLink->send().port() + message.sysid));
-
-        link->connectLink();
-        m_communicator->addLink(link);
-
-        vehicle->setLink(link);
         vehicle->setType(::decodeType(heartbeat.type));
         vehicle->setOnline(true);
 
+        const auto lastLink = m_communicator->lastReceivedLink();
+        if (!vehicle->link() || lastLink->send() != vehicle->link()->send()
+            || lastLink->receive() != vehicle->link()->receive())
+        {
+            if (vehicle->link()) this->clearVehicleLink(vehicle);
+
+            auto link = lastLink->clone(
+                    Endpoint(lastLink->lastSender().address(), lastLink->send().port() + m_communicator->systemId()),
+                    Endpoint(QHostAddress::Any, lastLink->send().port() + message.sysid));
+            link->connectLink();
+
+            vehicle->setLink(link);
+            m_communicator->addLink(link);
+            qDebug() << Q_FUNC_INFO << "Added link" << vehicle->sysId()
+                    << link->receive().address() << link->receive().port()
+                    << link->send().address() << link->send().port();
+        }
+
         auto timer = new QBasicTimer();
         d->vehicleTimers.insert(message.sysid, timer);
-        d->counter = 0;
 
-        qDebug() << Q_FUNC_INFO << "Added link" << vehicle->sysId()
-                << link->receive().address() << link->receive().port()
-                << link->send().address() << link->send().port();
         qDebug() << Q_FUNC_INFO << tr("Vehicle %1").arg(vehicle->name()) << tr("Online");
     }
 
@@ -125,7 +134,6 @@ void HeartbeatHandler::processMessage(const mavlink_message_t& message)
 
 void HeartbeatHandler::sendHeartbeat()
 {
-    qDebug() << Q_FUNC_INFO << d->registry->vehicles();
     mavlink_message_t message;
     mavlink_heartbeat_t heartbeat;
 
@@ -173,13 +181,12 @@ void HeartbeatHandler::timerEvent(QTimerEvent* event)
             auto vehicle = d->registry->vehicle(d->vehicleTimers.key(timer));
             if (!vehicle.isNull())
             {
-                this->clearVehicleLink(vehicle);
                 vehicle->setOnline(false);
                 qDebug() << Q_FUNC_INFO << tr("Vehicle %1").arg(vehicle->name()) << tr("Offline");
             }
             timer->stop();
-            delete timer;
             d->vehicleTimers.remove(d->vehicleTimers.key(timer));
+            delete timer;
         }
     }
 }

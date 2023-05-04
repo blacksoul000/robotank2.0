@@ -87,18 +87,18 @@ bool TLD::init(const Mat &frame1, const Rect &box)
     vector<pair<vector<int>,int> > ferns_data(nX.size()+pX.size());
     vector<int> idx = index_shuffle(0,ferns_data.size());
     int a=0;
-    for (int i=0;i<pX.size();i++){
+    for (size_t i=0;i<pX.size();i++){
         ferns_data[idx[a]] = pX[i];
         a++;
     }
-    for (int i=0;i<nX.size();i++){
+    for (size_t i=0;i<nX.size();i++){
         ferns_data[idx[a]] = nX[i];
         a++;
     }
     //Data already have been shuffled, just putting it in the same vector
     vector<cv::Mat> nn_data(nEx.size()+1);
     nn_data[0] = pEx;
-    for (int i=0;i<nEx.size();i++){
+    for (size_t i=0;i<nEx.size();i++){
         nn_data[i+1]= nEx[i];
     }
     ///Training
@@ -138,7 +138,7 @@ void TLD::generatePositiveData(const Mat& frame, const int &num_warps){
     for (int i=0;i<num_warps;i++){
         if (i>0)
             generator(frame,pt,warped,bbhull.size(),rng);
-        for (int b=0;b<good_boxes.size();b++){
+        for (size_t b=0;b<good_boxes.size();b++){
             idx=good_boxes[b];
             patch = img(grid[idx]);
             classifier.getFeatures(patch,grid[idx].sidx,fern);
@@ -171,7 +171,7 @@ void TLD::generateNegativeData(const Mat& frame){
     vector<int> fern(classifier.getNumStructs());
     nX.reserve(bad_boxes.size());
     Mat patch;
-    for (int j=0;j<bad_boxes.size();j++){
+    for (size_t j=0;j<bad_boxes.size();j++){
         idx = bad_boxes[j];
         if (getVar(grid[idx],iisum,iisqsum)<var*0.5f)
             continue;
@@ -182,7 +182,7 @@ void TLD::generateNegativeData(const Mat& frame){
     }
     Scalar dum1, dum2;
     nEx=vector<Mat>(bad_patches);
-    for (int i=0;i<bad_patches;i++){
+    for (size_t i=0;i<bad_patches;i++){
         idx=bad_boxes[i];
         patch = frame(grid[idx]);
         getPattern(patch,nEx[i],dum1,dum2);
@@ -229,7 +229,7 @@ void TLD::processFrame(const Mat &img1,
         lastvalid=tvalid;
         if(detected){                                               //   if Detected
             clusterConf(dbb,dconf,cbb,cconf);                       //   cluster detections
-            for (int i=0;i<cbb.size();i++){
+            for (size_t i=0;i<cbb.size();i++){
                 if (bbOverlap(tbb,cbb[i])<0.5 && cconf[i]>tconf){  //  Get index of a clusters that is far from tracker and are more confident than the tracker
                     confident_detections++;
                     didx=i; //detection index
@@ -243,7 +243,7 @@ void TLD::processFrame(const Mat &img1,
             else {
                 int cx=0,cy=0,cw=0,ch=0;
                 int close_detections=0;
-                for (int i=0;i<dbb.size();i++){
+                for (size_t i=0;i<dbb.size();i++){
                     if(bbOverlap(tbb,dbb[i])>0.7){                     // Get mean of close detections
                         cx += dbb[i].x;
                         cy +=dbb[i].y;
@@ -402,7 +402,7 @@ void TLD::detect(const cv::Mat& frame){
     float conf;
     int a=0;
     Mat patch;
-    for (int i=0;i<grid.size();i++){//FIXME: BottleNeck
+    for (size_t i=0;i<grid.size();i++){//FIXME: BottleNeck
         if (getVar(grid[i],iisum,iisqsum)>=var){
             a++;
             patch = img(grid[i]);
@@ -501,7 +501,7 @@ void TLD::learn(const Mat& img){
     fern_examples.reserve(pX.size()+bad_boxes.size());
     fern_examples.assign(pX.begin(),pX.end());
     int idx;
-    for (int i=0;i<bad_boxes.size();i++){
+    for (size_t i=0;i<bad_boxes.size();i++){
         idx=bad_boxes[i];
         if (tmp.conf[idx]>=1){
             fern_examples.push_back(make_pair(tmp.patt[idx],0));
@@ -510,7 +510,7 @@ void TLD::learn(const Mat& img){
     vector<Mat> nn_examples;
     nn_examples.reserve(dt.bb.size()+1);
     nn_examples.push_back(pEx);
-    for (int i=0;i<dt.bb.size();i++){
+    for (size_t i=0;i<dt.bb.size();i++){
         idx = dt.bb[i];
         if (bbOverlap(lastbox,grid[idx]) < bad_overlap)
             nn_examples.push_back(dt.patch[i]);
@@ -584,7 +584,7 @@ float TLD::bbOverlap(const BoundingBox& box1,const BoundingBox& box2){
 
 void TLD::getOverlappingBoxes(const cv::Rect& box1,const int &num_closest){
     float max_overlap = 0;
-    for (int i=0;i<grid.size();i++){
+    for (size_t i=0;i<grid.size();i++){
         if (grid[i].overlap > max_overlap) {
             max_overlap = grid[i].overlap;
             best_box = grid[i];
@@ -608,7 +608,7 @@ void TLD::getBBHull(){
     int x1=INT_MAX, x2=0;
     int y1=INT_MAX, y2=0;
     int idx;
-    for (int i=0;i<good_boxes.size();i++){
+    for (size_t i=0;i<good_boxes.size();i++){
         idx= good_boxes[i];
         x1=min(grid[idx].x,x1);
         y1=min(grid[idx].y,y1);
@@ -740,7 +740,7 @@ void TLD::clusterConf(const vector<BoundingBox>& dbb,const vector<float>& dconf,
     for (int i=0;i<c;i++){
         float cnf=0;
         int N=0,mx=0,my=0,mw=0,mh=0;
-        for (int j=0;j<T.size();j++){
+        for (size_t j=0;j<T.size();j++){
             if (T[j]==i){
                 cnf=cnf+dconf[j];
                 mx=mx+dbb[j].x;

@@ -5,6 +5,9 @@
 
 #include "i_task.h"
 
+class QNetworkConfiguration;
+class QNetworkInterface;
+
 class MavlinkExchanger : public ITask
 {
 public:
@@ -18,6 +21,8 @@ protected slots:
     void onVehicleRemoved(domain::VehiclePtr vehicle);
     void onVehicleOnlineChanged();
     void onVehicleSelected(const quint8& sysId);
+    void onNetworkConfigurationChanged(const QNetworkConfiguration& config);
+    void onInterfaceOnlineChanged(const QNetworkInterface& iface, bool online);
 
 private:
     class Impl;

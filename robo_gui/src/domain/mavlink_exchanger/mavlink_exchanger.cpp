@@ -22,6 +22,7 @@
 #include <mavlink.h>
 
 #include <QSettings>
+#include <QNetworkConfigurationManager>
 #include <QBluetoothAddress>
 #include <QNetworkInterface>
 #include <QHostAddress>
@@ -34,6 +35,7 @@ using domain::Command;
 class MavlinkExchanger::Impl
 {
 public:
+    QNetworkConfigurationManager manager;
     domain::MavLinkCommunicator* communicator = nullptr;
     domain::RoboModel* model = nullptr;
     domain::VehiclePtr vehicle;
@@ -91,22 +93,15 @@ void MavlinkExchanger::start()
             this, &MavlinkExchanger::onVehicleAdded);
     connect(d->communicator->vehicleRegistry().data(), &domain::VehicleRegistry::vehicleRemoved,
             this, &MavlinkExchanger::onVehicleRemoved);
+    connect(&d->manager, &QNetworkConfigurationManager::configurationChanged,
+            this, &MavlinkExchanger::onNetworkConfigurationChanged);
 
     for (const QNetworkInterface& iface: QNetworkInterface::allInterfaces())
     {
         if (iface.flags().testFlag(QNetworkInterface::IsUp)
                 && !iface.flags().testFlag(QNetworkInterface::IsLoopBack))
         {
-            for (const QNetworkAddressEntry& entry: iface.addressEntries())
-            {
-                if (!entry.broadcast().isNull())
-                {
-                    auto link = new data_source::UdpLink({entry.broadcast(), 14550},
-                                                         {QHostAddress::AnyIPv4, 14550});
-                    d->communicator->addHeartbeatLink(link);
-                    link->connectLink();
-                }
-            }
+            this->onInterfaceOnlineChanged(iface, !iface.addressEntries().empty());
         }
     }
 
@@ -159,6 +154,42 @@ void MavlinkExchanger::onVehicleOnlineChanged()
         d->model->status()->setPointerStatus(false);
         d->model->status()->setHeadlightStatus(false);
         d->model->bluetooth()->setScanStatus(false);
+    }
+}
+
+void MavlinkExchanger::onNetworkConfigurationChanged(const QNetworkConfiguration &config)
+{
+    auto iface = QNetworkInterface::interfaceFromName(config.name());
+    if (!iface.isValid()) return;
+    if (iface.flags().testFlag(QNetworkInterface::IsLoopBack)) return;
+
+    this->onInterfaceOnlineChanged(iface, !iface.addressEntries().empty());
+}
+
+void MavlinkExchanger::onInterfaceOnlineChanged(const QNetworkInterface& iface, bool online)
+{
+    if (online)
+    {
+        for (const QNetworkAddressEntry& entry: iface.addressEntries())
+        {
+            if (!entry.broadcast().isNull())
+            {
+                if (entry.broadcast().toString() != "192.168.1.255") continue;  // FIXME
+                auto link = new data_source::UdpLink(iface.name(), {entry.broadcast(), 14550},
+                                                     {QHostAddress::AnyIPv4, 14550});
+                d->communicator->addHeartbeatLink(link);
+                link->connectLink();
+            }
+        }
+    } else {
+        for (const auto& link: d->communicator->heartbeatLinks())
+        {
+            if (link->interface() == iface.name())
+            {
+                link->disconnectLink();
+                d->communicator->removeHeartbeatLink(link);
+            }
+        }
     }
 }
 
