@@ -1,153 +1,107 @@
-cmake_minimum_required(VERSION 2.8.3)
-project(robo_chassis)
+cmake_minimum_required(VERSION 3.16)
+project(robo_chassis VERSION 1.0 LANGUAGES CXX)
 
-add_definitions(-std=c++11 -Wall)
-option(PICAM "Enables RaspberryPi Camera" OFF)
-option(WITH_TRACKING "Enables tracking algo" OFF)
-set (CMAKE_BUILD_TYPE Debug)
+set(CMAKE_CXX_STANDARD 20)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
-set (CMAKE_MODULE_PATH ${CMAKE_SOURCE_DIR}/../cmake)
+# Опция для сборки тестов
+option(BUILD_TESTS "Build unit tests with Google Test" ON)
 
-include(RecurseDirs)
+# Оптимизация для Raspberry Pi 2 (ARM Cortex-A7)
+# Используем универсальные флаги, совместимые с x86 и ARM
+if(CMAKE_SYSTEM_PROCESSOR MATCHES "armv7l|aarch64")
+    # Оптимизация специально для Cortex-A7 (Raspberry Pi 2)
+    set(CMAKE_CXX_FLAGS_RELEASE "-O3 -march=armv7-a -mtune=cortex-a7 -mfpu=neon-vfpv4 -mfloat-abi=hard -ffast-math")
+    # Дополнительная оптимизация размера кода для экономии памяти
+    set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -fdata-sections -ffunction-sections")
+else()
+    set(CMAKE_CXX_FLAGS_RELEASE "-O3")
+endif()
+set(CMAKE_BUILD_TYPE Release)
 
-find_package(pigpio)
+# Флаги линковщика для оптимизации размера
+set(CMAKE_EXE_LINKER_FLAGS_RELEASE "-Wl,--gc-sections")
 
-find_package(Qt5Core)
-find_package(Qt5Network)
-find_package(Qt5SerialPort)
-find_package(Qt5Bluetooth)
+# Основной исполняемый файл (чистый C++ без Qt)
+include_directories(${CMAKE_SOURCE_DIR}/src/core)
+include_directories(${CMAKE_SOURCE_DIR}/third_party)
 
-include(FindPkgConfig)
-pkg_check_modules(GSTRTSP gstreamer-rtsp-server-1.0)
-pkg_check_modules(GST gstreamer-1.0)
-
-set(LIBS
-    Qt5::Core
-    Qt5::Network
-    Qt5::SerialPort
-    Qt5::Bluetooth
+add_executable(robo_chassis
+    src/core/main.cpp
+    src/core/tcp_server.cpp
+    src/core/robot_logic.cpp
+    src/core/exchangers/i2c_master.cpp
+    src/core/exchangers/i2c_simulator.cpp
+    src/core/gpio/complementary_filter.cpp
+    src/core/gpio/gpio_controller.cpp
+    src/core/gpio/mpu6050_imu.cpp
+    src/core/config/config.cpp
+    src/core/logger/logger.cpp
+    src/core/system_monitor/system_monitor.cpp
+    src/core/memory/memory_manager.cpp
+    src/core/websocket_server/websocket_server.cpp
+    src/core/sensors/sensor_manager.cpp
+    src/core/sensors/compass_ultrasonic.cpp
+    src/core/sensors/sensor_fusion.cpp
+    src/core/autonomy/autonomy_manager.cpp
+    src/core/safety/safety_manager.cpp
 )
 
-if(WITH_TRACKING)
-    message("** Enabling Tracking **")
-    add_definitions(-DWITH_TRACKING)
+# Поиск pthread
+find_package(Threads REQUIRED)
+target_link_libraries(robo_chassis PRIVATE Threads::Threads fmt)
 
-    set (OpenTLD_DIR ${CMAKE_SOURCE_DIR}/3rdparty/OpenTLD)
-    include(ExternalProject)
-    ExternalProject_Add(OpenTLD
-            SOURCE_DIR ${OpenTLD_DIR}
-            PREFIX ${CMAKE_BINARY_DIR}/OpenTLD
-            BINARY_DIR ${CMAKE_BINARY_DIR}/OpenTLD
-            CMAKE_ARGS -DWITH_OPENMP=ON
-            INSTALL_COMMAND "")
+# Поиск nlohmann/json
+find_package(nlohmann_json REQUIRED)
+if(nlohmann_json_FOUND)
+    target_link_libraries(robo_chassis PRIVATE nlohmann_json::nlohmann_json)
+    message(STATUS "nlohmann/json found: ${nlohmann_json_VERSION}")
+else()
+    message(FATAL_ERROR "nlohmann/json not found, please install nlohmann-json3-dev")
+endif()
 
-    find_package(OpenCV COMPONENTS core imgproc video OPTIONAL_COMPONENTS tracking)
+# Поиск wslay для WebSocket
+find_package(wslay QUIET)
+if(wslay_FOUND AND TARGET wslay::wslay)
+    include_directories(${wslay_INCLUDE_DIRS})
+    target_link_libraries(robo_chassis PRIVATE wslay::wslay)
+    message(STATUS "wslay found via cmake")
+else()
+    # Fallback к pkg-config если cmake конфиг не найден
+    find_package(PkgConfig REQUIRED)
+    pkg_check_modules(WSLAY libwslay)
+    if(WSLAY_FOUND)
+        include_directories(${WSLAY_INCLUDE_DIRS})
+        target_link_libraries(robo_chassis PRIVATE ${WSLAY_LIBRARIES})
+        message(STATUS "wslay found via pkg-config: ${WSLAY_VERSION}")
+    else()
+        # Прямое указание путей
+        target_include_directories(robo_chassis PRIVATE /usr/include)
+        target_link_libraries(robo_chassis PRIVATE wslay)
+        message(STATUS "wslay linked directly")
+    endif()
+endif()
 
-    set (LIBS ${LIBS}
-        ${OpenCV_LIBS}
-        ${CMAKE_BINARY_DIR}/OpenTLD/lib/libopentld.a
-        ${CMAKE_BINARY_DIR}/OpenTLD/lib/libcvblobs.a
-        gomp
-    )
+# OpenSSL для SHA-1 в WebSocket handshake
+find_package(OpenSSL REQUIRED)
+target_link_libraries(robo_chassis PRIVATE OpenSSL::SSL OpenSSL::Crypto)
+message(STATUS "OpenSSL found: ${OPENSSL_VERSION}")
 
-    if (${OPENCV_TRACKING_FOUND})
-        set(LIBS ${LIBS} opencv_tracking)
-        add_definitions(-DWITH_OPENCV_TRACKING)
-    else (${OPENCV_TRACKING_FOUND})
-        set(FEATURES ${FEATURES} "OpenCV tracking")
-    endif(${OPENCV_TRACKING_FOUND})
+# pigpio для работы с GPIO (ультразвук) - замена wiringPi
+find_library(PIGPIO_LIB NAMES pigpio)
+if(PIGPIO_LIB)
+    target_link_libraries(robo_chassis PRIVATE ${PIGPIO_LIB})
+    target_compile_definitions(robo_chassis PRIVATE HAVE_PIGPIO)
+    message(STATUS "pigpio library found: ${PIGPIO_LIB}")
+else()
+    message(WARNING "pigpio library not found, ultrasonic sensor will not work")
+endif()
 
-    include_directories(${OpenTLD_DIR}/src)
-    include_directories(${OpenCV_INCLUDE_DIRS})
-else(WITH_TRACKING)
-    set(FEATURES ${FEATURES} "Tracking")
-endif(WITH_TRACKING)
+# Сборка тестов
+if(BUILD_TESTS)
+    add_subdirectory(tests)
+endif()
 
-if (${PIGPIO_FOUND})
-    set(LIBS ${LIBS} pigpio)
-    add_definitions(-DWITH_GPIO)
-else (${PIGPIO_FOUND})
-    set (FEATURES ${FEATURES} "GPIO control")
-endif(${PIGPIO_FOUND})
-
-if (${GST_FOUND})
-    set(LIBS ${LIBS} ${GST_LIBRARIES})
-    add_definitions(-DWITH_GST)
-    include_directories(${GST_INCLUDE_DIRS})
-else (${GST_FOUND})
-    set(FEATURES ${FEATURES} "FPV")
-endif(${GST_FOUND})
-
-if(PICAM)
-    message("** Enabling RPi Camera **")
-    add_definitions(-DPICAM)
-endif(PICAM)
-
-set(CMAKE_AUTOMOC ON)
-
-HEADER_DIRECTORIES(src DIRS)
-include_directories(${DIRS})
-
-file(GLOB_RECURSE MAVLINK_SOURCES src src/tasks/mavlink_exchanger/*.cpp)
-file(GLOB_RECURSE TRACKING_SOURCES src src/tasks/tracker/*.cpp)
-
-set (SOURCES
-    src/pub_sub/call_event.cpp
-    src/pub_sub/pub_sub.cpp
-    src/pub_sub/publisher.cpp
-    src/pub_sub/subscriber.cpp
-    src/task_manager/task_manager.cpp
-    src/tasks/arduino_exchanger/arduino_exchanger.cpp
-    src/tasks/arduino_exchanger/exchangers/i2c_master.cpp
-    src/tasks/arduino_exchanger/exchangers/uart.cpp
-    src/tasks/arduino_exchanger/exchangers/i_exchanger.cpp
-    src/tasks/bluetooth_manager/bluetooth_manager.cpp
-    src/tasks/config_handler/config_handler.cpp
-    src/tasks/gamepad_controller/gamepad_controller.cpp
-    src/tasks/robo_core/robo_core.cpp
-    src/tasks/robo_core/pid/pid.cpp
-    src/tasks/robo_core/pid/pid.cpp
-    src/tasks/video_source/video_source.cpp
-    src/tasks/video_source/rtsp_server/rtsp_server.cpp
-    src/tasks/video_source/video_server/video_server.cpp
-    src/thread_controller/task_worker.cpp
-    src/thread_controller/thread_controller.cpp
-    src/main.cpp
-)
-
-add_executable(${PROJECT_NAME})
-
-target_sources(${PROJECT_NAME} PRIVATE ${SOURCES} ${MAVLINK_SOURCES})
-
-add_custom_target(mavlink mavgen.py --lang C --wire-protocol 1.0 
-    -o ${CMAKE_CURRENT_BINARY_DIR}/mavlink_messages
-    ${CMAKE_SOURCE_DIR}/../common/mavlink/message_definitions/robotank.xml)
-
-if(WITH_TRACKING)
-    target_sources(${PROJECT_NAME} PRIVATE ${TRACKING_SOURCES})
-    add_dependencies(${PROJECT_NAME} OpenTLD)
-endif(WITH_TRACKING)
-
-if (${PIGPIO_FOUND})
-    set (GPIO_SOURCES
-            src/tasks/gpio_controller/gpio_controller.cpp
-            src/tasks/gpio_controller/filter/complementary_filter.cpp
-            src/tasks/gpio_controller/imu/mpu6050/mpu6050_dmp.cpp
-            src/tasks/gpio_controller/imu/mpu6050/mpu6050_raw.cpp
-            src/tasks/gpio_controller/imu/mpu6050/Impl/I2Cdev.cpp
-            src/tasks/gpio_controller/imu/mpu6050/Impl/MPU6050.cpp
-    )
-    target_sources(${PROJECT_NAME} PRIVATE ${GPIO_SOURCES})
-endif(${PIGPIO_FOUND})
-
-target_include_directories(${PROJECT_NAME} PRIVATE 
-    ${CMAKE_CURRENT_BINARY_DIR}/mavlink_messages
-    ${CMAKE_CURRENT_BINARY_DIR}/mavlink_messages/robotank)
-
-add_subdirectory(${CMAKE_SOURCE_DIR}/../common common)
-
-target_link_libraries(${PROJECT_NAME} ${LIBS})
-
-if (FEATURES)
-    message (WARNING "DISABLED FEATURES:" "${FEATURES}")
-endif (FEATURES)
+# Установка
+install(TARGETS robo_chassis DESTINATION bin)

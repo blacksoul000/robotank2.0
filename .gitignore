@@ -1,14 +1,60 @@
-**/CMakeLists.txt.user
-*Makefile
-*android.pro
-*android*.json
-**/android-build
-.cproject
-.project
-.settings
-.vscode
-*.code-workspace
-build*
-devel
+```
+# Compiled and build artifacts
+*.pyc
+__pycache__/
 
-/*.sh
+# Dependencies
+.venv/
+venv/
+node_modules/
+pip-tools/
+
+# Logs and temp files
+*.log
+*.tmp
+*.swp
+
+# Environment
+.env
+.env.local
+*.env.*
+
+# Editors
+.vscode/
+.idea/
+
+# Build and distribution
+dist/
+build/
+target/
+*.egg-info/
+
+# OS generated files
+.DS_Store
+Thumbs.db
+
+# Coverage reports
+.coverage
+coverage/
+htmlcov/
+
+# Python specific
+*.pyo
+*.pyd
+.Python
+*.so
+*.egg
+
+# Backup files
+*~
+*.bak
+*.orig
+
+# Testing
+.pytest_cache/
+.mypy_cache/
+.tox/
+
+# Configuration from current project
+*.log
+```

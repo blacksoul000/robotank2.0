@@ -1,0 +1,158 @@
+#pragma once
+
+#include <string>
+#include <atomic>
+#include <memory>
+#include <thread>
+#include <vector>
+#include <mutex>
+#include <functional>
+#include <unordered_map>
+#include <chrono>
+#include <wslay/wslay.h>
+
+// Forward declarations
+struct Telemetry;
+struct Command;
+
+namespace robo_chassis {
+
+/**
+ * @brief Forward declaration класса WebSocketServer
+ */
+class WebSocketServer;
+
+/**
+ * @brief Структура для хранения состояния клиента wslay
+ */
+struct WslayClient {
+    int fd = -1;
+    wslay_event_context* ctx = nullptr;
+    std::vector<uint8_t> read_buffer;
+    WebSocketServer* server = nullptr;  // Указатель на сервер для доступа к callback'ам
+};
+
+/**
+ * @brief WebSocket сервер для управления роботом через веб-интерфейс
+ * 
+ * Обеспечивает двустороннюю связь с браузером:
+ * - Приём команд управления (джойстики, кнопки)
+ * - Отправка телеметрии в реальном времени
+ * - Автоматическое переподключение клиентов
+ */
+class WebSocketServer {
+public:
+    /**
+     * @brief Конструктор
+     * @param port Порт для прослушивания (по умолчанию 8765)
+     */
+    explicit WebSocketServer(int port = 8765);
+    
+    ~WebSocketServer();
+    
+    // Запрет копирования
+    WebSocketServer(const WebSocketServer&) = delete;
+    WebSocketServer& operator=(const WebSocketServer&) = delete;
+    
+    /**
+     * @brief Запуск сервера в отдельном потоке
+     */
+    void start();
+    
+    /**
+     * @brief Остановка сервера и закрытие всех соединений
+     */
+    void stop();
+    
+    /**
+     * @brief Проверка статуса работы сервера
+     */
+    bool isRunning() const { return m_running.load(); }
+    
+    /**
+     * @brief Получить количество подключенных клиентов
+     */
+    int getClientCount() const;
+    
+    /**
+     * @brief Отправить телеметрию всем подключенным клиентам
+     * @param telemetry Данные телеметрии для отправки
+     * @param cpu_temp Температура CPU (градусы Цельсия)
+     * @param memory_percent Использование памяти (%)
+     * @param heading Курс компаса (0-360 градусов)
+     * @param mag_x Магнитометр X (мкТл)
+     * @param mag_y Магнитометр Y (мкТл)
+     * @param mag_z Магнитометр Z (мкТл)
+     * @param ultrasonic_dist Дистанция до препятствия (см)
+     * @param wifi_quality Качество WiFi сигнала (%)
+     */
+    void broadcastTelemetry(const Telemetry& telemetry, float cpu_temp, float memory_percent,
+                           float heading = -1.0f, float mag_x = 0.0f, float mag_y = 0.0f,
+                           float mag_z = 0.0f, float ultrasonic_dist = -1.0f, int wifi_quality = 0);
+    
+    /**
+     * @brief Установить обработчик входящих команд
+     * @param callback Функция обратного вызова для обработки команд
+     */
+    void setCommandCallback(std::function<void(const Command&)> callback);
+    
+    /**
+     * @brief Установить обработчик команд автономности
+     * @param callback Функция обратного вызова для команд автономности (режим, целевой курс)
+     */
+    void setAutonomyCallback(std::function<void(const std::string&)> callback);
+
+private:
+    int m_port;
+    int m_server_fd{-1};
+    std::atomic<bool> m_running{false};
+    std::thread m_server_thread;
+    mutable std::mutex m_mutex;
+    
+    // Список подключенных клиентов
+    std::vector<std::unique_ptr<WslayClient>> m_clients;
+    
+    // Обработчик команд
+    std::function<void(const Command&)> m_command_callback;
+    
+    // Обработчик команд автономности
+    std::function<void(const std::string&)> m_autonomy_callback;
+    
+    // Rate limiting для защиты от DoS
+    struct ClientRateLimit {
+        std::chrono::steady_clock::time_point last_message_time;
+        int message_count = 0;
+        static constexpr int MAX_MESSAGES_PER_SECOND = 20;
+        static constexpr std::chrono::seconds WINDOW_SEC{1};
+    };
+    std::unordered_map<int, ClientRateLimit> m_client_rate_limits;
+    std::mutex m_rate_limit_mutex;
+    
+    // Проверка rate limit для клиента
+    bool checkRateLimit(int client_fd);
+    
+    // Очистка rate limits при отключении клиента
+    void cleanupClientRateLimit(int client_fd);
+    
+    // Основной цикл сервера
+    void serverLoop();
+    
+    // Обработка нового подключения
+    void handleClient(int client_fd);
+    
+    // HTTP handshake для WebSocket
+    bool performHandshake(int client_fd);
+    
+    // Callback функции для wslay
+    static ssize_t recv_callback(wslay_event_context* ctx, uint8_t* data, size_t len, int flags, void* user_data);
+    static ssize_t send_callback(wslay_event_context* ctx, const uint8_t* data, size_t len, int flags, void* user_data);
+    static void on_msg_recv_callback(wslay_event_context* ctx, const wslay_event_on_msg_recv_arg* msg, void* user_data);
+    
+    // Отправка строки клиенту
+    void sendString(WslayClient* client, const std::string& str);
+    
+    // Периодическая отправка ping для поддержания соединения
+    void sendPingToAllClients();
+};
+
+} // namespace robo_chassis

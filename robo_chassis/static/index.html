@@ -1,0 +1,1343 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <title>RoboChassis Control</title>
+    <style>
+        *, *::before, *::after {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        html, body {
+            width: 100%;
+            height: 100%;
+            height: 100dvh;
+            overflow: hidden;
+            background: #000;
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+            color: #fff;
+            position: fixed;
+            inset: 0;
+            overscroll-behavior: none;
+        }
+
+        :root {
+            --joy-size: 140px;
+            --joy-stick: 60px;
+            --btn-action: 36px;
+            --btn-settings: 44px;
+            --edge-pad: 16px;
+            --gap-joy-btn: 12px;
+            --safe-top: env(safe-area-inset-top, 0px);
+            --safe-bottom: env(safe-area-inset-bottom, 0px);
+            --safe-left: env(safe-area-inset-left, 0px);
+            --safe-right: env(safe-area-inset-right, 0px);
+            --accent: #0f0;
+            --warn: #ff0;
+            --crit: #f44;
+            /* Размеры свободных полос вне видео 4:3 — задаются из JS */
+            --bar-h: 0px;   /* сверху/снизу (портрет) */
+            --bar-w: 0px;   /* слева/справа (ландшафт) */
+        }
+
+        /* ===== ВИДЕО 4:3, вписанное без обрезки ===== */
+        #video-container {
+            position: fixed;
+            inset: 0;
+            z-index: 0;
+            background: #000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+        }
+        #video-frame {
+            border: none;
+            display: block;
+            background: #0a0a0a;
+            /* CSS-фолбэк вписывания 4:3 (уточняется из JS) */
+            width: min(100vw, calc(100vh * 4 / 3));
+            aspect-ratio: 4 / 3;
+        }
+        #video-placeholder {
+            position: absolute;
+            inset: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            color: #555;
+            font-size: 15px;
+            pointer-events: none;
+            z-index: 1;
+            text-align: center;
+            padding: 20px;
+        }
+        #video-placeholder small {
+            display: block;
+            font-size: 11px;
+            color: #444;
+            margin-top: 8px;
+            word-break: break-all;
+        }
+
+        /* ===== OVERLAY ===== */
+        #ui-overlay {
+            position: fixed;
+            inset: 0;
+            z-index: 10;
+            pointer-events: none;
+            padding:
+                calc(var(--safe-top))
+                calc(var(--safe-right))
+                calc(var(--safe-bottom))
+                calc(var(--safe-left));
+        }
+
+        /* ===== ТЕЛЕМЕТРИЯ (теперь содержит индикатор режима) ===== */
+        #telemetry-bar {
+            position: absolute;
+            top: calc(var(--safe-top));
+            left: 0;
+            right: 0;
+            background: rgba(0, 0, 0, 0.72);
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
+            padding: 1px 3px;
+            display: flex;
+            align-items: center;
+            gap: 1px;
+            overflow-x: auto;
+            white-space: nowrap;
+            pointer-events: auto;
+            scrollbar-width: none;
+            z-index: 20;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+            min-height: 24px;
+        }
+        #telemetry-bar::-webkit-scrollbar { display: none; }
+
+        /* Индикатор режима — первый чип на панели */
+        #mode-indicator {
+            display: inline-flex;
+            align-items: center;
+            flex-shrink: 0;
+            padding: 2px 10px;
+            border-radius: 12px;
+            font-size: 10px;
+            font-weight: 800;
+            letter-spacing: 0.8px;
+            border: 1.5px solid var(--accent);
+            color: var(--accent);
+            text-transform: uppercase;
+            background: rgba(0, 0, 0, 0.35);
+        }
+        #mode-indicator.manual { border-color: var(--accent); color: var(--accent); }
+        #mode-indicator.auto { border-color: var(--warn); color: var(--warn); }
+        #mode-indicator.emergency {
+            border-color: var(--crit);
+            color: var(--crit);
+            animation: blink-red 0.6s infinite;
+        }
+
+        .telemetry-item {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 1px;
+            flex-shrink: 0;
+            font-size: 9px;
+            padding: 1px 3px;
+            background: rgba(255, 255, 255, 0.06);
+            border-radius: 8px;
+            border: 1px solid rgba(255, 255, 255, 0.06);
+            height: 20px;
+        }
+        .telemetry-label {
+            font-size: 7px;
+            text-transform: uppercase;
+            letter-spacing: 0.2px;
+            white-space: nowrap;
+        }
+        .telemetry-value {
+            font-weight: 700;
+            font-size: 10px;
+            color: var(--accent);
+            min-width: 16px;
+            text-align: right;
+            font-variant-numeric: tabular-nums;
+            white-space: nowrap;
+        }
+        .telemetry-value.warning { color: var(--warn); }
+        .telemetry-value.critical { color: var(--crit); animation: blink-red 1s infinite; }
+        
+        /* Статусные индикаторы - цветные кружки */
+        .status-indicator {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            flex-shrink: 0;
+            transition: background 0.3s, box-shadow 0.3s;
+        }
+        .status-indicator.red {
+            background: var(--crit);
+            box-shadow: 0 0 8px var(--crit);
+        }
+        .status-indicator.yellow {
+            background: var(--warn);
+            box-shadow: 0 0 8px var(--warn);
+        }
+        .status-indicator.green {
+            background: var(--accent);
+            box-shadow: 0 0 8px var(--accent);
+        }
+        
+        /* Скрываем ненужные элементы */
+        .telemetry-item.hidden {
+            display: none;
+        }
+        
+        /* Адаптация статусных индикаторов для telemetry-item */
+        .telemetry-item .status-indicator {
+            margin-left: 2px;
+        }
+        @keyframes blink-red {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.3; }
+        }
+
+        /* ===== ВЕРХНЯЯ СТРОКА (без режима — он ушёл в телеметрию) ===== */
+        #top-row {
+            position: absolute;
+            top: calc(34px + var(--safe-top) + 2px);
+            left: 0;
+            right: 0;
+            padding: 0 12px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            pointer-events: none;
+            z-index: 25;
+        }
+
+        #estop-button {
+            width: var(--btn-action);
+            height: var(--btn-action);
+            background: radial-gradient(circle at 30% 30%, #ff4444, #aa0000);
+            border: 2px solid #fff;
+            border-radius: 50%;
+            pointer-events: auto;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 900;
+            font-size: 7px;
+            letter-spacing: 0.3px;
+            text-transform: uppercase;
+            color: #fff;
+            box-shadow: 0 0 14px rgba(255, 0, 0, 0.65);
+            transition: transform 0.1s;
+            flex-shrink: 0;
+            text-shadow: 0 1px 2px rgba(0,0,0,0.6);
+        }
+        #estop-button:active { transform: scale(0.9); }
+        #estop-button.active {
+            background: radial-gradient(circle at 30% 30%, #ff0000, #cc0000);
+            box-shadow: 0 0 30px rgba(255, 0, 0, 1);
+            animation: pulse-red 0.8s infinite;
+        }
+        @keyframes pulse-red {
+            0%, 100% { box-shadow: 0 0 14px rgba(255, 0, 0, 0.7); }
+            50% { box-shadow: 0 0 32px rgba(255, 0, 0, 1); }
+        }
+
+        #top-right-group {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            flex-shrink: 0;
+            pointer-events: auto;
+        }
+
+        #connection-status {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: #f00;
+            box-shadow: 0 0 14px #f00;
+            transition: background 0.3s, box-shadow 0.3s;
+        }
+        #connection-status.connected {
+            background: var(--accent);
+            box-shadow: 0 0 18px var(--accent);
+        }
+
+        #settings-button {
+            width: var(--btn-settings);
+            height: var(--btn-settings);
+            background: rgba(255, 255, 255, 0.08);
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            border-radius: 50%;
+            pointer-events: auto;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+            color: #ddd;
+            backdrop-filter: blur(6px);
+            -webkit-backdrop-filter: blur(6px);
+            transition: transform 0.1s, background 0.2s;
+        }
+        #settings-button:active {
+            transform: scale(0.90);
+            background: rgba(255, 255, 255, 0.18);
+        }
+
+        /* =================================================================
+           КОЛОНКИ ДЖОЙСТИКОВ + КНОПКИ
+           Кнопки света/огня сдвинуты к центру экрана
+           ================================================================= */
+        .joystick-column {
+            position: absolute;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: var(--gap-joy-btn);
+            bottom: calc(20px + var(--safe-bottom));
+            pointer-events: auto;
+            z-index: 15;
+            width: var(--joy-size);
+        }
+        #left-column { left: var(--edge-pad); }
+        #right-column { right: var(--edge-pad); }
+
+        /* Сдвиг кнопок к центру экрана */
+        #lights-button { align-self: flex-end; }   /* левая колонка → вправо к центру */
+        #fire-button { align-self: flex-start; }   /* правая колонка → влево к центру */
+
+        .joystick-zone {
+            width: var(--joy-size);
+            height: var(--joy-size);
+            pointer-events: auto;
+        }
+
+        .joystick-base {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            background: rgba(255, 255, 255, 0.06);
+            border: 2px solid rgba(255, 255, 255, 0.15);
+            border-radius: 50%;
+            box-shadow: inset 0 0 30px rgba(0, 0, 0, 0.5);
+        }
+
+        .joystick-stick {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: var(--joy-stick);
+            height: var(--joy-stick);
+            margin-left: calc(var(--joy-stick) / -2);
+            margin-top: calc(var(--joy-stick) / -2);
+            background: radial-gradient(circle at 35% 35%, rgba(255, 255, 255, 0.55), rgba(255, 255, 255, 0.12));
+            border-radius: 50%;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.6), inset 0 1px 0 rgba(255, 255, 255, 0.25);
+            transition: transform 0.04s ease-out;
+            will-change: transform;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        /* ===== ЕДИНЫЙ СТИЛЬ КНОПОК ===== */
+        .action-btn {
+            width: var(--btn-action);
+            height: var(--btn-action);
+            border-radius: 50%;
+            border: 2px solid rgba(255, 255, 255, 0.85);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 0.3px;
+            font-size: 7px;
+            transition: transform 0.08s, box-shadow 0.2s, background 0.2s;
+            text-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
+            box-shadow: 0 3px 14px rgba(0, 0, 0, 0.55);
+            pointer-events: auto;
+            user-select: none;
+            -webkit-user-select: none;
+            flex-shrink: 0;
+        }
+        .action-btn:active { transform: scale(0.88); }
+
+        #lights-button {
+            background: radial-gradient(circle at 35% 30%, #ffdd44, #aa8800);
+            color: #222;
+            text-shadow: 0 1px 2px rgba(255, 255, 200, 0.4);
+            box-shadow: 0 3px 14px rgba(255, 200, 0, 0.4);
+        }
+        #lights-button:active {
+            background: radial-gradient(circle at 35% 30%, #ffee66, #cc9900);
+        }
+        #lights-button.active {
+            background: radial-gradient(circle at 35% 30%, #ffee88, #ffcc00);
+            box-shadow: 0 0 24px rgba(255, 255, 100, 0.8);
+            border-color: #fff;
+        }
+
+        #fire-button {
+            background: radial-gradient(circle at 35% 30%, #ff5555, #bb0000);
+            color: #fff;
+            box-shadow: 0 3px 16px rgba(255, 0, 0, 0.6);
+        }
+        #fire-button:active {
+            background: radial-gradient(circle at 35% 30%, #ff7777, #dd2222);
+            box-shadow: 0 2px 20px rgba(255, 0, 0, 0.9);
+        }
+        #fire-button.active {
+            background: radial-gradient(circle at 35% 30%, #ff8888, #ff0000);
+            box-shadow: 0 0 26px rgba(255, 0, 0, 1);
+        }
+
+        #logs-toggle-btn {
+            position: absolute;
+            left: 50%;
+            transform: translateX(-50%);
+            bottom: calc(20px + var(--safe-bottom));
+            background: rgba(30, 40, 70, 0.85);
+            backdrop-filter: blur(6px);
+            -webkit-backdrop-filter: blur(6px);
+            border-color: rgba(255, 255, 255, 0.3);
+            color: #ccc;
+            font-size: 14px;
+            pointer-events: auto;
+            z-index: 15;
+        }
+        #logs-toggle-btn.active {
+            transform: translateX(-50%);
+            border-color: #6af;
+            background: rgba(40, 80, 160, 0.8);
+            color: #fff;
+            box-shadow: 0 0 20px rgba(100, 170, 255, 0.6);
+        }
+        #logs-toggle-btn:active { transform: translateX(-50%) scale(0.88); }
+
+        /* ===== LOGS ===== */
+        #logs-panel {
+            position: fixed;
+            top: calc(90px + var(--safe-top));
+            left: 5%;
+            right: 5%;
+            width: auto;
+            max-width: none;
+            max-height: 40vh;
+            background: rgba(0, 0, 0, 0.9);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            border: 1px solid rgba(0, 255, 100, 0.3);
+            border-radius: 12px;
+            padding: 10px 12px;
+            overflow-y: auto;
+            font-family: 'Courier New', monospace;
+            font-size: 11px;
+            color: var(--accent);
+            pointer-events: auto;
+            display: none;
+            z-index: 45;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.8);
+            box-sizing: border-box;
+        }
+        #logs-panel.visible { display: block; }
+        #logs-panel::-webkit-scrollbar { width: 4px; }
+        #logs-panel::-webkit-scrollbar-track { background: rgba(255,255,255,0.05); border-radius: 3px; }
+        #logs-panel::-webkit-scrollbar-thumb { background: var(--accent); border-radius: 3px; }
+
+        .log-entry {
+            padding: 3px 0;
+            border-bottom: 1px solid rgba(255,255,255,0.05);
+            white-space: pre-wrap;
+            word-break: break-all;
+            line-height: 1.35;
+        }
+        .log-entry:last-child { border-bottom: none; }
+        .log-entry.error { color: #f66; }
+        .log-entry.warning { color: #ff6; }
+        .log-entry.info { color: #6f6; }
+
+        /* ===== TOAST ===== */
+        #mode-toast {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%) scale(0.8);
+            background: rgba(0, 0, 0, 0.85);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            padding: 12px 28px;
+            border-radius: 24px;
+            font-size: 16px;
+            font-weight: 800;
+            letter-spacing: 1.5px;
+            text-transform: uppercase;
+            pointer-events: none;
+            z-index: 50;
+            opacity: 0;
+            transition: opacity 0.3s, transform 0.3s;
+            border: 2px solid var(--accent);
+            color: var(--accent);
+        }
+        #mode-toast.show {
+            opacity: 1;
+            transform: translate(-50%, -50%) scale(1);
+        }
+        #mode-toast.emergency {
+            border-color: var(--crit);
+            color: var(--crit);
+            background: rgba(80, 0, 0, 0.9);
+        }
+        #mode-toast.auto { border-color: var(--warn); color: var(--warn); }
+
+        /* ===== MODAL ===== */
+        #settings-modal {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.82);
+            backdrop-filter: blur(14px);
+            -webkit-backdrop-filter: blur(14px);
+            z-index: 100;
+            pointer-events: auto;
+            overflow-y: auto;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        #settings-modal.show { display: flex; }
+
+        .modal-content {
+            background: #1a1a24;
+            padding: 24px 20px 20px;
+            width: 100%;
+            max-width: 440px;
+            border-radius: 18px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            box-shadow: 0 24px 70px rgba(0, 0, 0, 0.85);
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding-bottom: 14px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+        }
+        .modal-header h2 { font-size: 19px; font-weight: 600; color: #eee; }
+        .close-btn {
+            background: none;
+            border: none;
+            color: #aaa;
+            font-size: 30px;
+            cursor: pointer;
+            padding: 0 10px;
+            line-height: 1;
+            transition: color 0.2s;
+        }
+        .close-btn:hover { color: var(--crit); }
+
+        .setting-group { margin-bottom: 20px; }
+        .setting-group label {
+            display: block;
+            margin-bottom: 8px;
+            color: #bbb;
+            font-size: 13px;
+            font-weight: 500;
+        }
+        .setting-group input[type="range"] {
+            width: 100%;
+            height: 6px;
+            border-radius: 4px;
+            background: #2a2a36;
+            outline: none;
+            -webkit-appearance: none;
+            appearance: none;
+        }
+        .setting-group input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 22px;
+            height: 22px;
+            border-radius: 50%;
+            background: #4488ff;
+            cursor: pointer;
+            border: 2px solid #fff;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.5);
+        }
+        .setting-group input[type="range"]::-moz-range-thumb {
+            width: 22px;
+            height: 22px;
+            border-radius: 50%;
+            background: #4488ff;
+            cursor: pointer;
+            border: 2px solid #fff;
+        }
+        .setting-value {
+            text-align: right;
+            color: #8cf;
+            font-size: 12px;
+            margin-top: 5px;
+            font-weight: 700;
+        }
+
+        .btn-save, .btn-reset {
+            width: 100%;
+            padding: 15px;
+            border: none;
+            border-radius: 12px;
+            color: #fff;
+            font-size: 16px;
+            font-weight: 700;
+            cursor: pointer;
+            margin-top: 8px;
+            transition: transform 0.1s, opacity 0.2s;
+            letter-spacing: 0.4px;
+        }
+        .btn-save { background: linear-gradient(135deg, #22aa44, #118833); }
+        .btn-reset { background: linear-gradient(135deg, #cc3333, #991111); margin-top: 12px; }
+        .btn-save:active, .btn-reset:active { transform: scale(0.97); opacity: 0.85; }
+
+        /* ===== АДАПТИВ: маленькие портретные ===== */
+        @media (max-width: 380px) and (orientation: portrait) {
+            :root {
+                --joy-size: 120px;
+                --joy-stick: 52px;
+                --btn-action: 32px;
+                --btn-settings: 38px;
+                --edge-pad: 12px;
+            }
+            .action-btn { font-size: 6px; }
+            #logs-toggle-btn { font-size: 12px; }
+        }
+
+        /* ===== АДАПТИВ: LANDSCAPE — джойстики в боковых полосах ===== */
+        @media (orientation: landscape) and (max-height: 600px) {
+            :root {
+                --joy-size: 110px;
+                --joy-stick: 48px;
+                --btn-action: 32px;
+                --btn-settings: 36px;
+                --edge-pad: 10px;
+                --gap-joy-btn: 10px;
+            }
+
+            #top-row { top: calc(32px + var(--safe-top)); }
+
+            /* Колонки центрируются в боковых чёрных полосах вне видео */
+            .joystick-column {
+                bottom: auto;
+                top: 50%;
+                transform: translateY(-50%);
+            }
+            #left-column {
+                left: max(8px, calc((var(--bar-w) - var(--joy-size)) / 2));
+            }
+            #right-column {
+                right: max(8px, calc((var(--bar-w) - var(--joy-size)) / 2));
+            }
+
+            #logs-toggle-btn { bottom: calc(12px + var(--safe-bottom)); }
+
+            .action-btn { font-size: 6px; }
+            #logs-toggle-btn { font-size: 12px; }
+
+            #logs-panel {
+                top: calc(60px + var(--safe-top));
+                left: 0;
+                right: 0;
+                width: 100%;
+                max-width: 100vw;
+                max-height: 55vh;
+                font-size: 10px;
+                padding: 8px 10px;
+            }
+
+            #settings-modal { padding: 12px; }
+            .modal-content { padding: 16px; }
+            .setting-group { margin-bottom: 14px; }
+            .btn-save, .btn-reset { padding: 11px; font-size: 14px; }
+        }
+
+        /* ===== Очень низкие экраны ===== */
+        @media (orientation: landscape) and (max-height: 400px) {
+            :root {
+                --joy-size: 96px;
+                --joy-stick: 42px;
+                --btn-action: 28px;
+                --btn-settings: 32px;
+            }
+            .action-btn { font-size: 6px; }
+            #logs-toggle-btn { font-size: 11px; }
+        }
+
+        /* ===== Планшеты ===== */
+        @media (min-width: 768px) {
+            :root {
+                --joy-size: 170px;
+                --joy-stick: 74px;
+                --btn-action: 44px;
+                --btn-settings: 52px;
+                --edge-pad: 24px;
+            }
+            #telemetry-bar { padding: 4px 12px; gap: 2px; }
+            .telemetry-item { font-size: 12px; padding: 3px 5px; }
+            .telemetry-value { font-size: 14px; min-width: 30px; }
+            .telemetry-label { font-size: 10px; }
+            .action-btn { font-size: 9px; }
+            #logs-toggle-btn { font-size: 18px; }
+            #logs-panel { font-size: 12px; padding: 12px 16px; max-height: 45vh; }
+        }
+        
+        /* ===== Адаптация телеметрии для узких экранов ===== */
+        @media (max-width: 500px) {
+            .telemetry-item { padding: 1px 2px; gap: 1px; }
+            .telemetry-label { font-size: 6px; }
+            .telemetry-value { font-size: 9px; min-width: 14px; }
+            .status-indicator { width: 7px; height: 7px; }
+        }
+        /* ===== Очень узкие экраны ===== */
+        @media (max-width: 360px) {
+            .telemetry-item { padding: 1px 1px; gap: 1px; }
+            .telemetry-label { font-size: 5px; }
+            .telemetry-value { font-size: 8px; min-width: 12px; }
+            .status-indicator { width: 6px; height: 6px; }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- ===== ВИДЕО 4:3 ===== -->
+    <div id="video-container">
+        <div id="video-placeholder">
+            Загрузка видеопотока…<br><small>http://<span id="video-url-host"></span>:8889/stream/</small>
+        </div>
+        <iframe id="video-frame" src="" allow="autoplay; encrypted-media" allowfullscreen loading="lazy"></iframe>
+    </div>
+
+    <!-- ===== OVERLAY ===== -->
+    <div id="ui-overlay">
+
+        <!-- Телеметрия с индикатором режима -->
+        <div id="telemetry-bar">
+            <div id="mode-indicator" class="manual">MANUAL</div>
+            <div class="telemetry-item"><span class="telemetry-label">🔋</span><span class="telemetry-value" id="battery-val">--</span></div>
+            <div class="telemetry-item hidden"><span class="telemetry-label">🧭</span><span class="telemetry-value" id="heading-val">0°</span></div>
+            <div class="telemetry-item hidden"><span class="telemetry-label">📏</span><span class="telemetry-value" id="distance-val">--</span></div>
+            <div class="telemetry-item"><span class="telemetry-label">📶</span><span class="telemetry-value" id="wifi-quality-val">--</span></div>
+            <div class="telemetry-item"><span class="telemetry-label">🌡️</span><span class="telemetry-value" id="cpu-temp-val">--</span><span id="throttle-icons" style="display:flex;gap:2px;margin-left:2px;"></span></div>
+            <div class="telemetry-item"><span class="telemetry-label">🧠</span><span class="telemetry-value" id="memory-val">--</span></div>
+            <div class="telemetry-item"><span class="telemetry-label">↕</span><span class="telemetry-value" id="roll-val">0°</span></div>
+            <div class="telemetry-item"><span class="telemetry-label">↔</span><span class="telemetry-value" id="pitch-val">0°</span></div>
+            <div class="telemetry-item"><span class="telemetry-label">🎯</span><span class="telemetry-value" id="turret-val">0°</span></div>
+            <div class="telemetry-item"><span class="telemetry-label">⚡L</span><span class="telemetry-value" id="current-left-val">--</span></div>
+            <div class="telemetry-item"><span class="telemetry-label">⚡R</span><span class="telemetry-value" id="current-right-val">--</span></div>
+            <div class="telemetry-item"><span class="telemetry-label">⚡T</span><span class="telemetry-value" id="current-tower-val">--</span></div>
+            <div class="telemetry-item"><span class="telemetry-label">🖳</span><div class="status-indicator green" id="arduino-status"></div></div>
+            <div class="telemetry-item"><span class="telemetry-label">🌀</span><div class="status-indicator green" id="gyro-status"></div></div>
+        </div>
+
+        <!-- Верхняя строка: STOP + статус + настройки -->
+        <div id="top-row">
+            <div id="estop-button">STOP</div>
+            <div id="top-right-group">
+                <div id="connection-status"></div>
+                <div id="settings-button">⚙️</div>
+            </div>
+        </div>
+
+        <!-- Левая колонка: СВЕТ (сдвинут к центру) + джойстик -->
+        <div id="left-column" class="joystick-column">
+            <div id="lights-button" class="action-btn">СВЕТ</div>
+            <div id="left-joystick-zone" class="joystick-zone">
+                <div class="joystick-base">
+                    <div class="joystick-stick" id="left-stick"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Правая колонка: ОГОНЬ (сдвинут к центру) + джойстик -->
+        <div id="right-column" class="joystick-column">
+            <div id="fire-button" class="action-btn">ОГОНЬ</div>
+            <div id="right-joystick-zone" class="joystick-zone">
+                <div class="joystick-base">
+                    <div class="joystick-stick" id="right-stick"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- LOG по центру -->
+        <div id="logs-toggle-btn" class="action-btn">📋</div>
+
+        <!-- Toast -->
+        <div id="mode-toast"></div>
+
+        <!-- Панель логов -->
+        <div id="logs-panel"></div>
+
+        <!-- Настройки -->
+        <div id="settings-modal">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h2>⚙️ Настройки</h2>
+                    <button class="close-btn" id="modal-close-btn">&times;</button>
+                </div>
+                <div class="setting-group">
+                    <label>Чувствительность (левый)</label>
+                    <input type="range" id="joy-left-sensitivity" min="10" max="100" value="70">
+                    <div class="setting-value" id="joy-left-val">70%</div>
+                </div>
+                <div class="setting-group">
+                    <label>Чувствительность (правый)</label>
+                    <input type="range" id="joy-right-sensitivity" min="10" max="100" value="70">
+                    <div class="setting-value" id="joy-right-val">70%</div>
+                </div>
+                <div class="setting-group">
+                    <label>Мертвая зона</label>
+                    <input type="range" id="joy-deadzone" min="0" max="30" value="10">
+                    <div class="setting-value" id="joy-deadzone-val">10%</div>
+                </div>
+                <div class="setting-group">
+                    <label>Яркость интерфейса</label>
+                    <input type="range" id="ui-brightness" min="40" max="100" value="100">
+                    <div class="setting-value" id="ui-brightness-val">100%</div>
+                </div>
+                <button class="btn-save" id="settings-save-btn">💾 Сохранить</button>
+                <button class="btn-reset" id="settings-reset-btn">🔄 Сброс</button>
+            </div>
+        </div>
+    </div>
+
+<script>
+    // ============================================================
+    //  КОНФИГУРАЦИЯ
+    // ============================================================
+    const HOST = window.location.hostname || 'localhost';
+    const PORT_VIDEO = 8889;
+    const WS_URL = `ws://${HOST}:8765`;
+    const VIDEO_ASPECT = 4 / 3;
+
+    // ============================================================
+    //  СОСТОЯНИЕ
+    // ============================================================
+    let ws = null;
+    let isConnected = false;
+    let lightsOn = false;
+    let emergencyMode = false;
+    let logsVisible = false;
+
+    const command = {
+        type: 'COMMAND',
+        left_x: 0, left_y: 0,
+        right_x: 0, right_y: 0,
+        fire: false, lights: false
+    };
+
+    // ============================================================
+    //  ВИДЕО + РАСЧЁТ ОБЛАСТИ 4:3 И СВОБОДНЫХ ПОЛОС
+    // ============================================================
+    document.getElementById('video-url-host').textContent = HOST;
+    const videoFrame = document.getElementById('video-frame');
+    const videoUrl = `http://${HOST}:${PORT_VIDEO}/stream/`;
+    videoFrame.src = videoUrl;
+
+    videoFrame.onload = function() {
+        document.getElementById('video-placeholder').style.display = 'none';
+    };
+    setTimeout(function() {
+        if (videoFrame.readyState < 3) {
+            document.getElementById('video-placeholder').innerHTML =
+                '⚠️ Видеопоток недоступен<br><small>Проверьте соединение с ' + videoUrl + '</small>';
+        }
+    }, 4000);
+
+    /**
+     * Вписывает видео 4:3 в экран без обрезки и вычисляет
+     * размеры свободных чёрных полос (--bar-h, --bar-w),
+     * которые используются для размещения элементов управления.
+     */
+    function layoutVideo() {
+        const W = window.innerWidth;
+        const H = window.innerHeight;
+        let vidW, vidH;
+
+        if (W / H > VIDEO_ASPECT) {
+            // экран шире видео → вписываем по высоте, полосы слева/справа
+            vidH = H;
+            vidW = H * VIDEO_ASPECT;
+        } else {
+            // экран уже видео → вписываем по ширине, полосы сверху/снизу
+            vidW = W;
+            vidH = W / VIDEO_ASPECT;
+        }
+
+        const barH = Math.max(0, (H - vidH) / 2);
+        const barW = Math.max(0, (W - vidW) / 2);
+
+        const rs = document.documentElement.style;
+        rs.setProperty('--bar-h', barH.toFixed(1) + 'px');
+        rs.setProperty('--bar-w', barW.toFixed(1) + 'px');
+
+        // Точный размер iframe (дублирует CSS-фолбэк для надёжности)
+        videoFrame.style.width = vidW.toFixed(1) + 'px';
+        videoFrame.style.height = vidH.toFixed(1) + 'px';
+    }
+
+    window.addEventListener('resize', layoutVideo);
+    window.addEventListener('orientationchange', layoutVideo);
+    layoutVideo();
+
+    // ============================================================
+    //  WEBSOCKET
+    // ============================================================
+    function connect() {
+        ws = new WebSocket(WS_URL);
+        ws.onopen = function() {
+            isConnected = true;
+            document.getElementById('connection-status').classList.add('connected');
+            console.log('✅ WebSocket соединение установлено');
+        };
+        ws.onclose = function() {
+            isConnected = false;
+            document.getElementById('connection-status').classList.remove('connected');
+            setTimeout(connect, 2000);
+        };
+        ws.onerror = function(err) { console.error('❌ Ошибка WebSocket:', err); };
+        ws.onmessage = function(event) {
+            try {
+                const data = JSON.parse(event.data);
+                if (data.type === 'telemetry' || data.type === 'TELEMETRY') {
+                    // Поддержка обоих форматов: плоского и вложенного
+                    const tel = data.telemetry || data;
+                    const sys = data.system || {};
+                    const sens = data.sensors || {};
+                    
+                    updateTelemetry({
+                        battery: tel.battery_voltage !== undefined ? tel.battery_voltage : (data.battery !== undefined ? data.battery : -1),
+                        heading: sens.heading !== undefined ? sens.heading : (data.heading !== undefined ? data.heading : -1),
+                        ultrasonic_cm: sens.ultrasonic_distance !== undefined ? sens.ultrasonic_distance : (data.ultrasonic_cm !== undefined ? data.ultrasonic_cm : -1),
+                        wifi_quality: sys.wifi_quality !== undefined ? sys.wifi_quality : (data.wifi_quality !== undefined ? data.wifi_quality : -1),
+                        cpu_temp: sys.cpu_temp !== undefined ? sys.cpu_temp : (data.cpu_temp !== undefined ? data.cpu_temp : -1),
+                        memory_percent: sys.memory_percent !== undefined ? sys.memory_percent : (data.memory_percent !== undefined ? data.memory_percent : -1),
+                        roll: tel.roll !== undefined ? tel.roll : (data.roll !== undefined ? data.roll : 0),
+                        pitch: tel.pitch !== undefined ? tel.pitch : (data.pitch !== undefined ? data.pitch : 0),
+                        turret_angle: tel.turret_angle !== undefined ? tel.turret_angle : (data.turret_angle !== undefined ? data.turret_angle : 0),
+                        current_left: tel.current_left !== undefined ? tel.current_left : (data.current_left !== undefined ? data.current_left : -1),
+                        current_right: tel.current_right !== undefined ? tel.current_right : (data.current_right !== undefined ? data.current_right : -1),
+                        current_tower: tel.current_tower !== undefined ? tel.current_tower : (data.current_tower !== undefined ? data.current_tower : -1)
+                    });
+                }
+            } catch (e) { console.error('Ошибка парсинга телеметрии:', e); }
+        };
+    }
+
+    function sendCommand() {
+        if (isConnected && ws && ws.readyState === WebSocket.OPEN) {
+            ws.send(JSON.stringify(command));
+        }
+    }
+
+    // ============================================================
+    //  ТЕЛЕМЕТРИЯ
+    // ============================================================
+    function updateTelemetry(data) {
+        const setVal = (id, value, suffix = '') => {
+            const el = document.getElementById(id);
+            if (el) el.textContent = value + suffix;
+        };
+        
+        const setStatusIndicator = (id, status) => {
+            const el = document.getElementById(id);
+            if (el) {
+                el.className = 'status-indicator ' + status;
+            }
+        };
+
+        if (data.battery !== undefined && data.battery >= 0) {
+            const el = document.getElementById('battery-val');
+            el.textContent = data.battery.toFixed(1) + 'V';
+            el.className = 'telemetry-value';
+            if (data.battery < 11.5) el.classList.add('critical');
+            else if (data.battery < 12.0) el.classList.add('warning');
+        }
+        if (data.heading !== undefined) document.getElementById('heading-val').textContent = data.heading.toFixed(0) + '°';
+        if (data.ultrasonic_cm !== undefined && data.ultrasonic_cm >= 0) {
+            const el = document.getElementById('distance-val');
+            el.textContent = data.ultrasonic_cm.toFixed(0) + 'см';
+            el.className = 'telemetry-value';
+            if (data.ultrasonic_cm < 10) el.classList.add('critical');
+            else if (data.ultrasonic_cm < 25) el.classList.add('warning');
+        }
+        if (data.wifi_quality !== undefined) {
+            const el = document.getElementById('wifi-quality-val');
+            el.textContent = data.wifi_quality.toFixed(0) + '%';
+            el.className = 'telemetry-value';
+            if (data.wifi_quality < 30) el.classList.add('critical');
+            else if (data.wifi_quality < 60) el.classList.add('warning');
+        }
+        if (data.cpu_temp !== undefined) {
+            const el = document.getElementById('cpu-temp-val');
+            el.textContent = data.cpu_temp.toFixed(0) + '°';
+            el.className = 'telemetry-value';
+            if (data.cpu_temp >= 80) el.classList.add('critical');
+            else if (data.cpu_temp >= 70) el.classList.add('warning');
+        }
+        
+        // Обновление иконок троттлинга на основе throttle_status
+        if (data.throttle_status !== undefined) {
+            const iconsContainer = document.getElementById('throttle-icons');
+            if (iconsContainer) {
+                const ts = data.throttle_status;
+                let icon = '';
+                // Приоритет: бит 7 (перегрев) > бит 2 (троттлинг) > бит 1 (частота) > бит 0 (напряжение)
+                // Отображается только последний активный бит по приоритету
+                if (ts & 0x80) icon = '🔥';       // Бит 7: Temperature limit reached
+                else if (ts & 0x4) icon = '🛑';    // Бит 2: Currently throttled
+                else if (ts & 0x2) icon = '🐌';    // Бит 1: ARM frequency capped
+                else if (ts & 0x1) icon = '⚡';    // Бит 0: Under-voltage detected
+                
+                if (icon) {
+                    iconsContainer.innerHTML = `<span style="font-size:12px;">${icon}</span>`;
+                    iconsContainer.style.display = 'flex';
+                } else {
+                    iconsContainer.innerHTML = '';
+                    iconsContainer.style.display = 'none';
+                }
+            }
+        }
+        
+        if (data.memory_percent !== undefined) {
+            const el = document.getElementById('memory-val');
+            el.textContent = data.memory_percent.toFixed(0) + '%';
+            el.className = 'telemetry-value';
+            if (data.memory_percent >= 95) el.classList.add('critical');
+            else if (data.memory_percent >= 80) el.classList.add('warning');
+        }
+        if (data.roll !== undefined) setVal('roll-val', data.roll.toFixed(0), '°');
+        if (data.pitch !== undefined) setVal('pitch-val', data.pitch.toFixed(0), '°');
+        if (data.turret_angle !== undefined) setVal('turret-val', data.turret_angle.toFixed(0), '°');
+        if (data.current_left !== undefined && data.current_left >= 0) setVal('current-left-val', (data.current_left / 1000.0).toFixed(1), 'A');
+        if (data.current_right !== undefined && data.current_right >= 0) setVal('current-right-val', (data.current_right / 1000.0).toFixed(1), 'A');
+        if (data.current_tower !== undefined && data.current_tower >= 0) setVal('current-tower-val', (data.current_tower / 1000.0).toFixed(1), 'A');
+        
+        // Обновление статусных индикаторов
+        if (data.arduino_status !== undefined) {
+            setStatusIndicator('arduino-status', data.arduino_status);
+        }
+        if (data.gyro_status !== undefined) {
+            setStatusIndicator('gyro-status', data.gyro_status);
+        }
+    }
+
+    // ============================================================
+    //  TOAST
+    // ============================================================
+    let toastTimer = null;
+    function showModeToast(text, className = '') {
+        const toast = document.getElementById('mode-toast');
+        toast.textContent = text;
+        toast.className = className ? className + ' show' : 'show';
+        clearTimeout(toastTimer);
+        toastTimer = setTimeout(() => {
+            toast.classList.remove('show');
+        }, 1500);
+    }
+
+    // ============================================================
+    //  ДЖОЙСТИКИ
+    // ============================================================
+    function setupJoystick(zoneId, stickId, callback) {
+        const zone = document.getElementById(zoneId);
+        const stick = document.getElementById(stickId);
+        const maxDist = 50;
+        let active = false;
+        let centerX = 0, centerY = 0;
+
+        function getCenter() {
+            const rect = zone.getBoundingClientRect();
+            centerX = rect.left + rect.width / 2;
+            centerY = rect.top + rect.height / 2;
+        }
+
+        function handleMove(clientX, clientY) {
+            let dx = clientX - centerX;
+            let dy = clientY - centerY;
+            const dist = Math.sqrt(dx * dx + dy * dy);
+            if (dist > maxDist) {
+                const ratio = maxDist / dist;
+                dx *= ratio; dy *= ratio;
+            }
+            stick.style.transform = `translate(${dx}px, ${dy}px)`;
+            const x = dx / maxDist;
+            const y = -(dy / maxDist);
+            callback(Math.max(-1, Math.min(1, x)), Math.max(-1, Math.min(1, y)));
+        }
+
+        function handleEnd() {
+            active = false;
+            stick.style.transform = 'translate(0, 0)';
+            callback(0, 0);
+        }
+
+        zone.addEventListener('touchstart', e => {
+            e.preventDefault(); active = true; getCenter();
+            handleMove(e.touches[0].clientX, e.touches[0].clientY);
+        }, { passive: false });
+        zone.addEventListener('touchmove', e => {
+            e.preventDefault(); if (!active) return;
+            handleMove(e.touches[0].clientX, e.touches[0].clientY);
+        }, { passive: false });
+        zone.addEventListener('touchend', e => { e.preventDefault(); handleEnd(); }, { passive: false });
+        zone.addEventListener('touchcancel', e => { e.preventDefault(); handleEnd(); }, { passive: false });
+
+        let mouseDown = false;
+        zone.addEventListener('mousedown', e => { e.preventDefault(); mouseDown = true; getCenter(); handleMove(e.clientX, e.clientY); });
+        document.addEventListener('mousemove', e => { if (mouseDown) handleMove(e.clientX, e.clientY); });
+        document.addEventListener('mouseup', () => { if (mouseDown) { mouseDown = false; handleEnd(); } });
+
+        document.addEventListener('visibilitychange', () => {
+            if (document.hidden) {
+                if (mouseDown) { mouseDown = false; handleEnd(); }
+                if (active) { active = false; handleEnd(); }
+            }
+        });
+    }
+
+    setupJoystick('left-joystick-zone', 'left-stick', (x, y) => {
+        command.left_x = x; command.left_y = y;
+        if (!emergencyMode) sendCommand();
+    });
+    setupJoystick('right-joystick-zone', 'right-stick', (x, y) => {
+        command.right_x = x; command.right_y = y;
+        if (!emergencyMode) sendCommand();
+    });
+
+    // ============================================================
+    //  ОГОНЬ
+    // ============================================================
+    const fireBtn = document.getElementById('fire-button');
+    const fireStart = e => {
+        e.preventDefault();
+        if (emergencyMode) return;
+        command.fire = true;
+        fireBtn.classList.add('active');
+        sendCommand();
+    };
+    const fireEnd = e => {
+        e.preventDefault();
+        command.fire = false;
+        fireBtn.classList.remove('active');
+        sendCommand();
+    };
+    fireBtn.addEventListener('touchstart', fireStart, { passive: false });
+    fireBtn.addEventListener('touchend', fireEnd, { passive: false });
+    fireBtn.addEventListener('touchcancel', fireEnd, { passive: false });
+    fireBtn.addEventListener('mousedown', fireStart);
+    fireBtn.addEventListener('mouseup', fireEnd);
+    fireBtn.addEventListener('mouseleave', fireEnd);
+
+    // ============================================================
+    //  СВЕТ
+    // ============================================================
+    const lightsBtn = document.getElementById('lights-button');
+    const toggleLights = e => {
+        e.preventDefault();
+        if (emergencyMode) return;
+        lightsOn = !lightsOn;
+        command.lights = lightsOn;
+        lightsBtn.classList.toggle('active', lightsOn);
+        sendCommand();
+    };
+    lightsBtn.addEventListener('touchstart', toggleLights, { passive: false });
+    lightsBtn.addEventListener('mousedown', toggleLights);
+
+    // ============================================================
+    //  E-STOP
+    // ============================================================
+    const estopBtn = document.getElementById('estop-button');
+    const modeIndicator = document.getElementById('mode-indicator');
+
+    const toggleEmergency = e => {
+        e.preventDefault();
+        emergencyMode = !emergencyMode;
+        if (emergencyMode) {
+            command.left_x = command.left_y = command.right_x = command.right_y = 0;
+            command.fire = false;
+            command.lights = lightsOn;
+            modeIndicator.textContent = '⚠ STOP';
+            modeIndicator.className = 'emergency';
+            estopBtn.classList.add('active');
+            fireBtn.classList.remove('active');
+            sendCommand();
+            showModeToast('⚠ STOP', 'emergency');
+            console.warn('🛑 EMERGENCY STOP активирован');
+        } else {
+            modeIndicator.textContent = 'MANUAL';
+            modeIndicator.className = 'manual';
+            estopBtn.classList.remove('active');
+            command.lights = lightsOn;
+            sendCommand();
+            showModeToast('MANUAL');
+            console.log('✅ Emergency STOP деактивирован');
+        }
+    };
+
+    estopBtn.addEventListener('touchstart', toggleEmergency, { passive: false });
+    estopBtn.addEventListener('mousedown', toggleEmergency);
+
+    // ============================================================
+    //  ЛОГИ
+    // ============================================================
+    const logsToggle = document.getElementById('logs-toggle-btn');
+    const logsPanel = document.getElementById('logs-panel');
+
+    const toggleLogs = e => {
+        if (e) e.preventDefault();
+        logsVisible = !logsVisible;
+        logsPanel.classList.toggle('visible', logsVisible);
+        logsToggle.classList.toggle('active', logsVisible);
+    };
+
+    logsToggle.addEventListener('touchstart', toggleLogs, { passive: false });
+    logsToggle.addEventListener('mousedown', toggleLogs);
+
+    function addLog(message, type = 'info') {
+        const entry = document.createElement('div');
+        entry.className = 'log-entry ' + type;
+        const ts = new Date().toLocaleTimeString();
+        entry.textContent = '[' + ts + '] ' + message;
+        logsPanel.appendChild(entry);
+        logsPanel.scrollTop = logsPanel.scrollHeight;
+        const entries = logsPanel.querySelectorAll('.log-entry');
+        if (entries.length > 120) entries[0].remove();
+    }
+
+    (function() {
+        const origLog = console.log;
+        const origError = console.error;
+        const origWarn = console.warn;
+        console.log = function(...args) { origLog.apply(console, args); addLog(args.join(' '), 'info'); };
+        console.error = function(...args) { origError.apply(console, args); addLog(args.join(' '), 'error'); };
+        console.warn = function(...args) { origWarn.apply(console, args); addLog(args.join(' '), 'warning'); };
+    })();
+
+    // ============================================================
+    //  НАСТРОЙКИ
+    // ============================================================
+    const settingsBtn = document.getElementById('settings-button');
+    const settingsModal = document.getElementById('settings-modal');
+    const modalClose = document.getElementById('modal-close-btn');
+
+    const openSettings = e => { e.preventDefault(); settingsModal.classList.add('show'); };
+    const closeSettings = () => settingsModal.classList.remove('show');
+
+    settingsBtn.addEventListener('touchstart', openSettings, { passive: false });
+    settingsBtn.addEventListener('mousedown', openSettings);
+    modalClose.addEventListener('click', closeSettings);
+    settingsModal.addEventListener('click', e => { if (e.target === settingsModal) closeSettings(); });
+
+    document.getElementById('joy-left-sensitivity').addEventListener('input', function() {
+        document.getElementById('joy-left-val').textContent = this.value + '%';
+    });
+    document.getElementById('joy-right-sensitivity').addEventListener('input', function() {
+        document.getElementById('joy-right-val').textContent = this.value + '%';
+    });
+    document.getElementById('joy-deadzone').addEventListener('input', function() {
+        document.getElementById('joy-deadzone-val').textContent = this.value + '%';
+    });
+    document.getElementById('ui-brightness').addEventListener('input', function() {
+        document.getElementById('ui-brightness-val').textContent = this.value + '%';
+        document.getElementById('ui-overlay').style.opacity = this.value / 100;
+    });
+
+    function saveSettings() {
+        const settings = {
+            joyLeftSensitivity: document.getElementById('joy-left-sensitivity').value,
+            joyRightSensitivity: document.getElementById('joy-right-sensitivity').value,
+            joyDeadzone: document.getElementById('joy-deadzone').value,
+            uiBrightness: document.getElementById('ui-brightness').value
+        };
+        localStorage.setItem('roboChassisSettings', JSON.stringify(settings));
+        const btn = document.getElementById('settings-save-btn');
+        const orig = btn.textContent;
+        btn.textContent = '✅ Сохранено!';
+        setTimeout(() => { btn.textContent = orig; }, 1200);
+        closeSettings();
+    }
+
+    function resetSettings() {
+        if (!confirm('Сбросить настройки к значениям по умолчанию?')) return;
+        document.getElementById('joy-left-sensitivity').value = 70;
+        document.getElementById('joy-right-sensitivity').value = 70;
+        document.getElementById('joy-deadzone').value = 10;
+        document.getElementById('ui-brightness').value = 100;
+        document.getElementById('joy-left-val').textContent = '70%';
+        document.getElementById('joy-right-val').textContent = '70%';
+        document.getElementById('joy-deadzone-val').textContent = '10%';
+        document.getElementById('ui-brightness-val').textContent = '100%';
+        document.getElementById('ui-overlay').style.opacity = 1;
+        localStorage.removeItem('roboChassisSettings');
+    }
+
+    document.getElementById('settings-save-btn').addEventListener('click', saveSettings);
+    document.getElementById('settings-reset-btn').addEventListener('click', resetSettings);
+
+    function loadSettings() {
+        const saved = localStorage.getItem('roboChassisSettings');
+        if (!saved) return;
+        try {
+            const s = JSON.parse(saved);
+            if (s.joyLeftSensitivity) {
+                document.getElementById('joy-left-sensitivity').value = s.joyLeftSensitivity;
+                document.getElementById('joy-left-val').textContent = s.joyLeftSensitivity + '%';
+            }
+            if (s.joyRightSensitivity) {
+                document.getElementById('joy-right-sensitivity').value = s.joyRightSensitivity;
+                document.getElementById('joy-right-val').textContent = s.joyRightSensitivity + '%';
+            }
+            if (s.joyDeadzone) {
+                document.getElementById('joy-deadzone').value = s.joyDeadzone;
+                document.getElementById('joy-deadzone-val').textContent = s.joyDeadzone + '%';
+            }
+            if (s.uiBrightness) {
+                document.getElementById('ui-brightness').value = s.uiBrightness;
+                document.getElementById('ui-brightness-val').textContent = s.uiBrightness + '%';
+                document.getElementById('ui-overlay').style.opacity = s.uiBrightness / 100;
+            }
+        } catch (e) { /* ignore */ }
+    }
+
+    // ============================================================
+    //  ИНИЦИАЛИЗАЦИЯ
+    // ============================================================
+    loadSettings();
+    connect();
+    layoutVideo();
+
+    document.body.addEventListener('touchstart', function fsHandler() {
+        if (document.documentElement.requestFullscreen) {
+            document.documentElement.requestFullscreen().catch(() => {});
+        }
+        document.body.removeEventListener('touchstart', fsHandler);
+    }, { passive: true });
+
+    console.log('🚀 RoboChassis Control загружен');
+    console.log('📡 WebSocket: ' + WS_URL);
+    console.log('📹 Видео: ' + videoUrl);
+</script>
+</body>
+</html>

@@ -1,0 +1,14 @@
+/var/log/robo_chassis/*.log {
+    daily
+    missingok
+    rotate 7
+    compress
+    delaycompress
+    notifempty
+    create 0640 pi pi
+    sharedscripts
+    postrotate
+        # Перезапуск не требуется, так как логи пишутся в файлы
+        # systemd-journald сам обрабатывает ротацию
+    endscript
+}
