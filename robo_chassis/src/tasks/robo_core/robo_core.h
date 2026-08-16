@@ -2,6 +2,7 @@
 #define ROBO_CORE_H
 
 #include "i_task.h"
+#include <QJsonObject>
 
 struct JoyAxes;
 
@@ -25,6 +26,9 @@ public:
     void onEnginePowerChanged(const QPoint& enginePower);
     void onJoyEvent(const JoyAxes& axes);
     void onGunPosition(const QPointF& position);
+    
+    // Прием команд от TCP сервера (от телефона)
+    void onCommandReceived(const QJsonObject& command);
 
 private:
     class Impl;

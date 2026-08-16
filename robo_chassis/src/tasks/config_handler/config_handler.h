@@ -17,7 +17,6 @@ private:
     void onEnginePowerChanged(const QPoint& enginePower);
     void onImageSettingsChanged(const ImageSettings& settings);
     void onSwitchTrackerRequest(const quint8& code);
-    void onVideoSourceChanged(const QString& source);
 
 private:
     class Impl;

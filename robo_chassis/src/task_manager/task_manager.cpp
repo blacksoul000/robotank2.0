@@ -7,13 +7,9 @@
 #endif  // WITH_GPIO
 #include "robo_core.h"
 #include "arduino_exchanger.h"
-#include "gamepad_controller.h"
-#ifdef WITH_TRACKING
-#include "tracker_task.h"
-#endif  // WITH_TRACKING
-#include "video_source.h"
-#include "bluetooth_manager.h"
-#include "mavlink_exchanger.h"
+#include "tcp_command_server.h"
+#include "wifi_telemetry_sender.h"
+
 #include "config_handler.h"
 
 // Qt
@@ -40,19 +36,25 @@ TaskManager::~TaskManager()
 
 bool TaskManager::createTasks()
 {
-    this->addTask(ITaskPtr(new GamepadController), 30);
+    // TCP сервер для приема команд от телефона
+    this->addTask(ITaskPtr(new TcpCommandServer(5555)), 10);
+    
+    // Отправщик телеметрии на телефон
+    this->addTask(ITaskPtr(new WifiTelemetrySender("127.0.0.1", 5555)), 10);
+    
+    // Основная логика управления
     this->addTask(ITaskPtr(new RoboCore), 10);
+    
 #ifdef WITH_GPIO
     this->addTask(ITaskPtr(new GpioController), 20);
 #endif  // WITH_GPIO
+    
+    // Обмен с Arduino
     this->addTask(ITaskPtr(new ArduinoExchanger), 20);
-    this->addTask(ITaskPtr(new BluetoothManager), 2);
-    this->addTask(ITaskPtr(new VideoSource), 100);
-#ifdef WITH_TRACKING
-    this->addTask(ITaskPtr(new TrackerTask), 100);
-#endif  // WITH_TRACKING
-    this->addTask(ITaskPtr(new MavlinkExchanger), 0);
+    
+    // Обработчик конфигурации (без потока)
     this->addTask(ITaskPtr(new ConfigHandler), 0); // last one
+    
     return true;
 }
 
