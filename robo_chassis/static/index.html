@@ -1,0 +1,472 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>RoboChassis Control</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            touch-action: none; /* Отключаем зум и скролл */
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #1a1a1a;
+            color: white;
+            overflow: hidden;
+            width: 100vw;
+            height: 100vh;
+        }
+        
+        /* Видеопоток на фоне */
+        #video-container {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 0;
+            background: #000;
+        }
+        
+        #video-stream {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+        
+        /* Интерфейс поверх видео */
+        #ui-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 10;
+            pointer-events: none; /* Пропускаем клики сквозь пустые места */
+        }
+        
+        /* Панель телеметрии */
+        #telemetry-bar {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            background: rgba(0, 0, 0, 0.7);
+            padding: 10px 15px;
+            display: flex;
+            justify-content: space-around;
+            font-size: 14px;
+            pointer-events: auto;
+        }
+        
+        .telemetry-item {
+            text-align: center;
+        }
+        
+        .telemetry-label {
+            font-size: 10px;
+            color: #aaa;
+            text-transform: uppercase;
+        }
+        
+        .telemetry-value {
+            font-size: 16px;
+            font-weight: bold;
+            color: #0f0;
+        }
+        
+        .telemetry-value.warning {
+            color: #ff0;
+        }
+        
+        .telemetry-value.critical {
+            color: #f00;
+        }
+        
+        /* Джойстики */
+        .joystick-zone {
+            position: absolute;
+            bottom: 20px;
+            width: 150px;
+            height: 150px;
+            pointer-events: auto;
+        }
+        
+        #left-joystick-zone {
+            left: 30px;
+        }
+        
+        #right-joystick-zone {
+            right: 30px;
+        }
+        
+        .joystick-base {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            background: rgba(255, 255, 255, 0.1);
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            border-radius: 50%;
+        }
+        
+        .joystick-stick {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 50px;
+            height: 50px;
+            margin-left: -25px;
+            margin-top: -25px;
+            background: rgba(255, 255, 255, 0.5);
+            border-radius: 50%;
+            transition: transform 0.05s;
+        }
+        
+        /* Кнопка огня */
+        #fire-button {
+            position: absolute;
+            right: 200px;
+            bottom: 40px;
+            width: 80px;
+            height: 80px;
+            background: radial-gradient(circle, #ff4444 0%, #cc0000 100%);
+            border: 3px solid #fff;
+            border-radius: 50%;
+            pointer-events: auto;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-size: 14px;
+            text-transform: uppercase;
+            box-shadow: 0 4px 15px rgba(255, 0, 0, 0.5);
+        }
+        
+        #fire-button:active {
+            background: radial-gradient(circle, #ff6666 0%, #ff0000 100%);
+            transform: scale(0.95);
+        }
+        
+        /* Кнопка света */
+        #lights-button {
+            position: absolute;
+            left: 200px;
+            bottom: 40px;
+            width: 60px;
+            height: 60px;
+            background: radial-gradient(circle, #ffff44 0%, #cccc00 100%);
+            border: 3px solid #fff;
+            border-radius: 50%;
+            pointer-events: auto;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-size: 12px;
+            text-transform: uppercase;
+            box-shadow: 0 4px 15px rgba(255, 255, 0, 0.5);
+        }
+        
+        #lights-button.active {
+            background: radial-gradient(circle, #ffffff 0%, #ffff00 100%);
+            box-shadow: 0 4px 20px rgba(255, 255, 255, 0.8);
+        }
+        
+        /* Индикатор соединения */
+        #connection-status {
+            position: absolute;
+            top: 50px;
+            right: 15px;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: #f00;
+            box-shadow: 0 0 10px #f00;
+        }
+        
+        #connection-status.connected {
+            background: #0f0;
+            box-shadow: 0 0 10px #0f0;
+        }
+        
+        /* Адаптивность для портретного режима */
+        @media (orientation: portrait) {
+            #telemetry-bar {
+                flex-wrap: wrap;
+                font-size: 12px;
+            }
+            
+            .joystick-zone {
+                bottom: 10px;
+                width: 120px;
+                height: 120px;
+            }
+            
+            #fire-button {
+                right: 150px;
+                bottom: 20px;
+                width: 60px;
+                height: 60px;
+                font-size: 11px;
+            }
+            
+            #lights-button {
+                left: 150px;
+                bottom: 20px;
+                width: 50px;
+                height: 50px;
+                font-size: 10px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Видеопоток -->
+    <div id="video-container">
+        <!-- Замените src на адрес вашего webrtc-streamer -->
+        <video id="video-stream" autoplay playsinline muted>
+            <source src="http://localhost:8080/stream" type="video/mp4">
+            Ваш браузер не поддерживает видео.
+        </video>
+    </div>
+    
+    <!-- Интерфейс -->
+    <div id="ui-overlay">
+        <!-- Телеметрия -->
+        <div id="telemetry-bar">
+            <div class="telemetry-item">
+                <div class="telemetry-label">Батарея</div>
+                <div class="telemetry-value" id="battery-val">-- V</div>
+            </div>
+            <div class="telemetry-item">
+                <div class="telemetry-label">Крен</div>
+                <div class="telemetry-value" id="roll-val">0°</div>
+            </div>
+            <div class="telemetry-item">
+                <div class="telemetry-label">Тангаж</div>
+                <div class="telemetry-value" id="pitch-val">0°</div>
+            </div>
+            <div class="telemetry-item">
+                <div class="telemetry-label">Башня</div>
+                <div class="telemetry-value" id="turret-val">0°</div>
+            </div>
+        </div>
+        
+        <!-- Индикатор соединения -->
+        <div id="connection-status"></div>
+        
+        <!-- Левый джойстик (движение) -->
+        <div id="left-joystick-zone" class="joystick-zone">
+            <div class="joystick-base">
+                <div class="joystick-stick" id="left-stick"></div>
+            </div>
+        </div>
+        
+        <!-- Правый джойстик (башня) -->
+        <div id="right-joystick-zone" class="joystick-zone">
+            <div class="joystick-base">
+                <div class="joystick-stick" id="right-stick"></div>
+            </div>
+        </div>
+        
+        <!-- Кнопка огня -->
+        <div id="fire-button">ОГОНЬ</div>
+        
+        <!-- Кнопка света -->
+        <div id="lights-button">СВЕТ</div>
+    </div>
+
+    <script>
+        // === Конфигурация ===
+        const WS_URL = `ws://${window.location.hostname}:8765`;
+        
+        // === Состояние ===
+        let ws = null;
+        let isConnected = false;
+        let lightsOn = false;
+        
+        const command = {
+            type: 'COMMAND',
+            left_x: 0,
+            left_y: 0,
+            right_x: 0,
+            right_y: 0,
+            fire: false,
+            lights: false
+        };
+        
+        // === WebSocket соединение ===
+        function connect() {
+            ws = new WebSocket(WS_URL);
+            
+            ws.onopen = () => {
+                isConnected = true;
+                document.getElementById('connection-status').classList.add('connected');
+                console.log('Соединение установлено');
+            };
+            
+            ws.onclose = () => {
+                isConnected = false;
+                document.getElementById('connection-status').classList.remove('connected');
+                console.log('Соединение разорвано. Переподключение...');
+                setTimeout(connect, 2000);
+            };
+            
+            ws.onerror = (error) => {
+                console.error('Ошибка WebSocket:', error);
+            };
+            
+            ws.onmessage = (event) => {
+                try {
+                    const data = JSON.parse(event.data);
+                    if (data.type === 'TELEMETRY') {
+                        updateTelemetry(data);
+                    }
+                } catch (e) {
+                    console.error('Ошибка парсинга данных:', e);
+                }
+            };
+        }
+        
+        function sendCommand() {
+            if (isConnected && ws.readyState === WebSocket.OPEN) {
+                ws.send(JSON.stringify(command));
+            }
+        }
+        
+        // === Обновление телеметрии ===
+        function updateTelemetry(data) {
+            // Батарея
+            const batteryEl = document.getElementById('battery-val');
+            batteryEl.textContent = data.battery.toFixed(1) + ' V';
+            batteryEl.className = 'telemetry-value';
+            if (data.battery < 11.5) batteryEl.classList.add('critical');
+            else if (data.battery < 12.0) batteryEl.classList.add('warning');
+            
+            // Крен
+            document.getElementById('roll-val').textContent = data.roll.toFixed(1) + '°';
+            
+            // Тангаж
+            document.getElementById('pitch-val').textContent = data.pitch.toFixed(1) + '°';
+            
+            // Башня
+            document.getElementById('turret-val').textContent = data.turret_angle.toFixed(0) + '°';
+        }
+        
+        // === Джойстики ===
+        function setupJoystick(zoneId, stickId, callback) {
+            const zone = document.getElementById(zoneId);
+            const stick = document.getElementById(stickId);
+            const maxDistance = 50; // Максимальное отклонение в пикселях
+            
+            let isTouching = false;
+            let centerX, centerY;
+            
+            zone.addEventListener('touchstart', (e) => {
+                e.preventDefault();
+                isTouching = true;
+                const rect = zone.getBoundingClientRect();
+                centerX = rect.left + rect.width / 2;
+                centerY = rect.top + rect.height / 2;
+                handleTouch(e.touches[0]);
+            }, { passive: false });
+            
+            zone.addEventListener('touchmove', (e) => {
+                e.preventDefault();
+                if (isTouching) {
+                    handleTouch(e.touches[0]);
+                }
+            }, { passive: false });
+            
+            zone.addEventListener('touchend', (e) => {
+                e.preventDefault();
+                isTouching = false;
+                stick.style.transform = 'translate(0, 0)';
+                callback(0, 0);
+            });
+            
+            function handleTouch(touch) {
+                let dx = touch.clientX - centerX;
+                let dy = touch.clientY - centerY;
+                
+                const distance = Math.sqrt(dx * dx + dy * dy);
+                if (distance > maxDistance) {
+                    const ratio = maxDistance / distance;
+                    dx *= ratio;
+                    dy *= ratio;
+                }
+                
+                stick.style.transform = `translate(${dx}px, ${dy}px)`;
+                
+                // Нормализуем значения от -1 до 1
+                const x = dx / maxDistance;
+                const y = -(dy / maxDistance); // Инвертируем Y
+                
+                callback(x, y);
+            }
+        }
+        
+        // Настройка левого джойстика (движение базы)
+        setupJoystick('left-joystick-zone', 'left-stick', (x, y) => {
+            command.left_x = x;
+            command.left_y = y;
+            sendCommand();
+        });
+        
+        // Настройка правого джойстика (башня)
+        setupJoystick('right-joystick-zone', 'right-stick', (x, y) => {
+            command.right_x = x;
+            command.right_y = y;
+            sendCommand();
+        });
+        
+        // === Кнопка огня ===
+        const fireButton = document.getElementById('fire-button');
+        
+        fireButton.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            command.fire = true;
+            sendCommand();
+            fireButton.style.transform = 'scale(0.95)';
+        });
+        
+        fireButton.addEventListener('touchend', (e) => {
+            e.preventDefault();
+            command.fire = false;
+            sendCommand();
+            fireButton.style.transform = 'scale(1)';
+        });
+        
+        // === Кнопка света ===
+        const lightsButton = document.getElementById('lights-button');
+        
+        lightsButton.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            lightsOn = !lightsOn;
+            command.lights = lightsOn;
+            
+            if (lightsOn) {
+                lightsButton.classList.add('active');
+            } else {
+                lightsButton.classList.remove('active');
+            }
+            
+            sendCommand();
+        });
+        
+        // === Инициализация ===
+        connect();
+        
+        // Полноэкранный режим при первом касании
+        document.body.addEventListener('touchstart', () => {
+            if (document.documentElement.requestFullscreen) {
+                document.documentElement.requestFullscreen().catch(() => {});
+            }
+        }, { once: true });
+    </script>
+</body>
+</html>

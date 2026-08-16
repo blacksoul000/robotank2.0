@@ -62,14 +62,12 @@ RoboCore::RoboCore():
     d->influenceP = PubSub::instance()->advertise< Influence >("core/influence");
     d->deviationVP = PubSub::instance()->advertise< double >("core/deviationV");
 
-    PubSub::instance()->subscribe("tracker/status", &RoboCore::onTrackerStatusChanged, this);
-    PubSub::instance()->subscribe("tracker/deviation", &RoboCore::onTrackerDeviation, this);
     PubSub::instance()->subscribe("camera/dotsPerDegree", &RoboCore::onDotsPerDegreeChanged, this);
     PubSub::instance()->subscribe("core/enginePower", &RoboCore::onEnginePowerChanged, this);
     PubSub::instance()->subscribe("joy/axes", &RoboCore::onJoyEvent, this);
     PubSub::instance()->subscribe("gun/position", &RoboCore::onGunPosition, this);
 
-    this->onTrackerStatusChanged(false);
+    d->state = State::Search;
 }
 
 RoboCore::~RoboCore()
@@ -81,53 +79,22 @@ RoboCore::~RoboCore()
 
 void RoboCore::execute()
 {
-    if (d->state == State::Track)
-    {
-        if (std::fabs(d->requiredTowerH - d->gunPosition.x()) > 0.1)
-        {
-            d->influence.towerH = d->pid.calculate(d->requiredTowerH, d->gunPosition.x()) / ::influenceCoef;
-//            qDebug() << Q_FUNC_INFO << d->requiredTowerH << d->gunPosition.x() << d->influence.towerH << (d->influence.towerH * ::influenceCoef);
-        }
-    }
-
-	d->influenceP->publish(d->influence);
-//        qDebug() << Q_FUNC_INFO << d->influence.leftEngine << d->influence.rightEngine << d->influence.gunV << d->influence.towerH;
+    d->influenceP->publish(d->influence);
 }
 
 void RoboCore::onJoyEvent(const JoyAxes& joy)
 {
-    if (d->state == State::Search)
-    {
-//		qDebug() << Q_FUNC_INFO << __LINE__ << joy.axes;
-		short x = d->smooth(joy.x2, SHRT_MAX, SHRT_MAX);
-		short y = d->smooth(joy.y2, SHRT_MAX, SHRT_MAX);
+    d->influence.gunV = joy.y2;
+    d->influence.towerH = joy.x2;
 
-		d->influence.gunV = y;
-		d->influence.towerH = x;
-//		qDebug() << Q_FUNC_INFO << d->influence.gunV << d->influence.towerH << joy.axes;
-    }
+    const int speed = d->smooth(joy.y1, SHRT_MAX, SHRT_MAX);
+    int turn = d->smooth(joy.x1, SHRT_MAX, SHRT_MAX);
+    if (speed < 0) turn *= -1;
 
-	const int speed = d->smooth(joy.y1, SHRT_MAX, SHRT_MAX);
-	int turn = d->smooth(joy.x1, SHRT_MAX, SHRT_MAX);
-	if (speed < 0) turn *= -1;
-
-	d->influence.leftEngine = ::bound< int >(SHRT_MIN,
-			(speed + turn * ::turnCoef) * d->enginePowerLeft, SHRT_MAX);
-	d->influence.rightEngine = ::bound< int >(SHRT_MIN,
-			(speed - turn * ::turnCoef) * d->enginePowerRight, SHRT_MAX);
-//	qDebug() << Q_FUNC_INFO << __LINE__ << joy.x1 << joy.y1 << joy.x2 << joy.y2
-//			<< d->influence.leftEngine << d->influence.rightEngine;
-}
-
-void RoboCore::onTrackerDeviation(const QPointF& deviation)
-{
-    if (d->state != State::Track) return;
-
-    d->requiredTowerH = d->gunPosition.x() + (deviation.x() / d->dotsPerDegree.x());
-
-    double gunV = d->gunPosition.y() - qMin((deviation.y() / d->dotsPerDegree.y()), 1.0);
-    // qDebug() << Q_FUNC_INFO << d->gunPosition.y() << deviation.y() << d->dotsPerDegree.y() << gunV << (deviation.y() / d->dotsPerDegree.y());
-    d->deviationVP->publish(gunV);
+    d->influence.leftEngine = ::bound< int >(SHRT_MIN,
+            (speed + turn * ::turnCoef) * d->enginePowerLeft, SHRT_MAX);
+    d->influence.rightEngine = ::bound< int >(SHRT_MIN,
+            (speed - turn * ::turnCoef) * d->enginePowerRight, SHRT_MAX);
 }
 
 void RoboCore::onEnginePowerChanged(const QPoint& enginePower)
@@ -141,25 +108,34 @@ void RoboCore::onGunPosition(const QPointF& position)
     d->gunPosition = position;
 }
 
-void RoboCore::onTrackerStatusChanged(const bool& status)
-{
-    if (status)
-    {
-        d->requiredTowerH = d->gunPosition.x();
-        d->state = State::Track;
-    }
-    else
-    {
-        d->state = State::Search;
-    }
-    d->influence.gunV = 0;
-    d->influence.towerH = 0;
-    d->hasNewData = true;
-}
-
 void RoboCore::onDotsPerDegreeChanged(const QPointF& dpd)
 {
     d->dotsPerDegree = dpd;
+}
+
+void RoboCore::onCommandReceived(const QJsonObject& command)
+{
+    // Обработка команд от телефона через TCP
+    QString type = command["type"].toString();
+    
+    if (type == "COMMAND") {
+        QJsonObject leftObj = command["left"].toObject();
+        QJsonObject rightObj = command["right"].toObject();
+        
+        double leftX = leftObj["x"].toDouble(0.0);
+        double leftY = leftObj["y"].toDouble(0.0);
+        double rightX = rightObj["x"].toDouble(0.0);
+        double rightY = rightObj["y"].toDouble(0.0);
+        
+        // Преобразуем данные джойстиков в формат JoyAxes
+        JoyAxes joy;
+        joy.x1 = static_cast<short>(leftX * SHRT_MAX);
+        joy.y1 = static_cast<short>(leftY * SHRT_MAX);
+        joy.x2 = static_cast<short>(rightX * SHRT_MAX);
+        joy.y2 = static_cast<short>(rightY * SHRT_MAX);
+        
+        onJoyEvent(joy);
+    }
 }
 
 //------------------------------------------------------------------------------------
