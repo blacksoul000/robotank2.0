@@ -1,126 +1,272 @@
 # Архитектура управления роботом (Wi-Fi)
 
+[![Version](https://img.shields.io/badge/version-1.0-blue.svg)](../README.md)
+[![Last Updated](https://img.shields.io/badge/updated-2024-green.svg)]()
+
 ## Общая схема
 
 ```
-Телефон (браузер)
-    ↓ Wi-Fi (HTTP/WebSocket)
-Python Bridge (aiohttp)
-    ↓ TCP (localhost:5555)
-C++ robo_chassis (TCP сервер + PubSub)
-    ↓ I²C/UART
-Arduino (Monster Motor Shield)
-    ↓
-Моторы, сервы, фары
+┌─────────────────┐
+│ Телефон         │
+│ (браузер)       │
+│ - Web UI        │
+│ - Джойстики     │
+│ - Телеметрия    │
+└────────┬────────┘
+         │ Wi-Fi
+         │ HTTP/WebSocket
+         ↓
+┌─────────────────┐
+│ Python Bridge   │
+│ (aiohttp +      │
+│  websockets)    │
+│ - HTTP: 8080    │
+│ - WS: 8765      │
+│ - TCP клиент    │
+└────────┬────────┘
+         │ TCP
+         │ localhost:5555
+         ↓
+┌─────────────────┐
+│ C++ robo_chassis│
+│ - TCP сервер    │
+│ - RobotLogic    │
+│ - UART/I2C      │
+│ - MPU6050       │
+└────────┬────────┘
+         │ I²C/UART
+         ↓
+┌─────────────────┐
+│ Arduino         │
+│ - Motor Control │
+│ - Current Sense │
+│ - Voltage Mon.  │
+└────────┬────────┘
+         │
+         ↓
+  Моторы, сервы,
+  датчики, фары
+```
+
+**Видеопоток (отдельный процесс):**
+```
+Камера → webrtc-streamer → WebRTC → Браузер
+(порт 8000/8554)
 ```
 
 ## Компоненты
 
 ### 1. WebRTC Streamer (отдельный процесс)
-- **Путь:** `robo_chassis/src/webrtc_streamer/`
+
+- **Путь:** системный пакет `webrtc-streamer`
 - **Назначение:** Трансляция видео с камеры по WebRTC
-- **Порт:** 8080 (HTTP), 8554 (RTSP для внутреннего использования)
+- **Порты:** 
+  - 8000 (HTTP для веб-интерфейса стримера)
+  - 8554 (RTSP для внутреннего использования)
 - **Аппаратное кодирование:** H.264 через VPU Raspberry Pi 2
+- **Запуск:** `webrtc-streamer -H 0.0.0.0:8000 rpi:///dev/video0`
 
 ### 2. Python Bridge
-- **Путь:** `python_bridge/bridge.py`
+
+- **Путь:** `python_bridge/bridge.py` или `robo_chassis/python_bridge/bridge.py`
 - **Назначение:** Мост между C++ и браузером
 - **Функции:**
   - HTTP сервер (порт 8080) - раздает веб-интерфейс
   - WebSocket сервер (порт 8765) - обмен данными с браузером
   - TCP клиент (порт 5555) - соединение с C++ приложением
 - **Зависимости:** `aiohttp>=3.8.0`, `websockets>=10.0`
+- **Установка:** `pip3 install aiohttp websockets`
 
 ### 3. C++ robo_chassis
-- **Путь:** `robo_chassis/`
-- **Основные задачи:**
-  - `TcpCommandServer` - TCP сервер на порту 5555, прием команд от Python Bridge
-  - `WifiTelemetrySender` - отправка телеметрии в Python Bridge
-  - `RoboCore` - основная логика управления, обработка команд
-  - `ArduinoExchanger` - обмен данными с Arduino
-  - `GpioController` - управление GPIO, чтение MPU6050
-  - `ConfigHandler` - конфигурация
 
-### 4. Веб-интерфейс (встроен в Python Bridge)
-- **Два виртуальных джойстика** для управления
-- **Отображение телеметрии:**
-  - 🔋 Заряд батареи (%)
-  - 📐 Крен (roll, °)
-  - 📐 Тангаж (pitch, °)
-  - 🎯 Угол башни (turret angle, °)
-- **Видеопоток** через iframe (WebRTC)
+- **Путь:** `robo_chassis/src/core/`
+- **Язык:** C++20 (чистый, без Qt)
+- **Основные компоненты:**
+
+| Файл | Назначение |
+|------|------------|
+| `main.cpp` | Точка входа, управление потоками |
+| `tcp_server.hpp/cpp` | TCP сервер на порту 5555 |
+| `serial_port.hpp/cpp` | UART через termios (без Qt) |
+| `robot_logic.hpp/cpp` | Логика управления, обработка команд |
+| `exchangers/uart_exchanger.*` | Обмен с Arduino по UART |
+| `exchangers/i2c_master.*` | I²C мастер для MPU6050 |
+| `gpio/gpio_controller.*` | Управление GPIO |
+| `gpio/mpu6050_imu.*` | Драйвер гироскопа/акселерометра |
+| `gpio/complementary_filter.*` | Фильтр для ориентации |
+
+- **Потребление памяти:** ~5 МБ
+- **Частота обновления:** 50 Гц (20 мс)
+
+### 4. Веб-интерфейс
+
+- **Путь:** `robo_chassis/static/index.html`
+- **Технологии:** HTML5, CSS3, Vanilla JavaScript
+- **Компоненты:**
+  - Два сенсорных джойстика (левый - движение, правый - башня)
+  - Кнопки "ОГОНЬ" и "СВЕТ"
+  - Панель телеметрии в реальном времени
+  - Видеопоток на фоне (iframe с WebRTC)
+- **Адаптивность:** Полная поддержка мобильных устройств
+
+### 5. Arduino Firmware
+
+- **Путь:** `robo_arduino/robo_arduino.ino`
+- **Платформа:** Arduino Uno/Nano
+- **Протокол связи:** I2C (ведомый, адрес 0x04)
+- **Функции:**
+  - Управление 3 моторами (левый, правый, башня)
+  - Мониторинг тока (3 датчика)
+  - Контроль напряжения батареи
+  - Защита от низкого напряжения
+  - Энергосбережение (LowPower library)
 
 ## Поток данных
 
 ### Управление (Телефон → Робот)
+
+```
 1. Пользователь двигает джойстики в браузере
-2. JavaScript отправляет JSON через WebSocket
-3. Python Bridge получает сообщение и пересылает в TCP сокет
-4. C++ TcpCommandServer принимает JSON
-5. Через PubSub команда попадает в RoboCore
-6. RoboCore вычисляет управляющие воздействия
-7. ArduinoExchanger отправляет данные на Arduino
-8. Arduino управляет моторами и сервами
+         ↓
+2. JavaScript отправляет JSON через WebSocket (порт 8765)
+         ↓
+3. Python Bridge получает сообщение и пересылает в TCP сокет (localhost:5555)
+         ↓
+4. C++ TcpServer принимает JSON, парсит команду
+         ↓
+5. RobotLogic вычисляет управляющие воздействия для моторов
+         ↓
+6. UartExchanger формирует пакет и отправляет на Arduino по I2C
+         ↓
+7. Arduino применяет PWM к моторам и сервам
+```
+
+**Время отклика:** ~50-100 мс (включая сеть Wi-Fi)
 
 ### Телеметрия (Робот → Телефон)
+
+```
 1. GpioController читает данные с MPU6050 (крен, тангаж)
-2. RoboCore знает угол башни из кинематики
-3. WifiTelemetrySender формирует JSON и отправляет в TCP сокет
-4. Python Bridge читает строку, парсит JSON
-5. Отправляет данные всем подключенным WebSocket клиентам
-6. JavaScript обновляет отображение телеметрии
+         ↓
+2. Arduino отправляет телеметрию (напряжение, ток) через I2C
+         ↓
+3. RobotLogic агрегирует данные, вычисляет угол башни
+         ↓
+4. WifiTelemetrySender формирует JSON и отправляет в TCP сокет
+         ↓
+5. Python Bridge читает строку, парсит JSON
+         ↓
+6. Отправляет данные всем подключенным WebSocket клиентам
+         ↓
+7. JavaScript обновляет отображение телеметрии (60 FPS)
+```
+
+**Частота обновления:** 50 Гц (C++ → Python), 60 Гц (Python → Browser)
 
 ### Видео (Камера → Телефон)
-1. Камера подключена к Raspberry Pi
-2. webrtc-streamer захватывает видео через GStreamer
-3. Аппаратное кодирование H.264 через VPU
+
+```
+1. Камера захватывает видео (/dev/video0)
+         ↓
+2. webrtc-streamer использует GStreamer для пайплайна
+         ↓
+3. Аппаратное кодирование H.264 через VPU Raspberry Pi
+         ↓
 4. Передача по WebRTC в браузер
-5. Воспроизведение через HTML5 video
+         ↓
+5. Воспроизведение через HTML5 video element
+```
+
+**Задержка:** 100-300 мс  
+**Разрешение:** до 1920x1080 @ 30fps  
+**Битрейт:** 2-6 Мбит/с (адаптивный)
 
 ## Форматы сообщений
 
-### Команда (Телефон → C++)
+### Команда управления (Телефон → C++)
+
 ```json
 {
   "type": "COMMAND",
-  "left": {"x": 0.5, "y": -0.3},
-  "right": {"x": 0.0, "y": 0.8}
+  "left_x": 0.0,        // Левый джойстик X (-1.0 .. 1.0)
+  "left_y": -0.5,       // Левый джойстик Y (-1.0 .. 1.0)
+  "right_x": 0.3,       // Правый джойстик X (-1.0 .. 1.0)
+  "right_y": 0.0,       // Правый джойстик Y (-1.0 .. 1.0)
+  "fire": false,        // Огонь (true/false)
+  "lights": true        // Фары (true/false)
 }
 ```
 
+**Поля:**
+- `left_x/y` - управление движением (газ/поворот)
+- `right_x/y` - управление башней (горизонтально/вертикально)
+- `fire` - активация сервопривода стрельбы
+- `lights` - включение/выключение фар
+
 ### Телеметрия (C++ → Телефон)
+
 ```json
 {
   "type": "TELEMETRY",
-  "battery": 85,
-  "roll": 2.5,
-  "pitch": -1.3,
-  "turret_angle": 45.0
+  "battery": 12.4,          // Напряжение батареи (V)
+  "roll": 2.5,              // Крен (градусы)
+  "pitch": -1.3,            // Тангаж (градусы)
+  "yaw": 45.0,              // Рыскание (градусы)
+  "turret_angle": 45.0,     // Угол башни (градусы)
+  "current_left": 150,      // Ток левого мотора (mA)
+  "current_right": 145,     // Ток правого мотора (mA)
+  "current_tower": 80,      // Ток мотора башни (mA)
+  "signal_quality": 100,    // Качество сигнала (%)
+  "arduino_online": true,   // Статус Arduino
+  "gyro_ready": true        // Статус гироскопа
 }
 ```
 
+**Частота обновления:** 50 Гц  
+**Формат:** JSON строка с разделителем `\n`
+
 ## Запуск
+
+### Автоматический запуск всех компонентов
 
 ```bash
 # Установка зависимостей Python
 pip3 install aiohttp websockets
 
+# Сборка C++ ядра
+cd robo_chassis
+mkdir -p build && cd build
+cmake .. && make -j4
+
 # Запуск всех сервисов
 ./start_robot.sh
 ```
 
+### Ручной запуск по отдельности
+
+```bash
+# 1. C++ ядро (в одном терминале)
+./build/robo_chassis
+
+# 2. Python Bridge (в другом терминале)
+python3 python_bridge/bridge.py
+
+# 3. WebRTC стример (в третьем терминале)
+webrtc-streamer -H 0.0.0.0:8000 rpi:///dev/video0
+```
+
 ## Порты
 
-| Сервис | Порт | Протокол |
-|--------|------|----------|
-| WebRTC Streamer HTTP | 8080 | HTTP |
-| WebRTC Streamer RTSP | 8554 | RTSP |
-| Python Bridge HTTP | 8080* | HTTP |
-| Python Bridge WebSocket | 8765 | WebSocket |
-| C++ TCP Server | 5555 | TCP |
+| Сервис | Порт | Протокол | Описание |
+|--------|------|----------|----------|
+| Python Bridge HTTP | 8080 | HTTP | Веб-интерфейс |
+| Python Bridge WebSocket | 8765 | WebSocket | Обмен данными с браузером |
+| C++ TCP Server | 5555 | TCP | Связь Python ↔ C++ |
+| WebRTC Streamer HTTP | 8000 | HTTP | Веб-интерфейс стримера |
+| WebRTC Streamer RTSP | 8554 | RTSP | Внутренний видеопоток |
 
-*Примечание: WebRTC и Python Bridge могут конфликтовать за порт 8080. 
-При необходимости измените HTTP_PORT в bridge.py или настройте webrtc-streamer на другой порт.
+**Примечание:** Python Bridge и WebRTC Streamer могут конфликтовать за порт 8080. 
+По умолчанию Python Bridge использует порт 8080 для HTTP, а webrtc-streamer настроен на порт 8000.
 
 ## Преимущества архитектуры
 
@@ -128,4 +274,56 @@ pip3 install aiohttp websockets
 2. **Минимальная задержка** - WebRTC обеспечивает ~100-300 мс
 3. **Кроссплатформенность** - управление с любого устройства с браузером
 4. **Простота расширения** - легко добавить новые датчики или команды
-5. **Отсутствие MAVLINK** - упрощенная архитектура без излишней сложности
+5. **Чистый C++20** - без тяжелых зависимостей типа Qt
+6. **Низкое потребление памяти** - ~5 МБ для C++ ядра
+7. **Аппаратное ускорение** - кодирование H.264 через VPU Raspberry Pi
+
+## Безопасность
+
+⚠️ **Внимание:** Текущая архитектура не включает механизмы безопасности:
+
+- Нет аутентификации пользователей
+- Нет шифрования трафика (HTTP/WebSocket вместо HTTPS/WSS)
+- Нет защиты от DoS-атак
+- Открытые порты доступны в локальной сети
+
+**Рекомендации для продакшена:**
+- Добавить базовую аутентификацию
+- Использовать reverse proxy (nginx) с SSL
+- Ограничить доступ по IP/MAC адресу
+- Реализовать rate limiting
+
+## Диагностика
+
+### Проверка статусов
+
+```bash
+# Проверка работы C++ ядра
+ps aux | grep robo_chassis
+
+# Проверка Python Bridge
+ps aux | grep bridge.py
+
+# Проверка webrtc-streamer
+ps aux | grep webrtc-streamer
+
+# Проверка портов
+netstat -tlnp | grep -E '8080|8765|5555|8000'
+
+# Проверка камеры
+ls -la /dev/video*
+
+# Проверка I2C устройств
+i2cdetect -y 1
+
+# Проверка UART
+ls -la /dev/ttyUSB* /dev/ttyACM*
+```
+
+### Логирование
+
+```bash
+# Запуск с перенаправлением логов
+./build/robo_chassis 2>&1 | tee chassis.log
+python3 python_bridge/bridge.py 2>&1 | tee bridge.log
+```

@@ -1,102 +1,60 @@
 ```
 # Build artifacts
-build/
-dist/
 *.o
 *.obj
 *.out
+build/
+dist/
 
 # Dependencies
+node_modules/
 venv/
 .venv/
 __pycache__/
-*.pyc
-*.pyo
-*.pyd
-.Python
-env/
-env.bak/
-venv.bak/
+.mypy_cache/
+.pytest_cache/
+target/
+.gradle/
 
-# CMake
-CMakeFiles/
-CMakeCache.txt
-cmake_install.manifest
-Makefile
-ninja_*.log
-.ninja_log
-.ninja_deps
-
-# Compiled files
-*.so
-*.dll
-*.dylib
-*.a
-*.lib
-*.exe
-
-# Logs
+# Logs and temporary files
 *.log
-
-# Temporary files
 *.tmp
 *.swp
-*~
-.DS_Store
-Thumbs.db
 
 # Environment files
 .env
 .env.local
 *.env.*
 
-# Coverage reports
-coverage/
-htmlcov/
-.coverage
-
-# IDE specific
+# Editors
 .vscode/
 .idea/
-*.swp
-*.swo
 
-# Python specific
-__pycache__/
-*.py[cod]
-*$py.class
-*.so
-.Python
-build/
-develop-eggs/
-dist/
-downloads/
-eggs/
-.eggs/
-lib/
-lib64/
-parts/
-sdist/
-var/
-wheels/
-*.egg-info/
-.installed.cfg
-*.egg
+# System files
+.DS_Store
+Thumbs.db
 
-# Qt/C++ specific
-*.qm
-*.moc
-*.moc.cpp
-ui_*.h
-qrc_*.cpp
-*.pro.user*
-*.autosave
-
-# Android build
-*.apk
-*.aab
-*.ap_
-android/build/
-android/.gradle/
-*.dex
+# Compressed files
+*.zip
+*.gz
+*.tar
+*.tgz
+*.bz2
+*.xz
+*.7z
+*.rar
+*.zst
+*.lz4
+*.lzh
+*.cab
+*.arj
+*.rpm
+*.deb
+*.Z
+*.lz
+*.lzo
+*.tar.gz
+*.tar.bz2
+*.tar.xz
+*.tar.zst
 ```

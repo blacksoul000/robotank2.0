@@ -3,56 +3,139 @@
 #include <vector>
 #include <csignal>
 #include <atomic>
+#include <memory>
 
+#include "config/config.hpp"
+#include "logger/logger.hpp"
 #include "tcp_server.hpp"
 #include "serial_port.hpp"
 #include "robot_logic.hpp"
+#include "exchangers/uart_exchanger.hpp"
 
 std::atomic<bool> g_running{true};
 
 void signal_handler(int signum) {
-    std::cout << "\nПолучен сигнал остановки (" << signum << "). Завершение работы...\n";
+    LOG_INFO("Получен сигнал остановки (" + std::to_string(signum) + "). Завершение работы...");
     g_running = false;
 }
 
 int main() {
-    std::cout << "=== RoboChassis Core (Pure C++20) ===\n";
+    // Инициализация логгера первой (до использования макросов LOG_*)
+    robo_chassis::Logger::instance().init(
+        robo_chassis::LogLevel::INFO,
+        true,   // console
+        true,   // file
+        "/var/log/robo_chassis/robot.log",
+        10,     // max_size_mb
+        5       // max_files
+    );
+    
+    LOG_INFO("=== RoboChassis Core (Pure C++20) ===");
+    
+    // Загрузка конфигурации
+    if (!robo_chassis::Config::load("./config.json")) {
+        LOG_WARNING("Не удалось загрузить конфигурацию, используются значения по умолчанию");
+    }
     
     // Установка обработчика сигналов
     signal(SIGINT, signal_handler);
     signal(SIGTERM, signal_handler);
 
     try {
-        // Инициализация компонентов
-        SerialPort serial("/dev/ttyUSB0", 115200); // Путь к Arduino может отличаться
-        RobotLogic robot(serial);
-        TcpServer server(5555, robot);
+        // Централизованная инициализация компонентов
+        LOG_INFO("Инициализация подсистем...");
+        
+        // Получение настроек из конфигурации
+        const auto& serial_config = robo_chassis::Config::getSerial();
+        const auto& tcp_config = robo_chassis::Config::getTcpServer();
+        const auto& i2c_config = robo_chassis::Config::getI2c();
+        const auto& telemetry_config = robo_chassis::Config::getTelemetry();
+        
+        // 1. Инициализация последовательного порта с повторными попытками
+        SerialPort serial(serial_config.device, serial_config.baudrate, 
+                         serial_config.max_retries, serial_config.retry_delay_ms);
+        
+        // 2. Создание UART обменника
+        auto uart_exchanger = std::make_unique<robo_chassis::UartExchanger>(serial, sizeof(ArduinoPkg));
+        
+        // 3. Создание логики робота с использованием IExchanger
+        RobotLogic robot(std::move(uart_exchanger));
+        
+        // 4. Инициализация IMU (гироскопы MPU6050)
+        if (i2c_config.imu_enabled) {
+            robot.init_imu(i2c_config.device);
+        } else {
+            LOG_INFO("IMU отключен в конфигурации");
+        }
+        
+        // 5. Запуск TCP сервера
+        TcpServer server(tcp_config.port, robot);
 
-        std::cout << "Запуск основного цикла...\n";
-        std::cout << "Ожидание команд от Python Bridge на порту 5555...\n";
+        LOG_INFO("Запуск основного цикла...");
+        LOG_INFO("Ожидание команд от Python Bridge на порту " + std::to_string(tcp_config.port));
 
         // Запуск TCP сервера в отдельном потоке
         std::thread server_thread([&server]() {
             server.run();
         });
 
-        // Основной цикл обработки телеметрии и логики
-        while (g_running) {
-            robot.update_telemetry();
-            std::this_thread::sleep_for(std::chrono::milliseconds(20)); // 50 Hz
+        // Открытие UART обменника для получения данных от Arduino
+        if (serial.is_open()) {
+            robot.send_to_arduino();  // Первичная отправка для синхронизации
+            std::this_thread::sleep_for(std::chrono::milliseconds(100));
         }
 
-        std::cout << "Остановка сервера...\n";
+        // Основной цикл обработки телеметрии и обмена с Arduino
+        int connection_attempts = 0;
+        const int max_connection_attempts = telemetry_config.connection_timeout_attempts;
+        
+        while (g_running) {
+            // Отправка команд на Arduino
+            robot.send_to_arduino();
+            
+            // Обновление телеметрии (чтение с Arduino и гироскопов)
+            robot.update_telemetry();
+            
+            // Вывод телеметрии для отладки
+            if (robot.has_new_telemetry()) {
+                Telemetry t = robot.get_telemetry();
+                LOG_DEBUG_SRC("Bat: " + std::to_string(t.battery_voltage) + "V, " +
+                             "Roll: " + std::to_string(t.roll) + ", Pitch: " + std::to_string(t.pitch) +
+                             ", Yaw: " + std::to_string(t.yaw) + ", Turret: " + std::to_string(t.turret_angle) +
+                             " | L: " + std::to_string(t.current_left) + "mA, R: " + std::to_string(t.current_right) +
+                             "mA, T: " + std::to_string(t.current_tower) + "mA" +
+                             " | Arduino: " + std::string(t.arduino_online ? "ON" : "OFF") +
+                             ", Gyro: " + std::string(t.gyro_ready ? "READY" : "INIT"),
+                             "telemetry");
+                robot.reset_telemetry_flag();
+            }
+            
+            // Проверка статуса подключения к Arduino и попытки переподключения
+            if (!robot.is_arduino_online()) {
+                connection_attempts++;
+                if (connection_attempts >= max_connection_attempts) {
+                    LOG_WARNING("Arduino не отвечает в течение " + 
+                               std::to_string(max_connection_attempts * 20) + " мс. Проверьте подключение.");
+                    connection_attempts = 0;  // Сброс для повторных предупреждений
+                }
+            } else {
+                connection_attempts = 0;
+            }
+            
+            std::this_thread::sleep_for(std::chrono::milliseconds(telemetry_config.update_interval_ms));
+        }
+
+        LOG_INFO("Остановка сервера...");
         server.stop();
         
         if (server_thread.joinable()) {
             server_thread.join();
         }
 
-        std::cout << "Работа завершена.\n";
+        LOG_INFO("Работа завершена.");
 
     } catch (const std::exception& e) {
-        std::cerr << "Критическая ошибка: " << e.what() << std::endl;
+        LOG_CRITICAL("Критическая ошибка: " + std::string(e.what()));
         return 1;
     }
 

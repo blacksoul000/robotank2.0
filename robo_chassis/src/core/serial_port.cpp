@@ -4,13 +4,33 @@
 #include <termios.h>
 #include <unistd.h>
 #include <cstring>
+#include <chrono>
+#include <thread>
 
-SerialPort::SerialPort(const std::string& device, int baudrate) {
-    m_fd = open(device.c_str(), O_RDWR | O_NOCTTY | O_NONBLOCK);
+SerialPort::SerialPort(const std::string& device, int baudrate, int max_retries, int retry_delay_ms) {
+    int retries = 0;
+    
+    while (retries < max_retries) {
+        m_fd = open(device.c_str(), O_RDWR | O_NOCTTY | O_NONBLOCK);
+        
+        if (m_fd != -1) {
+            break;
+        }
+        
+        retries++;
+        if (retries < max_retries) {
+            std::cerr << "Попытка " << retries << "/" << max_retries 
+                      << ": Не удалось открыть порт " << device 
+                      << " (" << strerror(errno) << "). Повтор через " 
+                      << retry_delay_ms << " мс...\n";
+            std::this_thread::sleep_for(std::chrono::milliseconds(retry_delay_ms));
+        }
+    }
     
     if (m_fd == -1) {
         std::cerr << "Предупреждение: Не удалось открыть порт " << device 
-                  << " (" << strerror(errno) << "). Работа без Arduino.\n";
+                  << " после " << max_retries << " попыток (" << strerror(errno) 
+                  << "). Работа без Arduino.\n";
         return;
     }
 

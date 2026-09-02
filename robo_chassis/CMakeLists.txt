@@ -20,11 +20,28 @@ add_executable(robo_chassis
     src/core/tcp_server.cpp
     src/core/serial_port.cpp
     src/core/robot_logic.cpp
+    src/core/exchangers/i2c_master.cpp
+    src/core/exchangers/uart_exchanger.cpp
+    src/core/gpio/complementary_filter.cpp
+    src/core/gpio/gpio_controller.cpp
+    src/core/gpio/mpu6050_imu.cpp
+    src/core/config/config.cpp
+    src/core/logger/logger.cpp
 )
 
 # Поиск pthread
 find_package(Threads REQUIRED)
 target_link_libraries(robo_chassis PRIVATE Threads::Threads)
+
+# Опционально: pigpio для работы с GPIO
+option(USE_PIGPIO "Use pigpio library for GPIO control" OFF)
+if(USE_PIGPIO)
+    target_compile_definitions(robo_chassis PRIVATE HAVE_PIGPIO)
+    find_library(PIGPIO_LIB NAMES pigpio)
+    if(PIGPIO_LIB)
+        target_link_libraries(robo_chassis PRIVATE ${PIGPIO_LIB})
+    endif()
+endif()
 
 # Установка
 install(TARGETS robo_chassis DESTINATION bin)
