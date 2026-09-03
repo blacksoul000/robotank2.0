@@ -364,7 +364,12 @@ bool WebSocketServer::performHandshake(int client_fd) {
 
 void WebSocketServer::broadcastTelemetry(const Telemetry& telemetry, 
                                         float cpu_temp, 
-                                        float memory_percent) {
+                                        float memory_percent,
+                                        float heading,
+                                        float mag_x,
+                                        float mag_y,
+                                        float mag_z,
+                                        float ultrasonic_dist) {
     std::ostringstream json;
     json << "{\"type\":\"TELEMETRY\","
          << "\"battery\":" << telemetry.battery_voltage << ","
@@ -379,7 +384,12 @@ void WebSocketServer::broadcastTelemetry(const Telemetry& telemetry,
          << "\"arduino_online\":" << (telemetry.arduino_online ? "true" : "false") << ","
          << "\"gyro_ready\":" << (telemetry.gyro_ready ? "true" : "false") << ","
          << "\"cpu_temp\":" << cpu_temp << ","
-         << "\"memory_percent\":" << memory_percent << "}";
+         << "\"memory_percent\":" << memory_percent << ","
+         << "\"heading\":" << heading << ","
+         << "\"mag_x\":" << mag_x << ","
+         << "\"mag_y\":" << mag_y << ","
+         << "\"mag_z\":" << mag_z << ","
+         << "\"ultrasonic_cm\":" << ultrasonic_dist << "}";
     
     std::string message = json.str();
     auto frame = createWebSocketFrame(message, true);

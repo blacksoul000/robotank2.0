@@ -1,34 +1,23 @@
 ```
 # Build artifacts
-*.o
-*.obj
-*.a
-*.so
-*.dll
-*.exe
-*.out
-
-# C++ specific
-*.ilk
-*.pdb
-*.gch
-*.ii
-*.ti
-*.tii
-*.tix
-
-# Build directories
 build/
-cmake-build-*/
-CMakeFiles/
-CMakeCache.txt
-Makefile
-compile_commands.json
+dist/
 
 # Dependencies
-.externalNativeBuild/
-.gradle/
-.ninja_log
+node_modules/
+venv/
+.venv/
+__pycache__/
+*.egg-info/
+
+# Compiled files
+*.o
+*.obj
+*.so
+*.a
+*.dll
+*.exe
+*.pyc
 
 # Logs
 *.log
@@ -36,13 +25,14 @@ compile_commands.json
 # Environment
 .env
 .env.local
-.env.*
+*.env.*
 
 # Editors
 .vscode/
 .idea/
 *.swp
 *.swo
+*.tmp
 
 # OS
 .DS_Store
@@ -53,12 +43,16 @@ coverage/
 htmlcov/
 .coverage
 
-# Python (if present)
-__pycache__/
+# Python specific
 *.pyc
-*.pyo
-*.pyd
-.Python
-*.so
-.PyInstaller/
+__pycache__/
+.pytest_cache/
+.mypy_cache/
+
+# C++/CMake
+CMakeFiles/
+CMakeCache.txt
+cmake_install.cmake
+Makefile
+*.cmake
 ```

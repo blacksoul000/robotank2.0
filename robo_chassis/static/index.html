@@ -449,16 +449,16 @@
                 <div class="telemetry-value" id="battery-val">-- V</div>
             </div>
             <div class="telemetry-item">
-                <div class="telemetry-label">Крен</div>
-                <div class="telemetry-value" id="roll-val">0°</div>
+                <div class="telemetry-label">Курс</div>
+                <div class="telemetry-value" id="heading-val">0°</div>
             </div>
             <div class="telemetry-item">
-                <div class="telemetry-label">Тангаж</div>
-                <div class="telemetry-value" id="pitch-val">0°</div>
+                <div class="telemetry-label">Дистанция</div>
+                <div class="telemetry-value" id="distance-val">-- см</div>
             </div>
             <div class="telemetry-item">
-                <div class="telemetry-label">Башня</div>
-                <div class="telemetry-value" id="turret-val">0°</div>
+                <div class="telemetry-label">Качество WiFi</div>
+                <div class="telemetry-value" id="wifi-quality-val">--%</div>
             </div>
             <div class="telemetry-item">
                 <div class="telemetry-label">CPU Temp</div>
@@ -602,19 +602,42 @@
         function updateTelemetry(data) {
             // Батарея
             const batteryEl = document.getElementById('battery-val');
-            batteryEl.textContent = data.battery.toFixed(1) + ' V';
-            batteryEl.className = 'telemetry-value';
-            if (data.battery < 11.5) batteryEl.classList.add('critical');
-            else if (data.battery < 12.0) batteryEl.classList.add('warning');
+            if (batteryEl && data.battery !== undefined) {
+                batteryEl.textContent = data.battery.toFixed(1) + ' V';
+                batteryEl.className = 'telemetry-value';
+                if (data.battery < 11.5) batteryEl.classList.add('critical');
+                else if (data.battery < 12.0) batteryEl.classList.add('warning');
+            }
             
-            // Крен
-            document.getElementById('roll-val').textContent = data.roll.toFixed(1) + '°';
+            // Курс от компаса (heading)
+            const headingEl = document.getElementById('heading-val');
+            if (headingEl && data.heading !== undefined && data.heading >= 0) {
+                headingEl.textContent = data.heading.toFixed(0) + '°';
+            } else if (headingEl) {
+                headingEl.textContent = '--°';
+            }
             
-            // Тангаж
-            document.getElementById('pitch-val').textContent = data.pitch.toFixed(1) + '°';
+            // Дистанция от ультразвука (ultrasonic_cm)
+            const distanceEl = document.getElementById('distance-val');
+            if (distanceEl && data.ultrasonic_cm !== undefined && data.ultrasonic_cm >= 0) {
+                distanceEl.textContent = data.ultrasonic_cm.toFixed(0) + ' см';
+                distanceEl.className = 'telemetry-value';
+                if (data.ultrasonic_cm < 10) distanceEl.classList.add('critical');
+                else if (data.ultrasonic_cm < 20) distanceEl.classList.add('warning');
+            } else if (distanceEl) {
+                distanceEl.textContent = '-- см';
+            }
             
-            // Башня
-            document.getElementById('turret-val').textContent = data.turret_angle.toFixed(0) + '°';
+            // Качество WiFi
+            const wifiEl = document.getElementById('wifi-quality-val');
+            if (wifiEl && data.wifi_quality !== undefined) {
+                wifiEl.textContent = data.wifi_quality.toFixed(0) + '%';
+                wifiEl.className = 'telemetry-value';
+                if (data.wifi_quality < 30) wifiEl.classList.add('critical');
+                else if (data.wifi_quality < 60) wifiEl.classList.add('warning');
+            } else if (wifiEl) {
+                wifiEl.textContent = '--%';
+            }
             
             // Системная телеметрия (температура, память)
             if (data.cpu_temp !== undefined) {

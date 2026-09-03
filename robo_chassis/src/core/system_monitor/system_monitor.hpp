@@ -31,6 +31,20 @@ struct SystemStats {
     // Сеть
     uint64_t network_rx_bytes;         // Получено байт
     uint64_t network_tx_bytes;         // Отправлено байт
+    int wifi_rssi;                     // RSSI WiFi сигнала (dBm, обычно -90..-30)
+    int wifi_link_quality;             // Качество соединения (0-100%)
+    
+    // Питание
+    float battery_voltage;             // Напряжение батареи (V)
+    bool battery_low;                  // Флаг низкого заряда
+    
+    // Периферия
+    bool arduino_connected;            // Arduino подключена
+    bool imu_ready;                    // IMU готов
+    bool compass_ready;                // Компас готов
+    bool ultrasonic_ready;             // Ультразвук готов
+    float distance_cm;                 // Расстояние до препятствия (см)
+    float compass_heading;             // Курс от компаса (градусы 0-360)
     
     // Троттлинг (RPi специфично)
     bool is_throttled;                 // Флаг троттлинга
@@ -55,6 +69,16 @@ struct SystemStats {
         , disk_usage_percent(0.0f)
         , network_rx_bytes(0)
         , network_tx_bytes(0)
+        , wifi_rssi(0)
+        , wifi_link_quality(0)
+        , battery_voltage(0.0f)
+        , battery_low(false)
+        , arduino_connected(false)
+        , imu_ready(false)
+        , compass_ready(false)
+        , ultrasonic_ready(false)
+        , distance_cm(0.0f)
+        , compass_heading(0.0f)
         , is_throttled(false)
         , is_under_voltage(false)
         , is_freq_capped(false)

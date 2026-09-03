@@ -14,6 +14,7 @@
 #include "robot_logic.hpp"
 #include "exchangers/uart_exchanger.hpp"
 #include "websocket_server/websocket_server.hpp"
+#include "sensors/compass_ultrasonic.hpp"
 
 std::atomic<bool> g_running{true};
 
@@ -88,6 +89,23 @@ int main() {
         const auto& ws_config = robo_chassis::Config::getTcpServer(); // Используем тот же порт config
         robo_chassis::WebSocketServer ws_server(8765); // Порт WebSocket по умолчанию
         
+        // 7. Инициализация дополнительных датчиков (компас и ультразвук)
+        robo_chassis::sensors::Compass compass(1, 0x1E); // I2C bus 1, адрес HMC5883L
+        robo_chassis::sensors::Ultrasonic ultrasonic(17, 27); // GPIO 17 (Trigger), GPIO 27 (Echo)
+        
+        if (compass.init()) {
+            LOG_INFO("Компас успешно инициализирован");
+        } else {
+            LOG_WARNING("Не удалось инициализировать компас (проверьте подключение I2C)");
+        }
+        
+        if (ultrasonic.init()) {
+            LOG_INFO("Ультразвуковой дальномер успешно инициализирован");
+            ultrasonic.setMaxDistanceCm(400.0f); // Максимальная дистанция 400 см
+        } else {
+            LOG_WARNING("Не удалось инициализировать ультразвуковой дальномер (проверьте GPIO)");
+        }
+        
         LOG_INFO("Запуск основного цикла...");
         LOG_INFO("Ожидание команд от Python Bridge на порту " + std::to_string(tcp_config.port));
         LOG_INFO("WebSocket сервер запущен на порту 8765");
@@ -128,11 +146,26 @@ int main() {
                 sys_monitor.update();
                 MEM_UPDATE;  // Обновление статистики памяти
                 
+                // Чтение данных с дополнительных датчиков
+                float heading = 0.0f, mag_x = 0.0f, mag_y = 0.0f, mag_z = 0.0f;
+                bool compass_ok = compass.isReady() && compass.read(heading, mag_x, mag_y, mag_z);
+                
+                float distance_cm = 0.0f;
+                bool ultrasonic_ok = ultrasonic.isReady();
+                if (ultrasonic_ok) {
+                    distance_cm = ultrasonic.readDistanceCm();
+                }
+                
                 // Отправка телеметрии через WebSocket
                 Telemetry telem = robot.get_telemetry();
                 ws_server.broadcastTelemetry(telem, 
                                            sys_monitor.getCpuTemperature(),
-                                           sys_monitor.getMemoryUsagePercent());
+                                           sys_monitor.getMemoryUsagePercent(),
+                                           compass_ok ? heading : -1.0f,
+                                           compass_ok ? mag_x : 0.0f,
+                                           compass_ok ? mag_y : 0.0f,
+                                           compass_ok ? mag_z : 0.0f,
+                                           ultrasonic_ok ? distance_cm : -1.0f);
                 
                 // Проверка на троттлинг и критические состояния
                 if (sys_monitor.needsThrottling()) {

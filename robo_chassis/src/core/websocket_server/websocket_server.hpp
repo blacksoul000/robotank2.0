@@ -60,7 +60,9 @@ public:
      * @brief Отправить телеметрию всем подключенным клиентам
      * @param telemetry Данные телеметрии для отправки
      */
-    void broadcastTelemetry(const Telemetry& telemetry, float cpu_temp, float memory_percent);
+    void broadcastTelemetry(const Telemetry& telemetry, float cpu_temp, float memory_percent,
+                           float heading = -1.0f, float mag_x = 0.0f, float mag_y = 0.0f,
+                           float mag_z = 0.0f, float ultrasonic_dist = -1.0f);
     
     /**
      * @brief Установить обработчик входящих команд

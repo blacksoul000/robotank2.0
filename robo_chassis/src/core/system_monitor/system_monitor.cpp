@@ -1,5 +1,6 @@
 #include "system_monitor.hpp"
 #include "../logger/logger.hpp"
+#include "../sensors/sensor_manager.hpp"
 #include <fstream>
 #include <sstream>
 #include <algorithm>
@@ -33,6 +34,25 @@ bool SystemMonitor::update() {
         readDiskStats();
         readNetworkStats();
         readThrottlingStatus();
+        
+        // Обновление данных с датчиков
+        auto& sensor_mgr = robo::SensorManager::getInstance();
+        stats_.compass_ready = sensor_mgr.isCompassAvailable();
+        stats_.ultrasonic_ready = sensor_mgr.isUltrasonicAvailable();
+        
+        if (stats_.ultrasonic_ready) {
+            auto ultrasonic_data = sensor_mgr.getUltrasonicData();
+            if (ultrasonic_data.valid) {
+                stats_.distance_cm = ultrasonic_data.distance_cm;
+            }
+        }
+        
+        if (stats_.compass_ready) {
+            auto compass_data = sensor_mgr.getCompassData();
+            if (compass_data.valid) {
+                stats_.compass_heading = compass_data.heading_deg;
+            }
+        }
         
         stats_.timestamp_ms = std::chrono::duration_cast<std::chrono::milliseconds>(
             std::chrono::steady_clock::now().time_since_epoch()
@@ -116,7 +136,16 @@ std::string SystemMonitor::toJson() const {
          << ",\"free_bytes\":" << stats_.disk_free_bytes
          << ",\"usage_percent\":" << stats_.disk_usage_percent << "},";
     json << "\"network\":{\"rx_bytes\":" << stats_.network_rx_bytes
-         << ",\"tx_bytes\":" << stats_.network_tx_bytes << "},";
+         << ",\"tx_bytes\":" << stats_.network_tx_bytes
+         << ",\"wifi_quality\":" << stats_.wifi_link_quality << "},";
+    json << "\"battery\":{\"voltage\":" << stats_.battery_voltage
+         << ",\"low\":" << (stats_.battery_low ? "true" : "false") << "},";
+    json << "\"sensors\":{\"arduino_connected\":" << (stats_.arduino_connected ? "true" : "false")
+         << ",\"imu_ready\":" << (stats_.imu_ready ? "true" : "false")
+         << ",\"compass_ready\":" << (stats_.compass_ready ? "true" : "false")
+         << ",\"ultrasonic_ready\":" << (stats_.ultrasonic_ready ? "true" : "false")
+         << ",\"distance_cm\":" << stats_.distance_cm
+         << ",\"compass_heading\":" << stats_.compass_heading << "},";
     json << "\"throttling\":{\"is_throttled\":" << (stats_.is_throttled ? "true" : "false")
          << ",\"under_voltage\":" << (stats_.is_under_voltage ? "true" : "false")
          << ",\"freq_capped\":" << (stats_.is_freq_capped ? "true" : "false")
