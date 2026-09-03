@@ -1,0 +1,34 @@
+{
+  "serial": {
+    "device": "/dev/ttyUSB0",
+    "baudrate": 115200,
+    "max_retries": 5,
+    "retry_delay_ms": 1000
+  },
+  "tcp_server": {
+    "port": 5555,
+    "bind_address": "0.0.0.0"
+  },
+  "i2c": {
+    "device": "/dev/i2c-1",
+    "imu_enabled": true
+  },
+  "logging": {
+    "level": "info",
+    "console": true,
+    "file": true,
+    "file_path": "/var/log/robo_chassis/robot.log",
+    "rotation": {
+      "max_size_mb": 10,
+      "max_files": 5
+    }
+  },
+  "telemetry": {
+    "update_interval_ms": 20,
+    "connection_timeout_attempts": 10
+  },
+  "watchdog": {
+    "enabled": false,
+    "timeout_sec": 30
+  }
+}

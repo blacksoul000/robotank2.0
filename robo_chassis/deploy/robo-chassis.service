@@ -1,0 +1,31 @@
+[Unit]
+Description=RoboChassis Robot Control Service
+After=network.target
+
+[Service]
+Type=simple
+User=pi
+WorkingDirectory=/home/pi/robo_chassis
+ExecStart=/home/pi/robo_chassis/build/robo_chassis
+Restart=always
+RestartSec=5
+
+# Watchdog settings (опционально)
+# WatchdogSec=30s
+
+# Логирование через systemd journal
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=robo_chassis
+
+# Ограничение ресурсов
+MemoryMax=256M
+CPUQuota=50%
+
+# Безопасность
+NoNewPrivileges=true
+ProtectSystem=strict
+ReadWritePaths=/var/log/robo_chassis /home/pi/robo_chassis
+
+[Install]
+WantedBy=multi-user.target
