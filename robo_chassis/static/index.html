@@ -254,6 +254,14 @@
                 <div class="telemetry-label">Башня</div>
                 <div class="telemetry-value" id="turret-val">0°</div>
             </div>
+            <div class="telemetry-item">
+                <div class="telemetry-label">CPU Temp</div>
+                <div class="telemetry-value" id="cpu-temp-val">--°C</div>
+            </div>
+            <div class="telemetry-item">
+                <div class="telemetry-label">Память</div>
+                <div class="telemetry-value" id="memory-val">--%</div>
+            </div>
         </div>
         
         <!-- Индикатор соединения -->
@@ -355,6 +363,27 @@
             
             // Башня
             document.getElementById('turret-val').textContent = data.turret_angle.toFixed(0) + '°';
+            
+            // Системная телеметрия (температура, память)
+            if (data.cpu_temp !== undefined) {
+                const tempEl = document.getElementById('cpu-temp-val');
+                if (tempEl) {
+                    tempEl.textContent = data.cpu_temp.toFixed(0) + '°C';
+                    tempEl.className = 'telemetry-value';
+                    if (data.cpu_temp >= 80) tempEl.classList.add('critical');
+                    else if (data.cpu_temp >= 70) tempEl.classList.add('warning');
+                }
+            }
+            
+            if (data.memory_percent !== undefined) {
+                const memEl = document.getElementById('memory-val');
+                if (memEl) {
+                    memEl.textContent = data.memory_percent.toFixed(0) + '%';
+                    memEl.className = 'telemetry-value';
+                    if (data.memory_percent >= 95) memEl.classList.add('critical');
+                    else if (data.memory_percent >= 80) memEl.classList.add('warning');
+                }
+            }
         }
         
         // === Джойстики ===

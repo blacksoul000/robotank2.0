@@ -27,6 +27,7 @@ add_executable(robo_chassis
     src/core/gpio/mpu6050_imu.cpp
     src/core/config/config.cpp
     src/core/logger/logger.cpp
+    src/core/system_monitor/system_monitor.cpp
 )
 
 # Поиск pthread

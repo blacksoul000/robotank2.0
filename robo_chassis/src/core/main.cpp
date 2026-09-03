@@ -7,6 +7,7 @@
 
 #include "config/config.hpp"
 #include "logger/logger.hpp"
+#include "system_monitor/system_monitor.hpp"
 #include "tcp_server.hpp"
 #include "serial_port.hpp"
 #include "robot_logic.hpp"
@@ -45,11 +46,15 @@ int main() {
         // Централизованная инициализация компонентов
         LOG_INFO("Инициализация подсистем...");
         
+        // Инициализация системного монитора
+        robo_chassis::SystemMonitor sys_monitor;
+        
         // Получение настроек из конфигурации
         const auto& serial_config = robo_chassis::Config::getSerial();
         const auto& tcp_config = robo_chassis::Config::getTcpServer();
         const auto& i2c_config = robo_chassis::Config::getI2c();
         const auto& telemetry_config = robo_chassis::Config::getTelemetry();
+        const auto& logging_config = robo_chassis::Config::getLogging();
         
         // 1. Инициализация последовательного порта с повторными попытками
         SerialPort serial(serial_config.device, serial_config.baudrate, 
@@ -88,6 +93,8 @@ int main() {
         // Основной цикл обработки телеметрии и обмена с Arduino
         int connection_attempts = 0;
         const int max_connection_attempts = telemetry_config.connection_timeout_attempts;
+        auto last_sys_update = std::chrono::steady_clock::now();
+        const auto sys_update_interval = std::chrono::seconds(2); // Обновление каждые 2 секунды
         
         while (g_running) {
             // Отправка команд на Arduino
@@ -95,6 +102,32 @@ int main() {
             
             // Обновление телеметрии (чтение с Arduino и гироскопов)
             robot.update_telemetry();
+            
+            // Периодическое обновление системного монитора
+            auto now = std::chrono::steady_clock::now();
+            if (now - last_sys_update >= sys_update_interval) {
+                sys_monitor.update();
+                
+                // Проверка на троттлинг и критические состояния
+                if (sys_monitor.needsThrottling()) {
+                    std::string msg = "Системный троттлинг! Температура: " + 
+                                     std::to_string(static_cast<int>(sys_monitor.getCpuTemperature())) + 
+                                     "C, Память: " + 
+                                     std::to_string(static_cast<int>(sys_monitor.getMemoryUsagePercent())) + "%";
+                    LOG_WARNING_SRC(msg, "main");
+                    
+                    // Рекомендации по оптимизации
+                    auto recommendations = sys_monitor.getRecommendations();
+                    for (const auto& rec : recommendations) {
+                        if (rec.find("CRITICAL") != std::string::npos || 
+                            rec.find("WARNING") != std::string::npos) {
+                            LOG_WARNING_SRC(rec, "main");
+                        }
+                    }
+                }
+                
+                last_sys_update = now;
+            }
             
             // Вывод телеметрии для отладки
             if (robot.has_new_telemetry()) {

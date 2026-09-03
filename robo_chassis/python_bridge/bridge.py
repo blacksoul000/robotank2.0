@@ -91,30 +91,59 @@ async def handle_websocket(websocket, path=None):
         logger.info(f"Браузер отключен. Осталось клиентов: {len(connected_clients)}")
 
 async def telemetry_sender():
-    """Периодическая опрос телеметрии (в реальной системе C++ сам пушит данные)"""
-    # В данной архитектуре C++ не пушит телеметрию обратно через TCP
-    # Телеметрия должна приходить отдельным каналом или запрашиваться
-    # Для упрощения эмулируем получение телеметрии
+    """Периодическая отправка телеметрии от C++ ядра"""
+    # В данной архитектуре C++ ядро отправляет телеметрию через TCP
+    # Читаем данные и транслируем в WebSocket
+    
     while True:
-        await asyncio.sleep(0.1)  # 10 Hz
+        await asyncio.sleep(0.5)  # 2 Hz - достаточно для системной телеметрии
         
-        # Эмуляция телеметрии (в реальности нужно читать ответ от C++)
-        telemetry = {
-            "type": "TELEMETRY",
-            "battery": 12.4,
-            "roll": 0.0,
-            "pitch": 0.0,
-            "turret_angle": 0.0,
-            "signal_quality": 100
-        }
+        if not tcp_client.connected or not tcp_client.reader:
+            continue
         
-        # Рассылка всем подключенным браузерам
-        if connected_clients:
-            msg = json.dumps(telemetry)
-            await asyncio.gather(
-                *[client.send(msg) for client in connected_clients],
-                return_exceptions=True
-            )
+        try:
+            # Запрашиваем телеметрию у C++ ядра (команда GET_STATS)
+            tcp_client.writer.write(b'{"cmd":"GET_STATS"}\n')
+            await tcp_client.writer.drain()
+            
+            # Читаем ответ (таймаут 1 секунда)
+            try:
+                response = await asyncio.wait_for(
+                    tcp_client.reader.readline(), 
+                    timeout=1.0
+                )
+                if response:
+                    data = json.loads(response.decode())
+                    
+                    # Формируем расширенную телеметрию
+                    telemetry = {
+                        "type": "TELEMETRY",
+                        "battery": data.get('battery', 0.0),
+                        "roll": data.get('roll', 0.0),
+                        "pitch": data.get('pitch', 0.0),
+                        "turret_angle": data.get('turret_angle', 0.0),
+                        "signal_quality": 100,
+                        # Системная телеметрия от SystemMonitor
+                        "cpu_temp": data.get('cpu_temp', 0.0),
+                        "memory_percent": data.get('memory_percent', 0.0),
+                        "cpu_usage": data.get('cpu_usage', 0.0)
+                    }
+                    
+                    # Рассылка всем подключенным браузерам
+                    if connected_clients:
+                        msg = json.dumps(telemetry)
+                        await asyncio.gather(
+                            *[client.send(msg) for client in connected_clients],
+                            return_exceptions=True
+                        )
+            except asyncio.TimeoutError:
+                pass  # Нет ответа от C++, используем старые данные
+            except json.JSONDecodeError:
+                pass  # Неверный формат
+                
+        except Exception as e:
+            logger.error(f"Ошибка получения телеметрии: {e}")
+            await tcp_client.connect()  # Попытка переподключения
 
 async def http_handler(request):
     """Раздача статических файлов (веб-интерфейс)"""
