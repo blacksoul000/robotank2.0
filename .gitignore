@@ -3,64 +3,62 @@
 *.o
 *.obj
 *.a
-*.lib
 *.so
 *.dll
 *.exe
 *.out
 
-# CMake build directory
+# C++ specific
+*.ilk
+*.pdb
+*.gch
+*.ii
+*.ti
+*.tii
+*.tix
+
+# Build directories
 build/
+cmake-build-*/
+CMakeFiles/
+CMakeCache.txt
+Makefile
+compile_commands.json
 
 # Dependencies
-venv/
-.venv/
-__pycache__/
-*.egg-info/
+.externalNativeBuild/
+.gradle/
+.ninja_log
 
 # Logs
 *.log
 
-# Environment files
+# Environment
 .env
 .env.local
-*.env.*
+.env.*
 
-# Editor/IDE files
+# Editors
 .vscode/
 .idea/
 *.swp
 *.swo
-*.tmp
 
-# OS files
+# OS
 .DS_Store
 Thumbs.db
 
-# Coverage reports
+# Coverage
 coverage/
 htmlcov/
 .coverage
 
-# Python cache
+# Python (if present)
 __pycache__/
 *.pyc
 *.pyo
+*.pyd
 .Python
-
-# C++ specific
-*.d
-*.i
-*.ii
-*.s
-*.mod
-*.slo
-*.lo
-*.la
-*.al
-*.o.d
-*.lo.d
-*.gcno
-*.gcda
-*.gcov
+*.so
+.PyInstaller/
 ```

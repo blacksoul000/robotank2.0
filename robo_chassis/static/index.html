@@ -176,6 +176,212 @@
             box-shadow: 0 4px 20px rgba(255, 255, 255, 0.8);
         }
         
+        /* Кнопка E-STOP (экстренная остановка) */
+        #estop-button {
+            position: absolute;
+            top: 50px;
+            left: 15px;
+            width: 50px;
+            height: 50px;
+            background: radial-gradient(circle, #ff0000 0%, #990000 100%);
+            border: 3px solid #fff;
+            border-radius: 50%;
+            pointer-events: auto;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-size: 10px;
+            text-transform: uppercase;
+            box-shadow: 0 0 15px rgba(255, 0, 0, 0.7);
+            animation: pulse-red 2s infinite;
+        }
+        
+        #estop-button:active {
+            background: radial-gradient(circle, #ff3333 0%, #cc0000 100%);
+            transform: scale(0.95);
+        }
+        
+        @keyframes pulse-red {
+            0% { box-shadow: 0 0 15px rgba(255, 0, 0, 0.7); }
+            50% { box-shadow: 0 0 25px rgba(255, 0, 0, 1); }
+            100% { box-shadow: 0 0 15px rgba(255, 0, 0, 0.7); }
+        }
+        
+        /* Кнопка настроек */
+        #settings-button {
+            position: absolute;
+            top: 110px;
+            left: 15px;
+            width: 50px;
+            height: 50px;
+            background: radial-gradient(circle, #4444ff 0%, #0000cc 100%);
+            border: 3px solid #fff;
+            border-radius: 50%;
+            pointer-events: auto;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            box-shadow: 0 4px 15px rgba(0, 0, 255, 0.5);
+        }
+        
+        #settings-button:active {
+            transform: scale(0.95);
+        }
+        
+        /* Модальное окно настроек */
+        #settings-modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.85);
+            z-index: 100;
+            pointer-events: auto;
+            overflow-y: auto;
+        }
+        
+        .modal-content {
+            background: #2a2a2a;
+            margin: 10% auto;
+            padding: 20px;
+            width: 90%;
+            max-width: 500px;
+            border-radius: 10px;
+            border: 2px solid #444;
+        }
+        
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid #444;
+        }
+        
+        .modal-header h2 {
+            margin: 0;
+            color: #fff;
+        }
+        
+        .close-btn {
+            background: none;
+            border: none;
+            color: #fff;
+            font-size: 28px;
+            cursor: pointer;
+            padding: 0 10px;
+        }
+        
+        .close-btn:hover {
+            color: #f00;
+        }
+        
+        .setting-group {
+            margin-bottom: 20px;
+        }
+        
+        .setting-group label {
+            display: block;
+            margin-bottom: 8px;
+            color: #ccc;
+            font-size: 14px;
+        }
+        
+        .setting-group input[type="range"] {
+            width: 100%;
+            height: 8px;
+            border-radius: 4px;
+            background: #444;
+            outline: none;
+        }
+        
+        .setting-group input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: #0066ff;
+            cursor: pointer;
+        }
+        
+        .setting-value {
+            text-align: right;
+            color: #0f0;
+            font-size: 12px;
+            margin-top: 5px;
+        }
+        
+        .btn-save {
+            width: 100%;
+            padding: 12px;
+            background: linear-gradient(to bottom, #00cc00, #008800);
+            border: none;
+            border-radius: 5px;
+            color: white;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            margin-top: 10px;
+        }
+        
+        .btn-save:hover {
+            background: linear-gradient(to bottom, #00ee00, #00aa00);
+        }
+        
+        .btn-reset {
+            width: 100%;
+            padding: 12px;
+            background: linear-gradient(to bottom, #cc0000, #880000);
+            border: none;
+            border-radius: 5px;
+            color: white;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            margin-top: 10px;
+        }
+        
+        /* Индикатор режима */
+        #mode-indicator {
+            position: absolute;
+            top: 50px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0, 0, 0, 0.7);
+            padding: 8px 20px;
+            border-radius: 20px;
+            font-size: 14px;
+            font-weight: bold;
+            color: #0f0;
+            border: 2px solid #0f0;
+        }
+        
+        #mode-indicator.manual {
+            color: #0f0;
+            border-color: #0f0;
+        }
+        
+        #mode-indicator.auto {
+            color: #ff0;
+            border-color: #ff0;
+        }
+        
+        #mode-indicator.emergency {
+            color: #f00;
+            border-color: #f00;
+            animation: blink-red 0.5s infinite;
+        }
+        
+        @keyframes blink-red {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.3; }
+        }
+        
         /* Индикатор соединения */
         #connection-status {
             position: absolute;
@@ -267,6 +473,15 @@
         <!-- Индикатор соединения -->
         <div id="connection-status"></div>
         
+        <!-- Кнопка E-STOP -->
+        <div id="estop-button">STOP</div>
+        
+        <!-- Кнопка настроек -->
+        <div id="settings-button">⚙️</div>
+        
+        <!-- Индикатор режима -->
+        <div id="mode-indicator" class="manual">MANUAL</div>
+        
         <!-- Левый джойстик (движение) -->
         <div id="left-joystick-zone" class="joystick-zone">
             <div class="joystick-base">
@@ -286,6 +501,43 @@
         
         <!-- Кнопка света -->
         <div id="lights-button">СВЕТ</div>
+        
+        <!-- Модальное окно настроек -->
+        <div id="settings-modal">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h2>⚙️ Настройки</h2>
+                    <button class="close-btn" onclick="closeSettings()">&times;</button>
+                </div>
+                
+                <div class="setting-group">
+                    <label>Чувствительность джойстика (левый)</label>
+                    <input type="range" id="joy-left-sensitivity" min="10" max="100" value="70">
+                    <div class="setting-value" id="joy-left-val">70%</div>
+                </div>
+                
+                <div class="setting-group">
+                    <label>Чувствительность джойстика (правый)</label>
+                    <input type="range" id="joy-right-sensitivity" min="10" max="100" value="70">
+                    <div class="setting-value" id="joy-right-val">70%</div>
+                </div>
+                
+                <div class="setting-group">
+                    <label>Мертвая зона джойстиков</label>
+                    <input type="range" id="joy-deadzone" min="0" max="30" value="10">
+                    <div class="setting-value" id="joy-deadzone-val">10%</div>
+                </div>
+                
+                <div class="setting-group">
+                    <label>Яркость интерфейса</label>
+                    <input type="range" id="ui-brightness" min="50" max="100" value="100">
+                    <div class="setting-value" id="ui-brightness-val">100%</div>
+                </div>
+                
+                <button class="btn-save" onclick="saveSettings()">💾 Сохранить</button>
+                <button class="btn-reset" onclick="resetSettings()">🔄 Сброс</button>
+            </div>
+        </div>
     </div>
 
     <script>
@@ -487,7 +739,212 @@
             sendCommand();
         });
         
+        // === E-STOP кнопка ===
+        const estopButton = document.getElementById('estop-button');
+        let emergencyMode = false;
+        
+        estopButton.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            emergencyMode = !emergencyMode;
+            
+            const modeIndicator = document.getElementById('mode-indicator');
+            
+            if (emergencyMode) {
+                // Экстренная остановка - обнуляем все команды
+                command.left_x = 0;
+                command.left_y = 0;
+                command.right_x = 0;
+                command.right_y = 0;
+                command.fire = false;
+                sendCommand();
+                
+                modeIndicator.textContent = 'EMERGENCY STOP';
+                modeIndicator.className = 'emergency';
+                estopButton.style.background = 'radial-gradient(circle, #ff0000 0%, #ff0000 100%)';
+                estopButton.style.boxShadow = '0 0 30px rgba(255, 0, 0, 1)';
+            } else {
+                modeIndicator.textContent = 'MANUAL';
+                modeIndicator.className = 'manual';
+                estopButton.style.background = '';
+                estopButton.style.boxShadow = '';
+            }
+        });
+        
+        // === Кнопка настроек ===
+        const settingsButton = document.getElementById('settings-button');
+        const settingsModal = document.getElementById('settings-modal');
+        
+        settingsButton.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            settingsModal.style.display = 'block';
+        });
+        
+        function closeSettings() {
+            settingsModal.style.display = 'none';
+        }
+        
+        // Обновление значений ползунков
+        document.getElementById('joy-left-sensitivity').addEventListener('input', (e) => {
+            document.getElementById('joy-left-val').textContent = e.target.value + '%';
+        });
+        
+        document.getElementById('joy-right-sensitivity').addEventListener('input', (e) => {
+            document.getElementById('joy-right-val').textContent = e.target.value + '%';
+        });
+        
+        document.getElementById('joy-deadzone').addEventListener('input', (e) => {
+            document.getElementById('joy-deadzone-val').textContent = e.target.value + '%';
+        });
+        
+        document.getElementById('ui-brightness').addEventListener('input', (e) => {
+            document.getElementById('ui-brightness-val').textContent = e.target.value + '%';
+            document.getElementById('ui-overlay').style.opacity = e.target.value / 100;
+        });
+        
+        function saveSettings() {
+            const settings = {
+                joyLeftSensitivity: document.getElementById('joy-left-sensitivity').value,
+                joyRightSensitivity: document.getElementById('joy-right-sensitivity').value,
+                joyDeadzone: document.getElementById('joy-deadzone').value,
+                uiBrightness: document.getElementById('ui-brightness').value
+            };
+            
+            localStorage.setItem('roboChassisSettings', JSON.stringify(settings));
+            
+            // Визуальное подтверждение
+            const btn = document.querySelector('.btn-save');
+            const originalText = btn.textContent;
+            btn.textContent = '✅ Сохранено!';
+            setTimeout(() => {
+                btn.textContent = originalText;
+            }, 1500);
+            
+            closeSettings();
+        }
+        
+        function resetSettings() {
+            if (confirm('Сбросить все настройки к значениям по умолчанию?')) {
+                document.getElementById('joy-left-sensitivity').value = 70;
+                document.getElementById('joy-right-sensitivity').value = 70;
+                document.getElementById('joy-deadzone').value = 10;
+                document.getElementById('ui-brightness').value = 100;
+                
+                document.getElementById('joy-left-val').textContent = '70%';
+                document.getElementById('joy-right-val').textContent = '70%';
+                document.getElementById('joy-deadzone-val').textContent = '10%';
+                document.getElementById('ui-brightness-val').textContent = '100%';
+                
+                document.getElementById('ui-overlay').style.opacity = 1;
+                
+                localStorage.removeItem('roboChassisSettings');
+            }
+        }
+        
+        // Загрузка сохраненных настроек
+        function loadSettings() {
+            const saved = localStorage.getItem('roboChassisSettings');
+            if (saved) {
+                try {
+                    const settings = JSON.parse(saved);
+                    
+                    if (settings.joyLeftSensitivity) {
+                        document.getElementById('joy-left-sensitivity').value = settings.joyLeftSensitivity;
+                        document.getElementById('joy-left-val').textContent = settings.joyLeftSensitivity + '%';
+                    }
+                    
+                    if (settings.joyRightSensitivity) {
+                        document.getElementById('joy-right-sensitivity').value = settings.joyRightSensitivity;
+                        document.getElementById('joy-right-val').textContent = settings.joyRightSensitivity + '%';
+                    }
+                    
+                    if (settings.joyDeadzone) {
+                        document.getElementById('joy-deadzone').value = settings.joyDeadzone;
+                        document.getElementById('joy-deadzone-val').textContent = settings.joyDeadzone + '%';
+                    }
+                    
+                    if (settings.uiBrightness) {
+                        document.getElementById('ui-brightness').value = settings.uiBrightness;
+                        document.getElementById('ui-brightness-val').textContent = settings.uiBrightness + '%';
+                        document.getElementById('ui-overlay').style.opacity = settings.uiBrightness / 100;
+                    }
+                } catch (e) {
+                    console.error('Ошибка загрузки настроек:', e);
+                }
+            }
+        }
+        
+        // === Поддержка клавиатуры ===
+        const keyState = {};
+        
+        document.addEventListener('keydown', (e) => {
+            if (!keyState[e.code]) {
+                keyState[e.code] = true;
+                handleKeyboard();
+            }
+        });
+        
+        document.addEventListener('keyup', (e) => {
+            keyState[e.code] = false;
+            handleKeyboard();
+        });
+        
+        function handleKeyboard() {
+            const deadzone = parseInt(document.getElementById('joy-deadzone').value) / 100;
+            const sensitivity = parseInt(document.getElementById('joy-left-sensitivity').value) / 100;
+            
+            let lx = 0, ly = 0, rx = 0, ry = 0;
+            
+            // WASD - движение
+            if (keyState['KeyW']) ly = 1;
+            if (keyState['KeyS']) ly = -1;
+            if (keyState['KeyA']) lx = -1;
+            if (keyState['KeyD']) lx = 1;
+            
+            // Стрелки - башня
+            if (keyState['ArrowUp']) ry = 1;
+            if (keyState['ArrowDown']) ry = -1;
+            if (keyState['ArrowLeft']) rx = -1;
+            if (keyState['ArrowRight']) rx = 1;
+            
+            // Пробел - огонь
+            if (keyState['Space']) command.fire = true;
+            else command.fire = false;
+            
+            // L - свет
+            if (keyState['KeyL']) {
+                lightsOn = true;
+                command.lights = true;
+                document.getElementById('lights-button').classList.add('active');
+            } else if (!keyState['KeyL'] && lightsOn) {
+                // Toggle режим для L
+            }
+            
+            // E - E-STOP
+            if (keyState['KeyE']) {
+                emergencyMode = true;
+                lx = ly = rx = ry = 0;
+                command.fire = false;
+                const modeIndicator = document.getElementById('mode-indicator');
+                modeIndicator.textContent = 'EMERGENCY STOP';
+                modeIndicator.className = 'emergency';
+            }
+            
+            // Применяем мертвую зону и чувствительность
+            const applyDeadzone = (val) => {
+                if (Math.abs(val) < deadzone) return 0;
+                return Math.sign(val) * (Math.abs(val) - deadzone) / (1 - deadzone) * sensitivity;
+            };
+            
+            command.left_x = applyDeadzone(lx);
+            command.left_y = applyDeadzone(ly);
+            command.right_x = applyDeadzone(rx);
+            command.right_y = applyDeadzone(ry);
+            
+            sendCommand();
+        }
+        
         // === Инициализация ===
+        loadSettings();
         connect();
         
         // Полноэкранный режим при первом касании
