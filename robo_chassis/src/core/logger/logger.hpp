@@ -77,6 +77,32 @@ public:
         log(LogLevel::CRITICAL, msg, src);
     }
     
+    // Версии с поддержкой форматирования (printf-style)
+    template<typename... Args>
+    void debug(const std::string& format, const std::string& src, Args... args) {
+        log_formatted(LogLevel::DEBUG, format, src, args...);
+    }
+    
+    template<typename... Args>
+    void info(const std::string& format, const std::string& src, Args... args) {
+        log_formatted(LogLevel::INFO, format, src, args...);
+    }
+    
+    template<typename... Args>
+    void warning(const std::string& format, const std::string& src, Args... args) {
+        log_formatted(LogLevel::WARNING, format, src, args...);
+    }
+    
+    template<typename... Args>
+    void error(const std::string& format, const std::string& src, Args... args) {
+        log_formatted(LogLevel::ERROR, format, src, args...);
+    }
+    
+    template<typename... Args>
+    void critical(const std::string& format, const std::string& src, Args... args) {
+        log_formatted(LogLevel::CRITICAL, format, src, args...);
+    }
+    
     /**
      * @brief Преобразовать уровень логирования в строку
      */
@@ -86,6 +112,14 @@ public:
      * @brief Преобразовать строку в уровень логирования
      */
     static LogLevel stringToLevel(const std::string& str);
+    
+    // Метод для форматированного логирования (шаблонная реализация ниже)
+    template<typename... Args>
+    void log_formatted(LogLevel level, const std::string& format, const std::string& source, Args... args) {
+        char buffer[512];
+        snprintf(buffer, sizeof(buffer), format.c_str(), args...);
+        log(level, std::string(buffer), source);
+    }
     
 private:
     Logger() = default;
@@ -125,16 +159,16 @@ private:
 
 } // namespace robo_chassis
 
-// Макросы для удобного логирования
-#define LOG_DEBUG(msg) robo_chassis::Logger::instance().debug(msg, __FILE__)
-#define LOG_INFO(msg) robo_chassis::Logger::instance().info(msg, __FILE__)
-#define LOG_WARNING(msg) robo_chassis::Logger::instance().warning(msg, __FILE__)
-#define LOG_ERROR(msg) robo_chassis::Logger::instance().error(msg, __FILE__)
-#define LOG_CRITICAL(msg) robo_chassis::Logger::instance().critical(msg, __FILE__)
+// Макросы для удобного логирования с поддержкой форматирования (printf-style)
+#define LOG_DEBUG(msg, ...) robo_chassis::Logger::instance().debug((msg), __FILE__, ##__VA_ARGS__)
+#define LOG_INFO(msg, ...) robo_chassis::Logger::instance().info((msg), __FILE__, ##__VA_ARGS__)
+#define LOG_WARNING(msg, ...) robo_chassis::Logger::instance().warning((msg), __FILE__, ##__VA_ARGS__)
+#define LOG_ERROR(msg, ...) robo_chassis::Logger::instance().error((msg), __FILE__, ##__VA_ARGS__)
+#define LOG_CRITICAL(msg, ...) robo_chassis::Logger::instance().critical((msg), __FILE__, ##__VA_ARGS__)
 
 // Макросы с указанием источника
-#define LOG_DEBUG_SRC(msg, src) robo_chassis::Logger::instance().debug(msg, src)
-#define LOG_INFO_SRC(msg, src) robo_chassis::Logger::instance().info(msg, src)
-#define LOG_WARNING_SRC(msg, src) robo_chassis::Logger::instance().warning(msg, src)
-#define LOG_ERROR_SRC(msg, src) robo_chassis::Logger::instance().error(msg, src)
-#define LOG_CRITICAL_SRC(msg, src) robo_chassis::Logger::instance().critical(msg, src)
+#define LOG_DEBUG_SRC(msg, src) robo_chassis::Logger::instance().debug((msg), (src))
+#define LOG_INFO_SRC(msg, src) robo_chassis::Logger::instance().info((msg), (src))
+#define LOG_WARNING_SRC(msg, src) robo_chassis::Logger::instance().warning((msg), (src))
+#define LOG_ERROR_SRC(msg, src) robo_chassis::Logger::instance().error((msg), (src))
+#define LOG_CRITICAL_SRC(msg, src) robo_chassis::Logger::instance().critical((msg), (src))

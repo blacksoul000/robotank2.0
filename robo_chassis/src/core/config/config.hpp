@@ -41,6 +41,8 @@ struct LoggingConfig {
     std::string file_path = "/var/log/robo_chassis/robot.log";
     int max_size_mb = 10;
     int max_files = 5;
+    float memory_cache_clear_threshold = 0.85f;  // Порог очистки кэша (85%)
+    float memory_critical_threshold = 0.95f;     // Критический порог (95%)
 };
 
 /**

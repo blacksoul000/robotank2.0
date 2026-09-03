@@ -157,6 +157,8 @@ bool Config::parseJson(const std::string& json_content, const std::string& confi
             std::string file_path = extractValue(logging_obj, "file_path");
             std::string max_size = extractValue(logging_obj, "max_size_mb");
             std::string max_files = extractValue(logging_obj, "max_files");
+            std::string mem_cache_thresh = extractValue(logging_obj, "memory_cache_clear_threshold");
+            std::string mem_crit_thresh = extractValue(logging_obj, "memory_critical_threshold");
             
             if (!level.empty()) instance_.logging_.level = level;
             if (!console.empty()) instance_.logging_.console = (console == "true");
@@ -164,6 +166,8 @@ bool Config::parseJson(const std::string& json_content, const std::string& confi
             if (!file_path.empty()) instance_.logging_.file_path = file_path;
             if (!max_size.empty()) instance_.logging_.max_size_mb = std::stoi(max_size);
             if (!max_files.empty()) instance_.logging_.max_files = std::stoi(max_files);
+            if (!mem_cache_thresh.empty()) instance_.logging_.memory_cache_clear_threshold = std::stof(mem_cache_thresh);
+            if (!mem_crit_thresh.empty()) instance_.logging_.memory_critical_threshold = std::stof(mem_crit_thresh);
         }
         
         // Парсинг секции telemetry

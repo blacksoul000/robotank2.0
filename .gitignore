@@ -2,35 +2,59 @@
 # Build artifacts
 *.o
 *.obj
+*.a
+*.so
+*.dll
+*.exe
 *.out
+
+# C++ specific
+*.ilk
+*.pdb
+*.suo
+*.idb
+
+# Build directories
 build/
-dist/
+cmake-build-*/
+CMakeFiles/
+CMakeCache.txt
+Makefile
+conanbuildinfo.txt
+compile_commands.json
 
 # Dependencies
-node_modules/
-venv/
-.venv/
-__pycache__/
-*.egg-info/
+.externalNativeBuild/
+.dependency-cache/
 
-# Logs and temp files
+# Logs
 *.log
-*.tmp
-*.swp
 
 # Environment
 .env
 .env.local
-*.env.*
+.env.*
 
 # Editors
 .vscode/
 .idea/
+*.swp
+*.swo
 
-# Python
+# OS
+.DS_Store
+Thumbs.db
+
+# Coverage
+coverage/
+htmlcov/
+.coverage
+
+# Python (if python_bridge indicates Python usage)
+__pycache__/
 *.pyc
 *.pyo
 *.pyd
-__pycache__/
-.Python
+.pytest_cache/
+.mypy_cache/
 ```

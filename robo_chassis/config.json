@@ -18,10 +18,10 @@
     "console": true,
     "file": true,
     "file_path": "/var/log/robo_chassis/robot.log",
-    "rotation": {
-      "max_size_mb": 10,
-      "max_files": 5
-    }
+    "max_size_mb": 10,
+    "max_files": 5,
+    "memory_cache_clear_threshold": 0.85,
+    "memory_critical_threshold": 0.95
   },
   "telemetry": {
     "update_interval_ms": 20,

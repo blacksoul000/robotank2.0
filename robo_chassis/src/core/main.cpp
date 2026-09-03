@@ -8,6 +8,7 @@
 #include "config/config.hpp"
 #include "logger/logger.hpp"
 #include "system_monitor/system_monitor.hpp"
+#include "memory/memory_manager.hpp"
 #include "tcp_server.hpp"
 #include "serial_port.hpp"
 #include "robot_logic.hpp"
@@ -49,12 +50,18 @@ int main() {
         // Инициализация системного монитора
         robo_chassis::SystemMonitor sys_monitor;
         
+        // Инициализация менеджера памяти
+        const auto& logging_config = robo_chassis::Config::getLogging();
+        robo_chassis::MemoryManager::instance().init(
+            logging_config.memory_cache_clear_threshold,
+            logging_config.memory_critical_threshold
+        );
+        
         // Получение настроек из конфигурации
         const auto& serial_config = robo_chassis::Config::getSerial();
         const auto& tcp_config = robo_chassis::Config::getTcpServer();
         const auto& i2c_config = robo_chassis::Config::getI2c();
         const auto& telemetry_config = robo_chassis::Config::getTelemetry();
-        const auto& logging_config = robo_chassis::Config::getLogging();
         
         // 1. Инициализация последовательного порта с повторными попытками
         SerialPort serial(serial_config.device, serial_config.baudrate, 
@@ -103,10 +110,11 @@ int main() {
             // Обновление телеметрии (чтение с Arduino и гироскопов)
             robot.update_telemetry();
             
-            // Периодическое обновление системного монитора
+            // Периодическое обновление системного монитора и менеджера памяти
             auto now = std::chrono::steady_clock::now();
             if (now - last_sys_update >= sys_update_interval) {
                 sys_monitor.update();
+                MEM_UPDATE;  // Обновление статистики памяти
                 
                 // Проверка на троттлинг и критические состояния
                 if (sys_monitor.needsThrottling()) {
@@ -124,6 +132,11 @@ int main() {
                             LOG_WARNING_SRC(rec, "main");
                         }
                     }
+                }
+                
+                // Автоматическая оптимизация памяти при необходимости
+                if (MEM_OPTIMIZE) {
+                    LOG_INFO("Выполнена автоматическая оптимизация памяти");
                 }
                 
                 last_sys_update = now;
