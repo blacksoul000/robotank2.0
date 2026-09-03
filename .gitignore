@@ -3,58 +3,64 @@
 *.o
 *.obj
 *.a
+*.lib
 *.so
 *.dll
 *.exe
 *.out
 
-# C++ specific
-*.ilk
-*.pdb
-*.suo
-*.idb
-
-# Build directories
+# CMake build directory
 build/
-cmake-build-*/
-CMakeFiles/
-CMakeCache.txt
-Makefile
-conanbuildinfo.txt
-compile_commands.json
 
 # Dependencies
-.externalNativeBuild/
-.dependency-cache/
+venv/
+.venv/
+__pycache__/
+*.egg-info/
 
 # Logs
 *.log
 
-# Environment
+# Environment files
 .env
 .env.local
-.env.*
+*.env.*
 
-# Editors
+# Editor/IDE files
 .vscode/
 .idea/
 *.swp
 *.swo
+*.tmp
 
-# OS
+# OS files
 .DS_Store
 Thumbs.db
 
-# Coverage
+# Coverage reports
 coverage/
 htmlcov/
 .coverage
 
-# Python (if python_bridge indicates Python usage)
+# Python cache
 __pycache__/
 *.pyc
 *.pyo
-*.pyd
-.pytest_cache/
-.mypy_cache/
+.Python
+
+# C++ specific
+*.d
+*.i
+*.ii
+*.s
+*.mod
+*.slo
+*.lo
+*.la
+*.al
+*.o.d
+*.lo.d
+*.gcno
+*.gcda
+*.gcov
 ```

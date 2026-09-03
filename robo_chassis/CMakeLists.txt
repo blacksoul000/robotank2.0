@@ -29,6 +29,7 @@ add_executable(robo_chassis
     src/core/logger/logger.cpp
     src/core/system_monitor/system_monitor.cpp
     src/core/memory/memory_manager.cpp
+    src/core/websocket_server/websocket_server.cpp
 )
 
 # Поиск pthread

@@ -314,13 +314,13 @@
             ws.onopen = () => {
                 isConnected = true;
                 document.getElementById('connection-status').classList.add('connected');
-                console.log('Соединение установлено');
+                console.log('WebSocket соединение установлено');
             };
             
             ws.onclose = () => {
                 isConnected = false;
                 document.getElementById('connection-status').classList.remove('connected');
-                console.log('Соединение разорвано. Переподключение...');
+                console.log('WebSocket соединение разорвано. Переподключение...');
                 setTimeout(connect, 2000);
             };
             

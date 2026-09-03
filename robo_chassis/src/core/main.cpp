@@ -13,6 +13,7 @@
 #include "serial_port.hpp"
 #include "robot_logic.hpp"
 #include "exchangers/uart_exchanger.hpp"
+#include "websocket_server/websocket_server.hpp"
 
 std::atomic<bool> g_running{true};
 
@@ -80,16 +81,27 @@ int main() {
             LOG_INFO("IMU отключен в конфигурации");
         }
         
-        // 5. Запуск TCP сервера
+        // 5. Запуск TCP сервера (для Python Bridge)
         TcpServer server(tcp_config.port, robot);
-
+        
+        // 6. Запуск WebSocket сервера (для веб-интерфейса)
+        const auto& ws_config = robo_chassis::Config::getTcpServer(); // Используем тот же порт config
+        robo_chassis::WebSocketServer ws_server(8765); // Порт WebSocket по умолчанию
+        
         LOG_INFO("Запуск основного цикла...");
         LOG_INFO("Ожидание команд от Python Bridge на порту " + std::to_string(tcp_config.port));
+        LOG_INFO("WebSocket сервер запущен на порту 8765");
 
         // Запуск TCP сервера в отдельном потоке
         std::thread server_thread([&server]() {
             server.run();
         });
+        
+        // Запуск WebSocket сервера
+        ws_server.setCommandCallback([&robot](const Command& cmd) {
+            robot.process_command(cmd);
+        });
+        ws_server.start();
 
         // Открытие UART обменника для получения данных от Arduino
         if (serial.is_open()) {
@@ -115,6 +127,12 @@ int main() {
             if (now - last_sys_update >= sys_update_interval) {
                 sys_monitor.update();
                 MEM_UPDATE;  // Обновление статистики памяти
+                
+                // Отправка телеметрии через WebSocket
+                Telemetry telem = robot.get_telemetry();
+                ws_server.broadcastTelemetry(telem, 
+                                           sys_monitor.getCpuTemperature(),
+                                           sys_monitor.getMemoryUsagePercent());
                 
                 // Проверка на троттлинг и критические состояния
                 if (sys_monitor.needsThrottling()) {
@@ -171,7 +189,8 @@ int main() {
             std::this_thread::sleep_for(std::chrono::milliseconds(telemetry_config.update_interval_ms));
         }
 
-        LOG_INFO("Остановка сервера...");
+        LOG_INFO("Остановка серверов...");
+        ws_server.stop();
         server.stop();
         
         if (server_thread.joinable()) {
