@@ -1,5 +1,5 @@
 #include "mpu6050_imu.hpp"
-#include "logger.hpp"
+#include "logger/logger.hpp"
 
 #include <fcntl.h>
 #include <unistd.h>

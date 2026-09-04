@@ -25,6 +25,7 @@ set(CMAKE_EXE_LINKER_FLAGS_RELEASE "-Wl,--gc-sections")
 
 # Основной исполняемый файл (чистый C++ без Qt)
 include_directories(${CMAKE_SOURCE_DIR}/src/core)
+include_directories(${CMAKE_SOURCE_DIR}/third_party)
 
 add_executable(robo_chassis
     src/core/main.cpp

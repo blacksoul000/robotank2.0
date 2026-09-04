@@ -105,9 +105,6 @@ private:
     
     // Приватный конструктор для паттерна Singleton
     Config() = default;
-    
-    // Парсинг JSON (упрощенная реализация без внешних зависимостей)
-    bool parseJson(const std::string& json_content, const std::string& config_path);
 };
 
 } // namespace robo_chassis

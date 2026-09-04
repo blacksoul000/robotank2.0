@@ -8,18 +8,11 @@
 *.exe
 *.out
 
-# CMake build directories
+# CMake build directory
 build/
-cmake-build-*/
-CMakeFiles/
-CMakeCache.txt
-Makefile
-cmake_install.cmake
-compile_commands.json
 
 # Dependencies
-external/
-lib/
+third_party/
 
 # Logs
 *.log
@@ -37,8 +30,6 @@ lib/
 # Editors
 .vscode/
 .idea/
-*.swp
-*.swo
 
 # Coverage
 coverage/

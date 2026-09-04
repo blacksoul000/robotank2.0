@@ -1,4 +1,5 @@
 #include "i2c_master.hpp"
+#include "logger/logger.hpp"
 
 // Linux I2C headers
 #include <fcntl.h>
@@ -7,7 +8,6 @@
 #include <linux/i2c-dev.h>
 #include <cerrno>
 #include <cstring>
-#include <iostream>
 #include <chrono>
 #include <thread>
 
@@ -46,8 +46,8 @@ bool I2CMaster::Impl::read_data(std::vector<uint8_t>& buffer) {
         
         // Логирование только для последней попытки
         if (attempt == MAX_RETRIES - 1) {
-            std::cerr << "[I2CMaster] Failed to read from bus after " 
-                      << MAX_RETRIES << " attempts: " << std::strerror(errno) << "\n";
+            LOG_ERROR("Failed to read from bus after %d attempts: %s", 
+                      MAX_RETRIES, std::strerror(errno));
         } else {
             // Краткая задержка перед повторной попыткой
             std::this_thread::sleep_for(std::chrono::milliseconds(RETRY_DELAY_MS));
@@ -81,14 +81,12 @@ bool I2CMaster::open() {
     
     d->fd = ::open(d->device.c_str(), O_RDWR | O_NONBLOCK);
     if (d->fd < 0) {
-        std::cerr << "[I2CMaster] Failed to open device " << d->device 
-                  << ": " << std::strerror(errno) << "\n";
+        LOG_ERROR("Failed to open device %s: %s", d->device.c_str(), std::strerror(errno));
         return false;
     }
     
     if (ioctl(d->fd, I2C_SLAVE, d->slave_address) < 0) {
-        std::cerr << "[I2CMaster] Failed to acquire bus access: " 
-                  << std::strerror(errno) << "\n";
+        LOG_ERROR("Failed to acquire bus access: %s", std::strerror(errno));
         ::close(d->fd);
         d->fd = -1;
         return false;
@@ -97,8 +95,7 @@ bool I2CMaster::open() {
     d->running = true;
     d->read_thread = std::thread(&I2CMaster::read_loop, this);
     
-    std::cout << "[I2CMaster] Opened " << d->device 
-              << " at address 0x" << std::hex << d->slave_address << std::dec << "\n";
+    LOG_INFO("Opened %s at address 0x%x", d->device.c_str(), d->slave_address);
     
     return true;
 }
@@ -119,7 +116,7 @@ void I2CMaster::close() {
         d->fd = -1;
     }
     
-    std::cout << "[I2CMaster] Closed\n";
+    LOG_INFO("I2C Master closed");
 }
 
 bool I2CMaster::is_open() const {
@@ -137,8 +134,7 @@ bool I2CMaster::send_data(const uint8_t* data, size_t len) {
     
     ssize_t bytes_written = ::write(d->fd, data, len);
     if (bytes_written != static_cast<ssize_t>(len)) {
-        std::cerr << "[I2CMaster] Failed to write to bus: " 
-                  << std::strerror(errno) << "\n";
+        LOG_ERROR("Failed to write to bus: %s", std::strerror(errno));
         return false;
     }
     

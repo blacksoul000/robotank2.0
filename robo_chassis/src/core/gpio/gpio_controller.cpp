@@ -2,7 +2,7 @@
 #include "i_imu.hpp"
 #include "mpu6050_imu.hpp"
 #include "complementary_filter.hpp"
-#include "logger.hpp"
+#include "logger/logger.hpp"
 
 #include <cstring>
 #include <cmath>

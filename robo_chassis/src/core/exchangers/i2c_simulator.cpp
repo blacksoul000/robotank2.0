@@ -1,5 +1,5 @@
 #include "i2c_simulator.hpp"
-#include <iostream>
+#include "logger/logger.hpp"
 #include <cstring>
 
 namespace robo_chassis {
@@ -100,9 +100,8 @@ bool I2CSimulator::open() {
     d->running = true;
     d->read_thread = std::thread(&I2CSimulator::read_loop, this);
     
-    std::cout << "[I2CSimulator] Simulation mode started\n";
-    std::cout << "  Package size: " << d->package_size << " bytes\n";
-    std::cout << "  Update interval: " << d->read_interval_ms << " ms\n";
+    LOG_INFO("I2C Simulator started - Package size: %d bytes, Update interval: %d ms", 
+             d->package_size, d->read_interval_ms);
     
     return true;
 }
@@ -118,7 +117,7 @@ void I2CSimulator::close() {
         d->read_thread.join();
     }
     
-    std::cout << "[I2CSimulator] Simulation stopped\n";
+    LOG_INFO("I2C Simulator stopped");
 }
 
 bool I2CSimulator::is_open() const {
@@ -137,8 +136,7 @@ bool I2CSimulator::send_data(const uint8_t* data, size_t len) {
     // В режиме симуляции просто логируем отправленные данные
     // Можно добавить обработку команд для изменения состояния симуляции
     if (len >= 1) {
-        std::cout << "[I2CSimulator] Received command: 0x" 
-                  << std::hex << static_cast<int>(data[0]) << std::dec << "\n";
+        LOG_DEBUG("I2C Simulator received command: 0x%02X", static_cast<int>(data[0]));
     }
     
     return true;
