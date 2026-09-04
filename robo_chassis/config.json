@@ -9,17 +9,17 @@
     "simulation_mode": true
   },
   "logging": {
-    "level": "info",
+    "level": "warning",
     "console": true,
-    "file": true,
+    "file": false,
     "file_path": "/var/log/robo_chassis/robot.log",
-    "max_size_mb": 10,
-    "max_files": 5,
-    "memory_cache_clear_threshold": 0.85,
-    "memory_critical_threshold": 0.95
+    "max_size_mb": 5,
+    "max_files": 3,
+    "memory_cache_clear_threshold": 0.80,
+    "memory_critical_threshold": 0.90
   },
   "telemetry": {
-    "update_interval_ms": 20,
+    "update_interval_ms": 50,
     "connection_timeout_attempts": 10
   },
   "watchdog": {
@@ -42,7 +42,7 @@
     "pid_kd": 0.05
   },
   "sensors": {
-    "fusion_update_rate_hz": 50,
+    "fusion_update_rate_hz": 30,
     "magnetometer_calib_min_x": -1.0,
     "magnetometer_calib_max_x": 1.0,
     "magnetometer_calib_min_y": -1.0,

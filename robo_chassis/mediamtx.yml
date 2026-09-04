@@ -1,0 +1,6 @@
+# mediamtx.yml
+paths:
+  stream:
+    sourceOnDemand: false  # Всегда принимать поток
+    sourceFingerprint: ""  # Отключить проверку сертификатов
+    record: false          # Не записывать на диск

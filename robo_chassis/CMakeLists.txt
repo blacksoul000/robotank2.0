@@ -6,7 +6,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 # Опция для сборки тестов
-option(BUILD_TESTS "Build unit tests with Google Test" OFF)
+option(BUILD_TESTS "Build unit tests with Google Test" ON)
 
 # Оптимизация для Raspberry Pi 2 (ARM Cortex-A7)
 # Используем универсальные флаги, совместимые с x86 и ARM
