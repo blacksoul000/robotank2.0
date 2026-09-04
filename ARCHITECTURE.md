@@ -50,21 +50,30 @@
 
 **Видеопоток (отдельный процесс):**
 ```
-Камера → webrtc-streamer → WebRTC → Браузер
-(порт 8000/8554)
+Камера → rpicam-vid → RTSP → MediaMTX → HLS/WebRTC → Браузер
+(порт 8554/8889)
 ```
 
 ## Компоненты
 
-### 1. WebRTC Streamer (отдельный процесс)
+### 1. MediaMTX + rpicam-vid (отдельный процесс)
 
-- **Путь:** системный пакет `webrtc-streamer`
-- **Назначение:** Трансляция видео с камеры по WebRTC
+- **Путь:** системный пакет `mediamtx` + `rpicam-vid`
+- **Назначение:** Трансляция видео с камеры через RTSP сервер
 - **Порты:** 
-  - 8000 (HTTP для веб-интерфейса стримера)
-  - 8554 (RTSP для внутреннего использования)
+  - 8554 (RTSP для приема потока)
+  - 8889 (HLS для веб-интерфейса)
+  - 8890 (WebRTC для низкой задержки)
 - **Аппаратное кодирование:** H.264 через VPU Raspberry Pi 2
-- **Запуск:** `webrtc-streamer -H 0.0.0.0:8000 rpi:///dev/video0`
+- **Запуск:** 
+  ```bash
+  mediamtx mediamtx.yml &
+  rpicam-vid -t 0 --codec libav --libav-format h264 \
+    --libav-video-codec h264_v4l2m2m --width 640 --height 480 \
+    --framerate 30 --bitrate 1000000 --intra 15 --inline -o - | \
+    ffmpeg -f h264 -i /dev/stdin -c copy -f rtsp \
+    rtsp://127.0.0.1:8554/stream
+  ```
 
 ### 2. Python Bridge
 
@@ -106,7 +115,7 @@
   - Два сенсорных джойстика (левый - движение, правый - башня)
   - Кнопки "ОГОНЬ" и "СВЕТ"
   - Панель телеметрии в реальном времени
-  - Видеопоток на фоне (iframe с WebRTC)
+  - Видеопоток на фоне (iframe с HLS/WebRTC от MediaMTX)
 - **Адаптивность:** Полная поддержка мобильных устройств
 
 ### 5. Arduino Firmware
@@ -168,11 +177,11 @@
 ```
 1. Камера захватывает видео (/dev/video0)
          ↓
-2. webrtc-streamer использует GStreamer для пайплайна
+2. rpicam-vid кодирует H.264 через VPU Raspberry Pi
          ↓
-3. Аппаратное кодирование H.264 через VPU Raspberry Pi
+3. Поток передается через RTSP в MediaMTX
          ↓
-4. Передача по WebRTC в браузер
+4. MediaMTX транслирует через HLS/WebRTC в браузер
          ↓
 5. Воспроизведение через HTML5 video element
 ```
@@ -251,8 +260,13 @@ cmake .. && make -j4
 # 2. Python Bridge (в другом терминале)
 python3 python_bridge/bridge.py
 
-# 3. WebRTC стример (в третьем терминале)
-webrtc-streamer -H 0.0.0.0:8000 rpi:///dev/video0
+# 3. MediaMTX + rpicam-vid (в третьем терминале)
+mediamtx mediamtx.yml &
+rpicam-vid -t 0 --codec libav --libav-format h264 \
+  --libav-video-codec h264_v4l2m2m --width 640 --height 480 \
+  --framerate 30 --bitrate 1000000 --intra 15 --inline -o - | \
+  ffmpeg -f h264 -i /dev/stdin -c copy -f rtsp \
+  rtsp://127.0.0.1:8554/stream
 ```
 
 ## Порты
@@ -262,16 +276,16 @@ webrtc-streamer -H 0.0.0.0:8000 rpi:///dev/video0
 | Python Bridge HTTP | 8080 | HTTP | Веб-интерфейс |
 | Python Bridge WebSocket | 8765 | WebSocket | Обмен данными с браузером |
 | C++ TCP Server | 5555 | TCP | Связь Python ↔ C++ |
-| WebRTC Streamer HTTP | 8000 | HTTP | Веб-интерфейс стримера |
-| WebRTC Streamer RTSP | 8554 | RTSP | Внутренний видеопоток |
+| MediaMTX RTSP | 8554 | RTSP | Прием видеопотока |
+| MediaMTX HLS | 8889 | HTTP | HLS трансляция |
+| MediaMTX WebRTC | 8890 | HTTPS | WebRTC трансляция |
 
-**Примечание:** Python Bridge и WebRTC Streamer могут конфликтовать за порт 8080. 
-По умолчанию Python Bridge использует порт 8080 для HTTP, а webrtc-streamer настроен на порт 8000.
+**Примечание:** MediaMTX использует порты 8554, 8889, 8890 для видеотрансляции. Убедитесь, что эти порты не заняты другими сервисами.
 
 ## Преимущества архитектуры
 
 1. **Изоляция процессов** - падение одного сервиса не влияет на другие
-2. **Минимальная задержка** - WebRTC обеспечивает ~100-300 мс
+2. **Минимальная задержка** - rpicam-vid + MediaMTX обеспечивают ~100-300 мс
 3. **Кроссплатформенность** - управление с любого устройства с браузером
 4. **Простота расширения** - легко добавить новые датчики или команды
 5. **Чистый C++20** - без тяжелых зависимостей типа Qt
@@ -304,11 +318,14 @@ ps aux | grep robo_chassis
 # Проверка Python Bridge
 ps aux | grep bridge.py
 
-# Проверка webrtc-streamer
-ps aux | grep webrtc-streamer
+# Проверка MediaMTX
+ps aux | grep mediamtx
+
+# Проверка rpicam-vid/ffmpeg
+ps aux | grep -E 'rpicam-vid|ffmpeg'
 
 # Проверка портов
-netstat -tlnp | grep -E '8080|8765|5555|8000'
+netstat -tlnp | grep -E '8080|8765|5555|8554|8889|8890'
 
 # Проверка камеры
 ls -la /dev/video*

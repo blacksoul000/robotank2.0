@@ -10,7 +10,7 @@
 
 - ✅ **Веб-интерфейс** - управление с любого устройства через браузер
 - ✅ **Два сенсорных джойстика** - раздельное управление движением и башней
-- ✅ **WebRTC видеотрансляция** - минимальная задержка (~100-300 мс)
+- ✅ **HLS/WebRTC видеотрансляция** - минимальная задержка (~100-300 мс) через rpicam-vid + MediaMTX
 - ✅ **Телеметрия в реальном времени**:
   - 🔋 Заряд батареи (V, %)
   - 📐 Крен и тангаж (MPU6050)
@@ -31,7 +31,7 @@ C++ Ядро (robo_chassis)
 Arduino → Моторы, сервы, датчики
 ```
 
-**Видеопоток:** Отдельный процесс `webrtc-streamer` передаёт видео с камеры через WebRTC напрямую в браузер.
+**Видеопоток:** Отдельный процесс `rpicam-vid` + `mediamtx` передаёт видео с камеры через RTSP/HLS/WebRTC напрямую в браузер.
 
 Подробная документация архитектуры: [ARCHITECTURE.md](ARCHITECTURE.md)
 
@@ -80,7 +80,7 @@ sudo apt install -y \
     cmake g++ make \
     libjsoncpp-dev \
     python3 python3-pip \
-    webrtc-streamer \
+    mediamtx ffmpeg \
     libcamera-dev v4l-utils
 
 # Установить Python зависимости
@@ -115,8 +115,13 @@ make -j4
 # 2. Python Bridge
 python3 python_bridge/bridge.py &
 
-# 3. WebRTC стример
-webrtc-streamer -H 0.0.0.0:8000 rpi:///dev/video0 &
+# 3. MediaMTX + rpicam-vid
+mediamtx mediamtx.yml &
+rpicam-vid -t 0 --codec libav --libav-format h264 \
+  --libav-video-codec h264_v4l2m2m --width 640 --height 480 \
+  --framerate 30 --bitrate 1000000 --intra 15 --inline -o - | \
+  ffmpeg -f h264 -i /dev/stdin -c copy -f rtsp \
+  rtsp://127.0.0.1:8554/stream &
 ```
 
 ### 4. Подключение
@@ -133,8 +138,9 @@ webrtc-streamer -H 0.0.0.0:8000 rpi:///dev/video0 &
 | Python Bridge HTTP | 8080 | HTTP | Веб-интерфейс |
 | Python Bridge WebSocket | 8765 | WebSocket | Обмен данными с браузером |
 | C++ TCP Server | 5555 | TCP | Связь Python ↔ C++ |
-| WebRTC Streamer HTTP | 8000 | HTTP | Видеопоток WebRTC |
-| WebRTC Streamer RTSP | 8554 | RTSP | Внутренний поток |
+| MediaMTX RTSP | 8554 | RTSP | Прием видеопотока |
+| MediaMTX HLS | 8889 | HTTP | HLS трансляция |
+| MediaMTX WebRTC | 8890 | HTTPS | WebRTC трансляция |
 
 ## 📦 Форматы сообщений
 
@@ -178,14 +184,20 @@ webrtc-streamer -H 0.0.0.0:8000 rpi:///dev/video0 &
 
 ### Не видно видеопоток
 ```bash
-# Проверить установку webrtc-streamer
-which webrtc-streamer
+# Проверить установку mediamtx
+which mediamtx
 
 # Проверить камеру
 ls /dev/video*
 
 # Проверить права
 sudo usermod -aG video $USER
+
+# Проверить процесс rpicam-vid
+ps aux | grep rpicam-vid
+
+# Проверить процесс ffmpeg
+ps aux | grep ffmpeg
 ```
 
 ### Ошибка подключения к Arduino
@@ -203,10 +215,10 @@ sudo usermod -aG dialout $USER
 - Проверьте IP адрес: `hostname -I`
 - Отключите фаервол: `sudo ufw disable`
 
-### Конфликт портов 8080
-Если WebRTC и Python Bridge конфликтуют за порт 8080:
+### Конфликт портов
+Если MediaMTX и Python Bridge конфликтуют за порты:
 - Измените `HTTP_PORT` в `python_bridge/bridge.py`
-- Или настройте webrtc-streamer на другой порт: `-H 0.0.0.0:8000`
+- Или настройте MediaMTX на другие порты в `mediamtx.yml`
 
 ## 📚 Дополнительная документация
 
