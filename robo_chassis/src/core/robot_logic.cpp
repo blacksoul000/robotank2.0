@@ -1,5 +1,4 @@
 #include "robot_logic.hpp"
-#include "serial_port.hpp"
 #include "exchangers/i_exchanger.hpp"
 #include "gpio/mpu6050_imu.hpp"
 #include <iostream>
@@ -21,17 +20,15 @@ RobotLogic::RobotLogic() {
     m_offsets.currentRight = 0;
     m_offsets.currentTower = 0;
     m_offsets.crc = 0;
+    
+    m_simulation_mode = false;
 }
 
-RobotLogic::RobotLogic(SerialPort& serial) 
-    : RobotLogic() {
-    m_serial = &serial;
-    std::cout << "RobotLogic initialized with SerialPort.\n";
-}
-
-RobotLogic::RobotLogic(std::unique_ptr<robo_chassis::IExchanger> exchanger)
+RobotLogic::RobotLogic(std::unique_ptr<robo_chassis::IExchanger> exchanger, bool simulation_mode)
     : RobotLogic() {
     m_exchanger = std::move(exchanger);
+    m_simulation_mode = simulation_mode;
+    
     if (m_exchanger) {
         m_exchanger->set_data_callback(
             [this](const std::vector<uint8_t>& data) {
@@ -39,7 +36,12 @@ RobotLogic::RobotLogic(std::unique_ptr<robo_chassis::IExchanger> exchanger)
             }
         );
     }
-    std::cout << "RobotLogic initialized with IExchanger.\n";
+    
+    if (m_simulation_mode) {
+        std::cout << "[RobotLogic] Инициализирован в режиме СИМУЛЯЦИИ\n";
+    } else {
+        std::cout << "RobotLogic initialized with IExchanger.\n";
+    }
 }
 
 RobotLogic::~RobotLogic() {
@@ -141,14 +143,19 @@ bool RobotLogic::validate_arduino_package(const ArduinoPkg* pkg) const {
 
 void RobotLogic::process_arduino_data(const uint8_t* data, size_t len) {
     if (len != sizeof(ArduinoPkg)) {
-        std::cerr << "Неверный размер пакета от Arduino: " << len << "\n";
+        // В режиме симуляции I2CSimulator отправляет 9 байт, а не sizeof(ArduinoPkg)
+        if (!m_simulation_mode) {
+            std::cerr << "Неверный размер пакета от Arduino: " << len << "\n";
+        }
         return;
     }
     
     const ArduinoPkg* pkg = reinterpret_cast<const ArduinoPkg*>(data);
     
     if (!validate_arduino_package(pkg)) {
-        std::cerr << "Ошибка CRC в пакете от Arduino\n";
+        if (!m_simulation_mode) {
+            std::cerr << "Ошибка CRC в пакете от Arduino\n";
+        }
         return;
     }
     
@@ -215,17 +222,8 @@ void RobotLogic::on_arduino_data_received(const std::vector<uint8_t>& data) {
 }
 
 void RobotLogic::update_telemetry() {
-    // Если используется IExchanger, данные приходят через callback
-    // Если используется SerialPort напрямую, читаем сами
-    if (m_serial && !m_exchanger) {
-        uint8_t buffer[sizeof(ArduinoPkg)];
-        ssize_t bytes_read = m_serial->read(buffer, sizeof(buffer));
-
-        if (bytes_read == static_cast<ssize_t>(sizeof(ArduinoPkg))) {
-            process_arduino_data(buffer, bytes_read);
-        }
-    }
-
+    // Данные от Arduino приходят через callback в on_arduino_data_received
+    
     // Чтение данных с гироскопов (MPU6050 через I2C)
     read_sensors();
 
@@ -239,14 +237,9 @@ void RobotLogic::send_to_arduino() {
     m_out_package.crc = crc16(reinterpret_cast<unsigned char*>(&m_out_package),
                                sizeof(RaspberryPkg) - sizeof(m_out_package.crc));
 
-    // Отправка через IExchanger если доступен, иначе через SerialPort
+    // Отправка через IExchanger
     if (m_exchanger && m_exchanger->is_open()) {
         m_exchanger->send_data(reinterpret_cast<uint8_t*>(&m_out_package), sizeof(m_out_package));
-    } else if (m_serial && m_serial->is_open()) {
-        ssize_t written = m_serial->write(reinterpret_cast<uint8_t*>(&m_out_package), sizeof(m_out_package));
-        if (written != sizeof(m_out_package)) {
-            std::cerr << "Ошибка записи в порт: " << written << " байт вместо " << sizeof(m_out_package) << "\n";
-        }
     }
 }
 

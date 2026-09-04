@@ -108,6 +108,10 @@ void WebSocketServer::setCommandCallback(std::function<void(const Command&)> cal
     m_command_callback = std::move(callback);
 }
 
+void WebSocketServer::setAutonomyCallback(std::function<void(const std::string&)> callback) {
+    m_autonomy_callback = std::move(callback);
+}
+
 void WebSocketServer::serverLoop() {
     int server_fd = socket(AF_INET, SOCK_STREAM, 0);
     if (server_fd == -1) {

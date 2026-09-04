@@ -10,12 +10,13 @@
 #include "system_monitor/system_monitor.hpp"
 #include "memory/memory_manager.hpp"
 #include "tcp_server.hpp"
-#include "serial_port.hpp"
 #include "robot_logic.hpp"
-#include "exchangers/uart_exchanger.hpp"
+#include "exchangers/i2c_master.hpp"
+#include "exchangers/i2c_simulator.hpp"
 #include "websocket_server/websocket_server.hpp"
 #include "sensors/compass_ultrasonic.hpp"
 #include "sensors/sensor_fusion.hpp"
+#include "autonomy/autonomy_manager.hpp"
 
 std::atomic<bool> g_running{true};
 
@@ -61,23 +62,47 @@ int main() {
         );
         
         // Получение настроек из конфигурации
-        const auto& serial_config = robo_chassis::Config::getSerial();
         const auto& tcp_config = robo_chassis::Config::getTcpServer();
         const auto& i2c_config = robo_chassis::Config::getI2c();
         const auto& telemetry_config = robo_chassis::Config::getTelemetry();
         
-        // 1. Инициализация последовательного порта с повторными попытками
-        SerialPort serial(serial_config.device, serial_config.baudrate, 
-                         serial_config.max_retries, serial_config.retry_delay_ms);
+        // 1. Создание I2C обменника (реальное устройство или симулятор)
+        std::unique_ptr<robo_chassis::IExchanger> i2c_exchanger;
         
-        // 2. Создание UART обменника
-        auto uart_exchanger = std::make_unique<robo_chassis::UartExchanger>(serial, sizeof(ArduinoPkg));
+        if (i2c_config.simulation_mode) {
+            // Режим симуляции - используем I2CSimulator
+            LOG_INFO("Запуск в режиме СИМУЛЯЦИИ (без реального Arduino)");
+            i2c_exchanger = std::make_unique<robo_chassis::I2CSimulator>(
+                sizeof(ArduinoPkg),
+                20     // Интервал опроса 20 мс
+            );
+        } else {
+            // Реальный режим - используем I2CMaster
+            LOG_INFO("Запуск в реальном режиме с подключением к Arduino по I2C");
+            i2c_exchanger = std::make_unique<robo_chassis::I2CMaster>(
+                i2c_config.device, 
+                0x04,  // Адрес Arduino по I2C
+                sizeof(ArduinoPkg),
+                20     // Интервал опроса 20 мс
+            );
+        }
+        
+        // 2. Открытие соединения
+        if (!i2c_exchanger->open()) {
+            if (i2c_config.simulation_mode) {
+                LOG_WARNING("Не удалось запустить симулятор I2C");
+            } else {
+                LOG_WARNING("Не удалось открыть I2C соединение с Arduino");
+            }
+        }
         
         // 3. Создание логики робота с использованием IExchanger
-        RobotLogic robot(std::move(uart_exchanger));
+        RobotLogic robot(std::move(i2c_exchanger), i2c_config.simulation_mode);
         
-        // 4. Инициализация IMU (гироскопы MPU6050)
-        if (i2c_config.imu_enabled) {
+        // 4. Инициализация IMU (гироскопы MPU6050) - только в реальном режиме
+        if (i2c_config.simulation_mode) {
+            LOG_INFO("IMU отключен: режим симуляции активен");
+        } else if (i2c_config.imu_enabled) {
             robot.init_imu(i2c_config.device);
         } else {
             LOG_INFO("IMU отключен в конфигурации");
@@ -90,22 +115,69 @@ int main() {
         const auto& ws_config = robo_chassis::Config::getTcpServer(); // Используем тот же порт config
         robo_chassis::WebSocketServer ws_server(8765); // Порт WebSocket по умолчанию
         
-        // 7. Инициализация SensorFusion (IMU + компас + ультразвук)
+        // 7. Инициализация SensorFusion (IMU + компас + ультразвук) - только в реальном режиме
         robo_chassis::SensorFusion sensor_fusion;
-        if (sensor_fusion.init()) {
+        if (i2c_config.simulation_mode) {
+            LOG_INFO("SensorFusion отключен: режим симуляции активен");
+        } else if (sensor_fusion.init()) {
             LOG_INFO("SensorFusion успешно инициализирован");
         } else {
             LOG_ERROR("Не удалось инициализировать SensorFusion");
         }
         
-        // 8. Инициализация ультразвука отдельно (если не в SensorFusion)
+        // 8. Инициализация ультразвука отдельно - только в реальном режиме
         robo_chassis::sensors::Ultrasonic ultrasonic(17, 27); // GPIO 17 (Trigger), GPIO 27 (Echo)
         
-        if (ultrasonic.init()) {
+        if (i2c_config.simulation_mode) {
+            LOG_INFO("Ультразвуковой дальномер отключен: режим симуляции активен");
+        } else if (ultrasonic.init()) {
             LOG_INFO("Ультразвуковой дальномер успешно инициализирован");
             ultrasonic.setMaxDistanceCm(400.0f); // Максимальная дистанция 400 см
         } else {
             LOG_WARNING("Не удалось инициализировать ультразвуковой дальномер (проверьте GPIO)");
+        }
+        
+        // 9. Инициализация AutonomyManager
+        robo_chassis::AutonomyManager autonomy(
+            [&robot](const robo_chassis::ChassisCommand& cmd) {
+                // Преобразование команды автономности в команду для RobotLogic
+                Command rc_cmd;
+                rc_cmd.left_y = cmd.linear - cmd.angular * 0.5f;
+                rc_cmd.right_y = cmd.linear + cmd.angular * 0.5f;
+                rc_cmd.left_x = 0.0f;
+                rc_cmd.right_x = 0.0f;
+                rc_cmd.tower_h = 0;
+                rc_cmd.fire = false;
+                rc_cmd.lights = false;
+                rc_cmd.pointer = false;
+                
+                // Ограничение значений в диапазоне [-1.0, 1.0]
+                if (rc_cmd.left_y > 1.0f) rc_cmd.left_y = 1.0f;
+                if (rc_cmd.left_y < -1.0f) rc_cmd.left_y = -1.0f;
+                if (rc_cmd.right_y > 1.0f) rc_cmd.right_y = 1.0f;
+                if (rc_cmd.right_y < -1.0f) rc_cmd.right_y = -1.0f;
+                
+                robot.process_command(rc_cmd);
+            }
+        );
+        
+        // Получение указателей на датчики для AutonomyManager
+        robo_chassis::sensors::Compass* compass_ptr = nullptr;
+        robo_chassis::sensors::Ultrasonic* ultrasonic_ptr = nullptr;
+        robo_chassis::SensorFusion* fusion_ptr = nullptr;
+        
+        if (i2c_config.simulation_mode) {
+            LOG_INFO("AutonomyManager работает с симулированными данными");
+            // В режиме симуляции датчики не инициализируются, используются NULL-указатели
+        } else {
+            ultrasonic_ptr = ultrasonic.isReady() ? &ultrasonic : nullptr;
+            fusion_ptr = sensor_fusion.isInitialized() ? &sensor_fusion : nullptr;
+        }
+        
+        if (autonomy.init(compass_ptr, ultrasonic_ptr, fusion_ptr)) {
+            LOG_INFO("AutonomyManager успешно инициализирован");
+        } else {
+            LOG_WARNING("Не удалось инициализировать AutonomyManager");
         }
         
         LOG_INFO("Запуск основного цикла...");
@@ -121,11 +193,64 @@ int main() {
         ws_server.setCommandCallback([&robot](const Command& cmd) {
             robot.process_command(cmd);
         });
+        
+        // Обработчик команд автономности
+        ws_server.setAutonomyCallback([&autonomy](const std::string& payload) {
+            // Парсинг JSON для извлечения режима и целевого курса
+            auto findValue = [&](const std::string& key) -> std::string {
+                size_t pos = payload.find("\"" + key + "\"");
+                if (pos == std::string::npos) return "";
+                pos = payload.find(':', pos);
+                if (pos == std::string::npos) return "";
+                pos++;
+                while (pos < payload.size() && 
+                       (payload[pos] == ' ' || payload[pos] == '\t')) pos++;
+                if (pos >= payload.size()) return "";
+                
+                size_t end = pos;
+                if (payload[pos] == '"') {
+                    end = payload.find('"', pos + 1);
+                    if (end == std::string::npos) return "";
+                    return payload.substr(pos + 1, end - pos - 1);
+                } else {
+                    while (end < payload.size() && 
+                           payload[end] != ',' && payload[end] != '}') {
+                        end++;
+                    }
+                    return payload.substr(pos, end - pos);
+                }
+            };
+            
+            try {
+                std::string mode = findValue("auto_mode");
+                if (mode == "IDLE") {
+                    autonomy.setState(robo_chassis::AutoState::IDLE);
+                    LOG_INFO("Autonomy: IDLE mode activated");
+                } else if (mode == "HOLD_HEADING") {
+                    std::string heading_str = findValue("target_heading");
+                    if (!heading_str.empty()) {
+                        float heading = std::stof(heading_str);
+                        autonomy.setTargetHeading(heading);
+                        autonomy.setState(robo_chassis::AutoState::HOLD_HEADING);
+                        LOG_INFO("Autonomy: HOLD_HEADING mode, target=" + std::to_string(heading));
+                    }
+                } else if (mode == "AVOID_OBSTACLE") {
+                    autonomy.setState(robo_chassis::AutoState::AVOID_OBSTACLE);
+                    LOG_INFO("Autonomy: AVOID_OBSTACLE mode activated");
+                } else if (mode == "PATROL") {
+                    autonomy.setState(robo_chassis::AutoState::PATROL);
+                    LOG_INFO("Autonomy: PATROL mode activated");
+                }
+            } catch (const std::exception& e) {
+                LOG_WARNING("Ошибка парсинга команды автономности: " + std::string(e.what()));
+            }
+        });
+        
         ws_server.start();
 
-        // Открытие UART обменника для получения данных от Arduino
-        if (serial.is_open()) {
-            robot.send_to_arduino();  // Первичная отправка для синхронизации
+        // Отправка первичной команды на Arduino для синхронизации
+        if (robot.is_arduino_online()) {
+            robot.send_to_arduino();
             std::this_thread::sleep_for(std::chrono::milliseconds(100));
         }
 
@@ -136,6 +261,9 @@ int main() {
         const auto sys_update_interval = std::chrono::seconds(2); // Обновление каждые 2 секунды
         
         while (g_running) {
+            // Обновление автономного менеджера (вызывается перед send_to_arduino)
+            autonomy.update();
+            
             // Отправка команд на Arduino
             robot.send_to_arduino();
             
@@ -148,30 +276,38 @@ int main() {
                 sys_monitor.update();
                 MEM_UPDATE;  // Обновление статистики памяти
                 
-                // Чтение данных из SensorFusion
+                // Чтение данных из SensorFusion и ультразвука - только в реальном режиме
                 float heading = -1.0f;
-                bool fusion_ready = sensor_fusion.isInitialized();
-                if (fusion_ready) {
-                    sensor_fusion.update();
-                    heading = sensor_fusion.getHeading();
-                }
-                
                 float distance_cm = 0.0f;
-                bool ultrasonic_ok = ultrasonic.isReady();
-                if (ultrasonic_ok) {
-                    distance_cm = ultrasonic.readDistanceCm();
+                
+                if (!i2c_config.simulation_mode) {
+                    bool fusion_ready = sensor_fusion.isInitialized();
+                    if (fusion_ready) {
+                        sensor_fusion.update();
+                        heading = sensor_fusion.getHeading();
+                    }
+                    
+                    bool ultrasonic_ok = ultrasonic.isReady();
+                    if (ultrasonic_ok) {
+                        distance_cm = ultrasonic.readDistanceCm();
+                    }
+                } else {
+                    // В режиме симуляции получаем данные от I2CSimulator
+                    Telemetry telem_sim = robot.get_telemetry();
+                    heading = telem_sim.yaw;  // Используем yaw от симулятора
+                    distance_cm = 50.0f;      // Фиксированное значение для симуляции
                 }
                 
-                // Отправка телеметрии через WebSocket (только heading, без mag_x/y/z)
+                // Отправка телеметрии через WebSocket
                 Telemetry telem = robot.get_telemetry();
                 ws_server.broadcastTelemetry(telem, 
                                            sys_monitor.getCpuTemperature(),
                                            sys_monitor.getMemoryUsagePercent(),
-                                           fusion_ready ? heading : -1.0f,
+                                           i2c_config.simulation_mode ? heading : (sensor_fusion.isInitialized() ? sensor_fusion.getHeading() : -1.0f),
                                            0.0f,  // mag_x не передается (используется внутри)
                                            0.0f,  // mag_y не передается (используется внутри)
                                            0.0f,  // mag_z не передается (используется внутри)
-                                           ultrasonic_ok ? distance_cm : -1.0f,
+                                           i2c_config.simulation_mode ? distance_cm : (ultrasonic.isReady() ? ultrasonic.readDistanceCm() : -1.0f),
                                            sys_monitor.getWifiLinkQuality());
                 
                 // Проверка на троттлинг и критические состояния
@@ -215,7 +351,8 @@ int main() {
             }
             
             // Проверка статуса подключения к Arduino и попытки переподключения
-            if (!robot.is_arduino_online()) {
+            // (пропускаем в режиме симуляции)
+            if (!i2c_config.simulation_mode && !robot.is_arduino_online()) {
                 connection_attempts++;
                 if (connection_attempts >= max_connection_attempts) {
                     LOG_WARNING("Arduino не отвечает в течение " + 

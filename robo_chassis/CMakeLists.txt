@@ -23,10 +23,9 @@ include_directories(${CMAKE_SOURCE_DIR}/src/core)
 add_executable(robo_chassis
     src/core/main.cpp
     src/core/tcp_server.cpp
-    src/core/serial_port.cpp
     src/core/robot_logic.cpp
     src/core/exchangers/i2c_master.cpp
-    src/core/exchangers/uart_exchanger.cpp
+    src/core/exchangers/i2c_simulator.cpp
     src/core/gpio/complementary_filter.cpp
     src/core/gpio/gpio_controller.cpp
     src/core/gpio/mpu6050_imu.cpp

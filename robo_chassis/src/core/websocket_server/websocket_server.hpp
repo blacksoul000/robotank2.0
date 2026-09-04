@@ -77,6 +77,12 @@ public:
      * @param callback Функция обратного вызова для обработки команд
      */
     void setCommandCallback(std::function<void(const Command&)> callback);
+    
+    /**
+     * @brief Установить обработчик команд автономности
+     * @param callback Функция обратного вызова для команд автономности (режим, целевой курс)
+     */
+    void setAutonomyCallback(std::function<void(const std::string&)> callback);
 
 private:
     int m_port;
@@ -89,6 +95,9 @@ private:
     
     // Обработчик команд
     std::function<void(const Command&)> m_command_callback;
+    
+    // Обработчик команд автономности
+    std::function<void(const std::string&)> m_autonomy_callback;
     
     // Основной цикл сервера
     void serverLoop();

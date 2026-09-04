@@ -1,17 +1,12 @@
 {
-  "serial": {
-    "device": "/dev/ttyUSB0",
-    "baudrate": 115200,
-    "max_retries": 5,
-    "retry_delay_ms": 1000
-  },
   "tcp_server": {
     "port": 5555,
     "bind_address": "0.0.0.0"
   },
   "i2c": {
     "device": "/dev/i2c-1",
-    "imu_enabled": true
+    "imu_enabled": true,
+    "simulation_mode": true
   },
   "logging": {
     "level": "info",

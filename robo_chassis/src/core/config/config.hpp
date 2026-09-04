@@ -29,6 +29,7 @@ struct TcpServerConfig {
 struct I2cConfig {
     std::string device = "/dev/i2c-1";
     bool imu_enabled = true;
+    bool simulation_mode = false;
 };
 
 /**
@@ -90,6 +91,7 @@ public:
     static int getTcpPort() { return instance_.tcp_server_.port; }
     static std::string getI2cDevice() { return instance_.i2c_.device; }
     static bool isImuEnabled() { return instance_.i2c_.imu_enabled; }
+    static bool isSimulationMode() { return instance_.i2c_.simulation_mode; }
     
 private:
     static Config instance_;

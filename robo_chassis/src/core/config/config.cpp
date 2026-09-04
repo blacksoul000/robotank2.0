@@ -114,20 +114,6 @@ bool Config::load(const std::string& config_path) {
 
 bool Config::parseJson(const std::string& json_content, const std::string& config_path) {
     try {
-        // Парсинг секции serial
-        std::string serial_obj = extractObject(json_content, "serial");
-        if (!serial_obj.empty()) {
-            std::string device = extractValue(serial_obj, "device");
-            std::string baudrate = extractValue(serial_obj, "baudrate");
-            std::string max_retries = extractValue(serial_obj, "max_retries");
-            std::string retry_delay = extractValue(serial_obj, "retry_delay_ms");
-            
-            if (!device.empty()) instance_.serial_.device = device;
-            if (!baudrate.empty()) instance_.serial_.baudrate = std::stoi(baudrate);
-            if (!max_retries.empty()) instance_.serial_.max_retries = std::stoi(max_retries);
-            if (!retry_delay.empty()) instance_.serial_.retry_delay_ms = std::stoi(retry_delay);
-        }
-        
         // Парсинг секции tcp_server
         std::string tcp_obj = extractObject(json_content, "tcp_server");
         if (!tcp_obj.empty()) {
@@ -143,9 +129,11 @@ bool Config::parseJson(const std::string& json_content, const std::string& confi
         if (!i2c_obj.empty()) {
             std::string device = extractValue(i2c_obj, "device");
             std::string imu_enabled = extractValue(i2c_obj, "imu_enabled");
+            std::string simulation_mode = extractValue(i2c_obj, "simulation_mode");
             
             if (!device.empty()) instance_.i2c_.device = device;
             if (!imu_enabled.empty()) instance_.i2c_.imu_enabled = (imu_enabled == "true");
+            if (!simulation_mode.empty()) instance_.i2c_.simulation_mode = (simulation_mode == "true");
         }
         
         // Парсинг секции logging
@@ -191,10 +179,13 @@ bool Config::parseJson(const std::string& json_content, const std::string& confi
         }
         
         std::cout << "[Config] Конфигурация успешно загружена из " << config_path << "\n";
-        std::cout << "  Serial: " << instance_.serial_.device << " @ " 
-                  << instance_.serial_.baudrate << " бод\n";
         std::cout << "  TCP Server: порт " << instance_.tcp_server_.port 
                   << " на " << instance_.tcp_server_.bind_address << "\n";
+        std::cout << "  I2C: устройство " << instance_.i2c_.device;
+        if (instance_.i2c_.simulation_mode) {
+            std::cout << " (режим симуляции)";
+        }
+        std::cout << "\n";
         std::cout << "  Logging: уровень " << instance_.logging_.level;
         if (instance_.logging_.file) {
             std::cout << ", файл: " << instance_.logging_.file_path;

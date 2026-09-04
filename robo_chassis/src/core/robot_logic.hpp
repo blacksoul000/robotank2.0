@@ -70,11 +70,8 @@ class SerialPort;
 
 class RobotLogic {
 public:
-    // Конструктор с SerialPort (для обратной совместимости)
-    explicit RobotLogic(SerialPort& serial);
-    
     // Конструктор с IExchanger (новый интерфейс)
-    explicit RobotLogic(std::unique_ptr<robo_chassis::IExchanger> exchanger);
+    explicit RobotLogic(std::unique_ptr<robo_chassis::IExchanger> exchanger, bool simulation_mode = false);
     
     ~RobotLogic();
     
@@ -110,13 +107,6 @@ private:
     // Конструктор для внутренней логики
     RobotLogic();
     
-    SerialPort* m_serial = nullptr;  // Для обратной совместимости
-    std::unique_ptr<robo_chassis::IExchanger> m_exchanger;  // Новый интерфейс обмена
-    Telemetry m_telemetry;
-    Command m_current_cmd;
-    RaspberryPkg m_out_package;
-    ArduinoPkg m_offsets;  // Смещения для калибровки токов
-    std::atomic<bool> telemetry_updated{false};
     mutable std::mutex m_mutex;
     
     // Таймаут для проверки онлайн статуса Arduino (мс)
@@ -143,4 +133,13 @@ private:
     
     // Обработка данных от IExchanger
     void on_arduino_data_received(const std::vector<uint8_t>& data);
+    
+    // Данные телеметрии и команды
+    std::unique_ptr<robo_chassis::IExchanger> m_exchanger;
+    Telemetry m_telemetry;
+    Command m_current_cmd;
+    RaspberryPkg m_out_package;
+    ArduinoPkg m_offsets;  // Смещения для калибровки токов
+    std::atomic<bool> telemetry_updated{false};
+    bool m_simulation_mode = false;  // Флаг режима симуляции
 };
