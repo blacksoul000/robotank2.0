@@ -5,6 +5,9 @@ set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
+# Опция для сборки тестов
+option(BUILD_TESTS "Build unit tests with Google Test" OFF)
+
 # Оптимизация для Raspberry Pi 2 (ARM Cortex-A7)
 # Используем универсальные флаги, совместимые с x86 и ARM
 if(CMAKE_SYSTEM_PROCESSOR MATCHES "armv7l|aarch64")
@@ -62,6 +65,11 @@ if(USE_PIGPIO)
     else()
         message(WARNING "pigpio library not found, GPIO functionality will be limited")
     endif()
+endif()
+
+# Сборка тестов
+if(BUILD_TESTS)
+    add_subdirectory(tests)
 endif()
 
 # Установка
