@@ -34,6 +34,8 @@ add_executable(robo_chassis
     src/core/websocket_server/websocket_server.cpp
     src/core/sensors/sensor_manager.cpp
     src/core/sensors/compass_ultrasonic.cpp
+    src/core/sensors/sensor_fusion.cpp
+    src/core/autonomy/autonomy_manager.cpp
 )
 
 # Поиск pthread
