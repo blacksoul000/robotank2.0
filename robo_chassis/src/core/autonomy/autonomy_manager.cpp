@@ -14,7 +14,9 @@ using namespace sensors;
 
 PIDController::PIDController(float kp, float ki, float kd)
     : kp_(kp), ki_(ki), kd_(kd) {
-    last_time_ms_ = PIDController::getCurrentTimeMs();
+    last_time_ms_ = std::chrono::duration_cast<std::chrono::milliseconds>(
+        std::chrono::steady_clock::now().time_since_epoch()
+    ).count();
 }
 
 void PIDController::setTarget(float target) {
@@ -40,7 +42,10 @@ float PIDController::calculateError(float target, float current) {
 }
 
 float PIDController::compute() {
-    auto now = getCurrentTimeMs();
+    auto now = std::chrono::duration_cast<std::chrono::milliseconds>(
+        std::chrono::steady_clock::now().time_since_epoch()
+    ).count();
+    
     float dt = static_cast<float>(now - last_time_ms_) / 1000.0f;
     
     if (dt <= 0.0f || dt > 1.0f) {
@@ -77,19 +82,15 @@ float PIDController::compute() {
 void PIDController::reset() {
     integral_ = 0.0f;
     prev_error_ = 0.0f;
-    last_time_ms_ = getCurrentTimeMs();
+    last_time_ms_ = std::chrono::duration_cast<std::chrono::milliseconds>(
+        std::chrono::steady_clock::now().time_since_epoch()
+    ).count();
 }
 
 void PIDController::setGains(float kp, float ki, float kd) {
     kp_ = kp;
     ki_ = ki;
     kd_ = kd;
-}
-
-uint64_t PIDController::getCurrentTimeMs() const {
-    return std::chrono::duration_cast<std::chrono::milliseconds>(
-        std::chrono::steady_clock::now().time_since_epoch()
-    ).count();
 }
 
 // ============================================================================
@@ -122,7 +123,7 @@ void AutonomyManager::update() {
         ctx.current_heading = fusion_->getHeading();
         ctx.imu_available = true;
         ctx.mag_available = fusion_->isMagnetometerAvailable();
-    } else if (compass_ && compass_->isInitialized()) {
+    } else if (compass_ && compass_->isReady()) {
         ctx.current_heading = compass_->getHeading();
         ctx.mag_available = true;
         ctx.imu_available = false;
@@ -133,8 +134,8 @@ void AutonomyManager::update() {
     }
     
     // Чтение ультразвука
-    if (ultrasonic_ && ultrasonic_->isInitialized()) {
-        ctx.ultrasonic_dist = ultrasonic_->getDistanceCm();
+    if (ultrasonic_ && ultrasonic_->isReady()) {
+        ctx.ultrasonic_dist = ultrasonic_->readDistanceCm();
     } else {
         ctx.ultrasonic_dist = 999.0f; // Нет препятствий
     }
@@ -231,7 +232,9 @@ ChassisCommand AutonomyManager::handleHoldHeading(const AutonomyContext& ctx) {
 }
 
 ChassisCommand AutonomyManager::handleAvoidObstacle(const AutonomyContext& ctx) {
-    auto now = getCurrentTimeMs();
+    auto now = std::chrono::duration_cast<std::chrono::milliseconds>(
+        std::chrono::steady_clock::now().time_since_epoch()
+    ).count();
     
     // Этап 1: Поворот на 90 градусов
     if (now - avoid_start_time_ms_ < 1500) { // 1.5 секунды на поворот
@@ -277,12 +280,6 @@ void AutonomyManager::sendCommand(const ChassisCommand& cmd) {
 
 void AutonomyManager::sendStop() {
     sendCommand(ChassisCommand{0.0f, 0.0f, true});
-}
-
-uint64_t AutonomyManager::getCurrentTimeMs() const {
-    return std::chrono::duration_cast<std::chrono::milliseconds>(
-        std::chrono::steady_clock::now().time_since_epoch()
-    ).count();
 }
 
 } // namespace robo_chassis

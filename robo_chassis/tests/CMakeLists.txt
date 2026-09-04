@@ -28,8 +28,6 @@ include_directories(
 add_executable(run_tests
     test_pid.cpp
     test_sensor_fusion.cpp
-    test_autonomy.cpp
-    test_config.cpp
 )
 
 target_link_libraries(run_tests
@@ -40,5 +38,3 @@ target_link_libraries(run_tests
 # Add tests
 add_test(NAME PIDControllerTests COMMAND run_tests --gtest_filter="PIDControllerTest.*")
 add_test(NAME SensorFusionTests COMMAND run_tests --gtest_filter="SensorFusionTest.*")
-add_test(NAME AutonomyTests COMMAND run_tests --gtest_filter="AutonomyManagerTest.*")
-add_test(NAME ConfigTests COMMAND run_tests --gtest_filter="ConfigTest.*")

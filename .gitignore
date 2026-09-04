@@ -9,49 +9,39 @@ dist/
 # Dependencies
 venv/
 .venv/
-__pycache__/
-*.pyc
-*.pyo
-*.pyd
+node_modules/
 
-# Logs and temporary files
+# Logs and temp files
 *.log
 *.tmp
-*.swp
-*.swo
 
-# Environment files
+# Environment
 .env
 .env.local
 *.env.*
 
-# Editors/IDE
+# Editors
 .vscode/
 .idea/
 
-# OS specific
-.DS_Store
-Thumbs.db
+# C++ specific
+*.so
+*.a
+*.dylib
+*.dll
 
-# Coverage reports
+# Python (if present)
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.so
+.coverage
 coverage/
 htmlcov/
-.coverage
 
-# Python specific
-*.py[cod]
-*$py.class
-*.so
-.Python
-build/
-develop-eggs/
-.installed.cfg
-lib/
-lib64/
-parts/
-sdist/
-var/
-wheels/
-*.egg-info/
-.eggs/
+# System files
+.DS_Store
+Thumbs.db
 ```

@@ -4,23 +4,52 @@
 #include "logger/logger.hpp"
 #include <chrono>
 #include <cmath>
+#include <memory>
 
 namespace robo_chassis {
 
-// Глобальные экземпляры (создаются в main.cpp)
-extern Mpu6050Imu* g_mpu6050;
-extern sensors::Compass* g_compass;
+// Статические экземпляры датчиков (владеют ресурсами)
+static std::unique_ptr<Mpu6050Imu> g_mpu6050_instance = nullptr;
+static std::unique_ptr<sensors::Compass> g_compass_instance = nullptr;
+
+// Глобальные указатели для совместимости
+Mpu6050Imu* g_mpu6050 = nullptr;
+sensors::Compass* g_compass = nullptr;
 
 SensorFusion::SensorFusion() = default;
 
 bool SensorFusion::init() {
     LOG_INFO("Initializing SensorFusion...");
     
+    // Создание IMU если еще не создан
+    if (!g_mpu6050) {
+        g_mpu6050_instance = std::make_unique<Mpu6050Imu>("/dev/i2c-1", 0x68, 0.0f); // I2C device, address, yaw_offset
+        if (g_mpu6050_instance->init()) {
+            g_mpu6050 = g_mpu6050_instance.get();
+            LOG_INFO("MPU6050 initialized successfully");
+        } else {
+            LOG_ERROR("MPU6050 IMU not available!");
+            status_ = FusionStatus::ERROR;
+            return false;
+        }
+    }
+    
     // Проверка IMU
     if (!g_mpu6050 || !g_mpu6050->isReady()) {
-        LOG_ERROR("MPU6050 IMU not available!");
+        LOG_ERROR("MPU6050 IMU not ready!");
         status_ = FusionStatus::ERROR;
         return false;
+    }
+    
+    // Создание компаса если еще не создан
+    if (!g_compass) {
+        g_compass_instance = std::make_unique<sensors::Compass>(1, 0x1E); // I2C bus 1, адрес HMC5883L
+        if (g_compass_instance->init()) {
+            g_compass = g_compass_instance.get();
+            LOG_INFO("Compass initialized successfully");
+        } else {
+            LOG_WARNING("Compass not available, using IMU-only mode");
+        }
     }
     
     // Проверка магнитометра

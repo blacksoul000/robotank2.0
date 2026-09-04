@@ -45,26 +45,14 @@ add_executable(robo_chassis
 find_package(Threads REQUIRED)
 target_link_libraries(robo_chassis PRIVATE Threads::Threads)
 
-# wiringPi для работы с GPIO (ультразвук)
-find_library(WIRINGPI_LIB NAMES wiringPi)
-if(WIRINGPI_LIB)
-    target_link_libraries(robo_chassis PRIVATE ${WIRINGPI_LIB})
-    message(STATUS "wiringPi library found")
+# pigpio для работы с GPIO (ультразвук) - замена wiringPi
+find_library(PIGPIO_LIB NAMES pigpiod_if2 pigpio)
+if(PIGPIO_LIB)
+    target_link_libraries(robo_chassis PRIVATE ${PIGPIO_LIB})
+    target_compile_definitions(robo_chassis PRIVATE HAVE_PIGPIO)
+    message(STATUS "pigpio library found: ${PIGPIO_LIB}")
 else()
-    message(WARNING "wiringPi library not found, ultrasonic sensor will not work")
-endif()
-
-# Опционально: pigpio для работы с GPIO
-option(USE_PIGPIO "Use pigpio library for GPIO control" ON)
-if(USE_PIGPIO)
-    find_library(PIGPIO_LIB NAMES pigpio pigpiod_if2)
-    if(PIGPIO_LIB)
-        target_link_libraries(robo_chassis PRIVATE ${PIGPIO_LIB})
-        target_compile_definitions(robo_chassis PRIVATE HAVE_PIGPIO)
-        message(STATUS "pigpio library found: ${PIGPIO_LIB}")
-    else()
-        message(WARNING "pigpio library not found, GPIO functionality will be limited")
-    endif()
+    message(WARNING "pigpio library not found, ultrasonic sensor will not work")
 endif()
 
 # Сборка тестов
