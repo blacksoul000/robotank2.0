@@ -62,7 +62,7 @@ I2CMaster::I2CMaster(
     int slave_address,
     size_t package_size,
     int read_interval_ms
-) : d(new Impl) {
+) : d(std::make_unique<Impl>()) {
     d->device = device;
     d->slave_address = slave_address;
     d->package_size = package_size;
@@ -71,7 +71,7 @@ I2CMaster::I2CMaster(
 
 I2CMaster::~I2CMaster() {
     close();
-    delete d;
+    // unique_ptr автоматически освободит память
 }
 
 bool I2CMaster::open() {

@@ -416,10 +416,37 @@ void WebSocketServer::broadcastTelemetry(const Telemetry& telemetry,
     std::string message = json.str();
     auto frame = createWebSocketFrame(message, true);
     
-    std::lock_guard<std::mutex> lock(m_mutex);
-    for (int client_fd : m_clients) {
+    // Копируем список клиентов под блокировкой для минимизации времени удержания мьютекса
+    std::vector<int> clients_copy;
+    {
+        std::lock_guard<std::mutex> lock(m_mutex);
+        clients_copy = m_clients;
+    }
+    
+    // Отправка данных без удержания мьютекса (чтобы не блокировать новые подключения)
+    std::vector<int> disconnected_clients;
+    for (int client_fd : clients_copy) {
         if (client_fd >= 0) {
-            write(client_fd, frame.data(), frame.size());
+            ssize_t bytes_sent = write(client_fd, frame.data(), frame.size());
+            if (bytes_sent < 0) {
+                // Ошибка записи - клиент отключился
+                LOG_DEBUG("Ошибка записи клиенту " + std::to_string(client_fd) + ", будет удалён");
+                disconnected_clients.push_back(client_fd);
+            }
+        }
+    }
+    
+    // Удаление отключившихся клиентов
+    if (!disconnected_clients.empty()) {
+        std::lock_guard<std::mutex> lock(m_mutex);
+        for (int client_fd : disconnected_clients) {
+            auto it = std::find(m_clients.begin(), m_clients.end(), client_fd);
+            if (it != m_clients.end()) {
+                m_clients.erase(it);
+                cleanupClientRateLimit(client_fd);
+                close(client_fd);
+                LOG_INFO("Клиент удалён из-за ошибки записи: " + std::to_string(client_fd));
+            }
         }
     }
 }

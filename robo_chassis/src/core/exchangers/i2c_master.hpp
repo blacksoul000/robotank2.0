@@ -41,7 +41,7 @@ public:
 
 private:
     class Impl;
-    Impl* d;
+    std::unique_ptr<Impl> d;
     
     void read_loop();
 };

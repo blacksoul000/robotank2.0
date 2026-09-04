@@ -23,11 +23,15 @@ HTTP_PORT = 8080
 websocket_clients = set()
 tcp_socket = None
 tcp_connected = False
+tcp_reconnect_attempts = 0
+MAX_RECONNECT_ATTEMPTS = 10  # Максимальное количество попыток переподключения
+RECONNECT_DELAY_BASE = 2     # Базовая задержка между попытками (секунды)
+RECONNECT_DELAY_MAX = 30     # Максимальная задержка (секунды)
 loop = None
 
 def connect_to_cpp():
-    """Подключение к C++ приложению через TCP"""
-    global tcp_socket, tcp_connected, loop
+    """Подключение к C++ приложению через TCP с автоматическим переподключением"""
+    global tcp_socket, tcp_connected, loop, tcp_reconnect_attempts
     
     while True:
         try:
@@ -35,6 +39,7 @@ def connect_to_cpp():
             tcp_socket.connect((TCP_HOST, TCP_PORT))
             tcp_socket.settimeout(1.0)
             tcp_connected = True
+            tcp_reconnect_attempts = 0  # Сброс счётчика ошибок при успешном подключении
             print(f"✓ Подключено к C++ на {TCP_HOST}:{TCP_PORT}")
             
             # Чтение данных от C++
@@ -63,7 +68,16 @@ def connect_to_cpp():
         except Exception as e:
             print(f"✗ Ошибка подключения к C++: {e}. Повтор через 2 сек...")
             tcp_connected = False
-            time.sleep(2)
+            
+            # Экспоненциальная задержка с максимумом
+            delay = min(RECONNECT_DELAY_BASE * (2 ** tcp_reconnect_attempts), RECONNECT_DELAY_MAX)
+            tcp_reconnect_attempts += 1
+            
+            if tcp_reconnect_attempts >= MAX_RECONNECT_ATTEMPTS:
+                print(f"⚠ Достигнуто максимальное количество попыток ({MAX_RECONNECT_ATTEMPTS}). Ждём {RECONNECT_DELAY_MAX} сек...")
+                tcp_reconnect_attempts = MAX_RECONNECT_ATTEMPTS - 1  # Чтобы не увеличивать дальше
+            
+            time.sleep(delay)
         
         if tcp_socket:
             try:
@@ -72,7 +86,6 @@ def connect_to_cpp():
                 pass
         tcp_socket = None
         tcp_connected = False
-        time.sleep(2)
 
 async def forward_to_websockets(message):
     """Отправка сообщения всем подключенным WebSocket клиентам"""
@@ -82,16 +95,60 @@ async def forward_to_websockets(message):
             return_exceptions=True
         )
 
+# Rate limiting для защиты от DoS атак
+class RateLimiter:
+    """Ограничитель частоты сообщений для каждого клиента"""
+    def __init__(self, max_messages_per_second=20, window_seconds=1):
+        self.max_messages = max_messages_per_second
+        self.window = window_seconds
+        self.clients = {}  # client_id -> {'count': int, 'reset_time': float}
+    
+    def is_allowed(self, client_id):
+        """Проверка, может ли клиент отправить сообщение"""
+        import time
+        current_time = time.time()
+        
+        if client_id not in self.clients:
+            self.clients[client_id] = {'count': 0, 'reset_time': current_time + self.window}
+        
+        client_data = self.clients[client_id]
+        
+        # Сброс счётчика если окно времени истекло
+        if current_time >= client_data['reset_time']:
+            client_data['count'] = 0
+            client_data['reset_time'] = current_time + self.window
+        
+        # Проверка лимита
+        if client_data['count'] >= self.max_messages:
+            return False
+        
+        client_data['count'] += 1
+        return True
+    
+    def cleanup(self, client_id):
+        """Удаление данных о клиенте при отключении"""
+        if client_id in self.clients:
+            del self.clients[client_id]
+
+# Глобальный rate limiter
+rate_limiter = RateLimiter(max_messages_per_second=20, window_seconds=1)
+
 async def handle_websocket(request):
-    """Обработчик WebSocket подключений"""
+    """Обработчик WebSocket подключений с rate limiting"""
     ws = web.WebSocketResponse()
     await ws.prepare(request)
+    client_id = id(ws)
     websocket_clients.add(ws)
-    print(f"✓ Браузер подключен. Всего клиентов: {len(websocket_clients)}")
+    print(f"✓ Браузер подключен (ID: {client_id}). Всего клиентов: {len(websocket_clients)}")
     
     try:
         async for msg in ws:
             if msg.type == web.WSMsgType.TEXT:
+                # Проверка rate limit перед обработкой
+                if not rate_limiter.is_allowed(client_id):
+                    print(f"⚠ Rate limit превышен для клиента {client_id}")
+                    continue
+                
                 # Получение команд от браузера и отправка в C++
                 if tcp_connected and tcp_socket:
                     try:
@@ -99,12 +156,26 @@ async def handle_websocket(request):
                         tcp_socket.sendall((msg.data + '\n').encode('utf-8'))
                     except Exception as e:
                         print(f"✗ Ошибка отправки в C++: {e}")
+                        # Попытка переподключения при ошибке отправки
                         tcp_connected = False
+                        if tcp_socket:
+                            try:
+                                tcp_socket.close()
+                            except:
+                                pass
+                        tcp_socket = None
+                        print("🔄 Попытка переподключения к C++...")
+                else:
+                    print(f"⚠ Нет подключения к C++, команда не отправлена: {msg.data[:50]}...")
             elif msg.type == web.WSMsgType.ERROR:
                 print(f"✗ WebSocket ошибка: {ws.exception()}")
+            elif msg.type == web.WSMsgType.CLOSE:
+                print(f"ℹ WebSocket закрыт клиентом {client_id}")
+                break
     finally:
-        websocket_clients.remove(ws)
-        print(f"✗ Браузер отключен. Всего клиентов: {len(websocket_clients)}")
+        websocket_clients.discard(ws)
+        rate_limiter.cleanup(client_id)
+        print(f"✗ Браузер отключен (ID: {client_id}). Всего клиентов: {len(websocket_clients)}")
     
     return ws
 
