@@ -149,6 +149,16 @@ public:
     float getMemoryUsagePercent() const { return stats_.memory_usage_percent; }
     
     /**
+     * @brief Получить качество WiFi сигнала (0-100%)
+     */
+    int getWifiLinkQuality() const { return stats_.wifi_link_quality; }
+    
+    /**
+     * @brief Получить RSSI WiFi сигнала (dBm)
+     */
+    int getWifiRssi() const { return stats_.wifi_rssi; }
+    
+    /**
      * @brief Проверить, требуется ли троттлинг
      */
     bool needsThrottling() const;
@@ -187,6 +197,7 @@ private:
     void readMemoryStats();
     void readDiskStats();
     void readNetworkStats();
+    void readWifiQuality();
     void readThrottlingStatus();
     uint32_t readCpuFrequency() const;
     

@@ -369,7 +369,8 @@ void WebSocketServer::broadcastTelemetry(const Telemetry& telemetry,
                                         float mag_x,
                                         float mag_y,
                                         float mag_z,
-                                        float ultrasonic_dist) {
+                                        float ultrasonic_dist,
+                                        int wifi_quality) {
     std::ostringstream json;
     json << "{\"type\":\"TELEMETRY\","
          << "\"battery\":" << telemetry.battery_voltage << ","
@@ -389,7 +390,8 @@ void WebSocketServer::broadcastTelemetry(const Telemetry& telemetry,
          << "\"mag_x\":" << mag_x << ","
          << "\"mag_y\":" << mag_y << ","
          << "\"mag_z\":" << mag_z << ","
-         << "\"ultrasonic_cm\":" << ultrasonic_dist << "}";
+         << "\"ultrasonic_cm\":" << ultrasonic_dist << ","
+         << "\"wifi_quality\":" << wifi_quality << "}";
     
     std::string message = json.str();
     auto frame = createWebSocketFrame(message, true);

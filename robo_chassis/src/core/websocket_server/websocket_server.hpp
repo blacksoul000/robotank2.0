@@ -59,10 +59,18 @@ public:
     /**
      * @brief Отправить телеметрию всем подключенным клиентам
      * @param telemetry Данные телеметрии для отправки
+     * @param cpu_temp Температура CPU (градусы Цельсия)
+     * @param memory_percent Использование памяти (%)
+     * @param heading Курс компаса (0-360 градусов)
+     * @param mag_x Магнитометр X (мкТл)
+     * @param mag_y Магнитометр Y (мкТл)
+     * @param mag_z Магнитометр Z (мкТл)
+     * @param ultrasonic_dist Дистанция до препятствия (см)
+     * @param wifi_quality Качество WiFi сигнала (%)
      */
     void broadcastTelemetry(const Telemetry& telemetry, float cpu_temp, float memory_percent,
                            float heading = -1.0f, float mag_x = 0.0f, float mag_y = 0.0f,
-                           float mag_z = 0.0f, float ultrasonic_dist = -1.0f);
+                           float mag_z = 0.0f, float ultrasonic_dist = -1.0f, int wifi_quality = 0);
     
     /**
      * @brief Установить обработчик входящих команд

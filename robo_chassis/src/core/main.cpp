@@ -165,7 +165,8 @@ int main() {
                                            compass_ok ? mag_x : 0.0f,
                                            compass_ok ? mag_y : 0.0f,
                                            compass_ok ? mag_z : 0.0f,
-                                           ultrasonic_ok ? distance_cm : -1.0f);
+                                           ultrasonic_ok ? distance_cm : -1.0f,
+                                           sys_monitor.getWifiLinkQuality());
                 
                 // Проверка на троттлинг и критические состояния
                 if (sys_monitor.needsThrottling()) {

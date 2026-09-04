@@ -301,6 +301,9 @@ void SystemMonitor::readNetworkStats() {
         return;
     }
     
+    // Чтение WiFi качества (RSSI) для wlan0
+    readWifiQuality();
+    
     std::string line;
     uint64_t total_rx = 0, total_tx = 0;
     
@@ -336,6 +339,66 @@ void SystemMonitor::readNetworkStats() {
     
     stats_.network_rx_bytes = total_rx;
     stats_.network_tx_bytes = total_tx;
+}
+
+void SystemMonitor::readWifiQuality() {
+    // Чтение качества WiFi сигнала через /proc/net/wireless
+    std::ifstream wireless_file("/proc/net/wireless");
+    if (!wireless_file.is_open()) {
+        stats_.wifi_rssi = 0;
+        stats_.wifi_link_quality = 0;
+        return;
+    }
+    
+    std::string line;
+    // Пропускаем заголовок (2 строки)
+    std::getline(wireless_file, line);
+    std::getline(wireless_file, line);
+    
+    while (std::getline(wireless_file, line)) {
+        // Ищем интерфейс wlan0
+        if (line.find("wlan0") == std::string::npos) {
+            continue;
+        }
+        
+        // Формат: wlan0: status link level noise nwid crypt frag retry misc beacon miss
+        // Сдвиги:         0     1    2     3    4    5     6    7    8      9
+        std::istringstream iss(line);
+        std::string iface;
+        int status, link, level, noise;
+        
+        iss >> iface >> status >> link >> level >> noise;
+        
+        if (iface.find("wlan0") != std::string::npos) {
+            // level = RSSI в dBm (обычно -90..-30)
+            // link = качество связи (0-100)
+            stats_.wifi_rssi = level;
+            stats_.wifi_link_quality = link;
+            
+            LOG_DEBUG("WiFi RSSI: " + std::to_string(level) + " dBm, Link: " + 
+                     std::to_string(link) + "%");
+            return;
+        }
+    }
+    
+    // Если wlan0 не найден, пробуем альтернативный метод через iwconfig
+    FILE* pipe = popen("iwconfig 2>/dev/null | grep -A1 'wlan0' | grep 'Signal' | awk '{print $4}' | cut -d= -f2", "r");
+    if (pipe) {
+        char buffer[64];
+        if (fgets(buffer, sizeof(buffer), pipe) != nullptr) {
+            try {
+                int rssi = std::stoi(std::string(buffer).substr(0, std::string(buffer).find_first_not_of("-0123456789\n\r") == std::string::npos ? std::string(buffer).length() : std::string(buffer).find_first_not_of("-0123456789\n\r")));
+                stats_.wifi_rssi = rssi;
+                // Конвертируем RSSI в процент (примерно)
+                // -90 dBm = 0%, -50 dBm = 100%
+                stats_.wifi_link_quality = std::max(0, std::min(100, (int)(2 * (rssi + 90))));
+            } catch (...) {
+                stats_.wifi_rssi = 0;
+                stats_.wifi_link_quality = 0;
+            }
+        }
+        pclose(pipe);
+    }
 }
 
 void SystemMonitor::readThrottlingStatus() {
