@@ -5,6 +5,8 @@ from aiohttp import web
 import json
 import socket
 import logging
+import time
+from collections import defaultdict
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("Bridge")
@@ -14,6 +16,39 @@ TCP_HOST = '127.0.0.1'
 TCP_PORT = 5555
 HTTP_PORT = 8080
 WS_PORT = 8765
+RATE_LIMIT_MESSAGES_PER_SEC = 20  # Максимум сообщений в секунду от клиента
+
+class RateLimiter:
+    """Ограничитель частоты сообщений для защиты от DoS"""
+    def __init__(self, max_messages_per_sec=RATE_LIMIT_MESSAGES_PER_SEC):
+        self.max_messages = max_messages_per_sec
+        self.client_timestamps = defaultdict(list)
+        
+    def is_allowed(self, client_id):
+        """Проверяет, можно ли отправить сообщение этому клиенту"""
+        now = time.time()
+        # Очищаем старые временные метки (старше 1 секунды)
+        self.client_timestamps[client_id] = [
+            ts for ts in self.client_timestamps[client_id] 
+            if now - ts < 1.0
+        ]
+        
+        # Проверяем лимит
+        if len(self.client_timestamps[client_id]) >= self.max_messages:
+            return False
+            
+        # Добавляем текущую временную метку
+        self.client_timestamps[client_id].append(now)
+        return True
+    
+    def get_remaining(self, client_id):
+        """Возвращает количество оставшихся сообщений в текущей секунде"""
+        now = time.time()
+        self.client_timestamps[client_id] = [
+            ts for ts in self.client_timestamps[client_id] 
+            if now - ts < 1.0
+        ]
+        return max(0, self.max_messages - len(self.client_timestamps[client_id]))
 
 class TcpClient:
     """Клиент для связи с C++ ядром по TCP"""
@@ -56,15 +91,30 @@ class TcpClient:
 # Глобальные объекты
 tcp_client = TcpClient()
 connected_clients = set()  # WebSocket клиенты
+rate_limiter = RateLimiter(RATE_LIMIT_MESSAGES_PER_SEC)  # Ограничитель частоты
 
 async def handle_websocket(websocket, path=None):
     """Обработка WebSocket соединений с браузером"""
+    # Используем ID клиента для rate limiting
+    client_id = id(websocket)
     connected_clients.add(websocket)
     logger.info(f"Браузер подключен. Всего клиентов: {len(connected_clients)}")
     
     try:
         async for message in websocket:
             try:
+                # Проверка rate limiting
+                if not rate_limiter.is_allowed(client_id):
+                    remaining = rate_limiter.get_remaining(client_id)
+                    if remaining == 0:
+                        logger.warning(f"Rate limit превышен для клиента {client_id}")
+                        # Отправляем предупреждение клиенту
+                        await websocket.send(json.dumps({
+                            "type": "WARNING",
+                            "message": f"Rate limit exceeded. Max {RATE_LIMIT_MESSAGES_PER_SEC} msg/sec"
+                        }))
+                    continue
+                
                 data = json.loads(message)
                 
                 # Если это команда управления - отправляем в C++
@@ -88,6 +138,9 @@ async def handle_websocket(websocket, path=None):
         pass
     finally:
         connected_clients.remove(websocket)
+        # Очищаем данные rate limiter при отключении
+        if client_id in rate_limiter.client_timestamps:
+            del rate_limiter.client_timestamps[client_id]
         logger.info(f"Браузер отключен. Осталось клиентов: {len(connected_clients)}")
 
 async def telemetry_sender():

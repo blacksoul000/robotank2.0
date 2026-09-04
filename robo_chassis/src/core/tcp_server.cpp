@@ -7,6 +7,9 @@
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
+#include <nlohmann/json.hpp>
+
+using json = nlohmann::json;
 
 TcpServer::TcpServer(int port, RobotLogic& robot) 
     : m_port(port), m_robot(robot) {
@@ -104,57 +107,46 @@ void TcpServer::handle_client(int client_fd) {
     }
 }
 
-// Очень простой парсер JSON без внешних библиотек
-// Ожидает формат: {"left_x":0.5,"left_y":-0.3,"right_x":0,"right_y":0.8,"fire":false}
-bool TcpServer::parse_command(const std::string& json, Command& cmd) {
-    auto find_value = [&](const std::string& key) -> std::string {
-        size_t pos = json.find("\"" + key + "\"");
-        if (pos == std::string::npos) return "";
-        
-        pos = json.find(':', pos);
-        if (pos == std::string::npos) return "";
-        
-        pos++; // пропуск ':'
-        while (pos < json.size() && (json[pos] == ' ' || json[pos] == '\t')) pos++;
-        
-        if (pos >= json.size()) return "";
-        
-        size_t end = pos;
-        if (json[pos] == '"') {
-            end = json.find('"', pos + 1);
-            if (end == std::string::npos) return "";
-            return json.substr(pos + 1, end - pos - 1);
-        } else {
-            while (end < json.size() && json[end] != ',' && json[end] != '}' && json[end] != '\n') {
-                end++;
-            }
-            return json.substr(pos, end - pos);
-        }
-    };
-
+// Парсер JSON с использованием nlohmann/json для безопасности и надёжности
+bool TcpServer::parse_command(const std::string& json_str, Command& cmd) {
     try {
-        std::string val;
+        // Используем безопасный парсер nlohmann/json
+        json j = json::parse(json_str);
         
-        val = find_value("left_x");
-        if (!val.empty()) cmd.left_x = std::stof(val);
+        // Извлекаем значения с проверкой типа
+        if (j.contains("left_x") && j["left_x"].is_number()) {
+            cmd.left_x = j["left_x"].get<float>();
+        }
         
-        val = find_value("left_y");
-        if (!val.empty()) cmd.left_y = std::stof(val);
+        if (j.contains("left_y") && j["left_y"].is_number()) {
+            cmd.left_y = j["left_y"].get<float>();
+        }
         
-        val = find_value("right_x");
-        if (!val.empty()) cmd.right_x = std::stof(val);
+        if (j.contains("right_x") && j["right_x"].is_number()) {
+            cmd.right_x = j["right_x"].get<float>();
+        }
         
-        val = find_value("right_y");
-        if (!val.empty()) cmd.right_y = std::stof(val);
+        if (j.contains("right_y") && j["right_y"].is_number()) {
+            cmd.right_y = j["right_y"].get<float>();
+        }
         
-        val = find_value("fire");
-        cmd.fire = (val == "true");
+        if (j.contains("fire") && j["fire"].is_boolean()) {
+            cmd.fire = j["fire"].get<bool>();
+        }
         
-        val = find_value("lights");
-        cmd.lights = (val == "true");
-
+        if (j.contains("lights") && j["lights"].is_boolean()) {
+            cmd.lights = j["lights"].get<bool>();
+        }
+        
         return true;
-    } catch (...) {
+    } catch (const json::parse_error& e) {
+        LOG_WARNING_SRC("Ошибка парсинга JSON: " + std::string(e.what()), "tcp_server");
+        return false;
+    } catch (const json::type_error& e) {
+        LOG_WARNING_SRC("Ошибка типа JSON: " + std::string(e.what()), "tcp_server");
+        return false;
+    } catch (const std::exception& e) {
+        LOG_WARNING_SRC("Неизвестная ошибка при парсинге: " + std::string(e.what()), "tcp_server");
         return false;
     }
 }

@@ -1,23 +1,50 @@
 ```
-# Compiled Python files
-*.pyc
-__pycache__/
+# CMake build directory
+robo_chassis/build/
 
-# Dependencies
-.venv/
-venv/
-node_modules/
+# Compiled objects and binaries
+*.o
+*.obj
+*.out
+robo_chassis/build/robo_chassis
 
-# Logs and temp files
-*.log
+# CMake generated files
+CMakeCache.txt
+cmake_install.cmake
+compile_commands.json
+Makefile
+
+# Temporary and log files
 *.tmp
+*.log
 
-# Editors
-.vscode/
-.idea/
-
-# Environment files
+# Environment and cache
 .env
 .env.local
-*.env.*
+.env.*
+
+# IDE and editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Dependencies and virtual environments
+node_modules/
+.venv/
+venv/
+__pycache__/
+.mypy_cache/
+.pytest_cache/
+target/
+.gradle/
+
+# Coverage reports
+coverage/
+htmlcov/
+.coverage
+
+# System files
+.DS_Store
+Thumbs.db
 ```
