@@ -1,5 +1,8 @@
 #pragma once
 
+#include "exchangers/i_exchanger.hpp"
+#include "gpio/i_imu.hpp"
+#include "robot_controller_interface.hpp"
 #include <string>
 #include <atomic>
 #include <mutex>
@@ -9,11 +12,6 @@
 #include <memory>
 #include <chrono>
 #include <vector>
-
-namespace robo_chassis {
-    class IImu;
-    class IExchanger;
-}
 
 // Структура телеметрии
 struct Telemetry {
@@ -68,7 +66,7 @@ struct ArduinoPkg {
 
 class SerialPort;
 
-class RobotLogic {
+class RobotLogic : public robo_chassis::IRobotController {
 public:
     // Конструктор с IExchanger (новый интерфейс)
     explicit RobotLogic(std::unique_ptr<robo_chassis::IExchanger> exchanger, bool simulation_mode = false);
@@ -76,29 +74,29 @@ public:
     ~RobotLogic();
     
     // Обработка входящей команды
-    void process_command(const Command& cmd);
+    void process_command(const Command& cmd) override;
     
     // Обновление телеметрии (чтение датчиков и обмен с Arduino)
-    void update_telemetry();
+    void update_telemetry() override;
     
     // Отправка команд на Arduino
-    void send_to_arduino();
+    void send_to_arduino() override;
     
     // Получение текущей телеметрии
-    Telemetry get_telemetry() const;
+    Telemetry get_telemetry() const override;
     
     // Проверка наличия новой телеметрии для отправки
-    bool has_new_telemetry() const { return telemetry_updated; }
-    void reset_telemetry_flag() { telemetry_updated = false; }
+    bool has_new_telemetry() const override { return telemetry_updated; }
+    void reset_telemetry_flag() override { telemetry_updated = false; }
     
     // Проверка онлайн статуса Arduino
-    bool is_arduino_online() const { return m_telemetry.arduino_online; }
+    bool is_arduino_online() const override { return m_telemetry.arduino_online; }
     
     // Калибровка гироскопа
-    void calibrate_gyro();
+    void calibrate_gyro() override;
     
     // Калибровка оружия (нулевой угол возвышения)
-    void calibrate_gun();
+    void calibrate_gun() override;
     
     // Инициализация IMU
     void init_imu(const std::string& i2c_device = "/dev/i2c-1");

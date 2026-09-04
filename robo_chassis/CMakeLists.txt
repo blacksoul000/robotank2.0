@@ -44,6 +44,10 @@ add_executable(robo_chassis
 find_package(Threads REQUIRED)
 target_link_libraries(robo_chassis PRIVATE Threads::Threads)
 
+# nlohmann/json для парсинга JSON
+find_package(nlohmann_json REQUIRED)
+target_link_libraries(robo_chassis PRIVATE nlohmann_json::nlohmann_json)
+
 # pigpio для работы с GPIO (ультразвук) - замена wiringPi
 find_library(PIGPIO_LIB NAMES pigpiod_if2 pigpio)
 if(PIGPIO_LIB)
@@ -61,3 +65,8 @@ endif()
 
 # Установка
 install(TARGETS robo_chassis DESTINATION bin)
+
+# HAL (Hardware Abstraction Layer) для GPIO/I2C
+target_sources(robo_chassis PRIVATE
+    src/core/hal/linux_gpio_hal.cpp
+)

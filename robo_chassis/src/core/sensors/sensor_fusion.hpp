@@ -2,8 +2,18 @@
 
 #include <cstdint>
 #include <string>
+#include <memory>
+#include <mutex>
+
+// Forward declarations
+namespace robo_chassis {
+    class Mpu6050Imu;
+}
 
 namespace robo_chassis {
+namespace sensors {
+    class Compass;
+}
 
 // Результаты слияния данных сенсоров
 struct FusionData {
@@ -36,7 +46,7 @@ enum class FusionStatus {
 class SensorFusion {
 public:
     SensorFusion();
-    ~SensorFusion() = default;
+    ~SensorFusion();
     
     // Инициализация
     bool init();
@@ -73,6 +83,17 @@ private:
     
     // Временные метки
     uint64_t last_update_ms_ = 0;
+    
+    // Локальные экземпляры датчиков (владеют ресурсами)
+    std::unique_ptr<Mpu6050Imu> imu_instance_;
+    std::unique_ptr<sensors::Compass> compass_instance_;
+    
+    // Рабочие указатели на датчики
+    Mpu6050Imu* imu_;
+    sensors::Compass* compass_;
+    
+    // Мьютекс для потокобезопасности
+    mutable std::mutex mutex_;
     
     // Внутренние методы
     void readIMU();

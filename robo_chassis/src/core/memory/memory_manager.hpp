@@ -137,8 +137,13 @@ private:
 
 } // namespace robo_chassis
 
-// Макросы для удобного доступа
+// Макросы для удобного доступа (оптимизировано для RPi 2B)
 #define MEM_STATS robo_chassis::MemoryManager::instance().get_stats()
-#define MEM_UPDATE robo_chassis::MemoryManager::instance().update()
+#define MEM_UPDATE do { \
+    static uint32_t mem_update_counter = 0; \
+    if (++mem_update_counter % 10 == 0) { /* Вызов каждые 10 итераций (~500мс при 50мс интервале) */ \
+        robo_chassis::MemoryManager::instance().update(); \
+    } \
+} while(0)
 #define MEM_OPTIMIZE robo_chassis::MemoryManager::instance().auto_optimize()
 #define MEM_CLEAR_CACHE robo_chassis::MemoryManager::instance().clear_kernel_cache()

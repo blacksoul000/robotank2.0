@@ -10,6 +10,8 @@
 #include <arpa/inet.h>
 #include <algorithm>
 #include <cmath>
+#include <set>
+#include <map>
 
 namespace robo_chassis {
 
@@ -81,6 +83,7 @@ void WebSocketServer::stop() {
     
     m_running = false;
     
+    // Закрываем все клиентские сокеты для сигнализации потокам об остановке
     {
         std::lock_guard<std::mutex> lock(m_mutex);
         for (int client_fd : m_clients) {
@@ -90,6 +93,17 @@ void WebSocketServer::stop() {
             }
         }
         m_clients.clear();
+    }
+    
+    // Ждем завершения всех активных потоков обработки клиентов
+    {
+        std::lock_guard<std::mutex> thread_lock(m_threads_mutex);
+        for (auto& t : m_client_threads) {
+            if (t.joinable()) {
+                t.join();
+            }
+        }
+        m_client_threads.clear();
     }
     
     if (m_server_thread.joinable()) {
@@ -162,7 +176,10 @@ void WebSocketServer::serverLoop() {
                 if (performHandshake(client_fd)) {
                     std::lock_guard<std::mutex> lock(m_mutex);
                     m_clients.push_back(client_fd);
-                    std::thread(&WebSocketServer::handleClient, this, client_fd).detach();
+                    
+                    // Создаём поток в joinable режиме и сохраняем его для последующего join
+                    std::lock_guard<std::mutex> thread_lock(m_threads_mutex);
+                    m_client_threads.emplace_back(&WebSocketServer::handleClient, this, client_fd);
                 } else {
                     close(client_fd);
                 }
@@ -248,6 +265,7 @@ void WebSocketServer::handleClient(int client_fd) {
         auto it = std::find(m_clients.begin(), m_clients.end(), client_fd);
         if (it != m_clients.end()) m_clients.erase(it);
     }
+    
     
     close(client_fd);
     LOG_INFO("Клиент WebSocket отключился");
@@ -400,10 +418,40 @@ void WebSocketServer::broadcastTelemetry(const Telemetry& telemetry,
     std::string message = json.str();
     auto frame = createWebSocketFrame(message, true);
     
+    // Backpressure: отключение медленных клиентов
+    std::vector<int> clients_to_remove;
+    const size_t max_send_attempts = 3;
+    
     std::lock_guard<std::mutex> lock(m_mutex);
     for (int client_fd : m_clients) {
-        if (client_fd >= 0) {
-            write(client_fd, frame.data(), frame.size());
+        if (client_fd < 0) continue;
+        
+        // Попытка отправки с обработкой ошибок
+        size_t attempts = 0;
+        ssize_t sent = 0;
+        while (attempts < max_send_attempts) {
+            sent = write(client_fd, frame.data(), frame.size());
+            if (sent >= 0 || errno != EAGAIN) {
+                break; // Успех или некритическая ошибка
+            }
+            attempts++;
+            std::this_thread::sleep_for(std::chrono::milliseconds(5));
+        }
+        
+        // Если не удалось отправить - помечаем клиента на удаление
+        if (sent < 0 && (errno == EPIPE || errno == EBADF || errno == ECONNRESET)) {
+            clients_to_remove.push_back(client_fd);
+            LOG_WARNING("WebSocket клиент отключился или медленно отправляет данные (fd={})", client_fd);
+        }
+    }
+    
+    // Удаление проблемных клиентов
+    for (int fd : clients_to_remove) {
+        auto it = std::find(m_clients.begin(), m_clients.end(), fd);
+        if (it != m_clients.end()) {
+            close(*it);
+            m_clients.erase(it);
+            LOG_INFO("WebSocket клиент удален из списка подключений");
         }
     }
 }

@@ -1,6 +1,8 @@
 #include "i2c_simulator.hpp"
+#include "../logger/logger.hpp"
 #include <iostream>
 #include <cstring>
+#include <atomic>
 
 namespace robo_chassis {
 
@@ -23,6 +25,9 @@ public:
     
     std::mt19937 rng;
     std::uniform_real_distribution<float> noise_dist;
+    
+    // Для отслеживания последней команды - используем atomic для thread-safe доступа
+    std::atomic<uint8_t> last_command{0xFF};
     
     Impl() : rng(std::random_device{}()), noise_dist(-2.0f, 2.0f) {}
     
@@ -104,6 +109,8 @@ bool I2CSimulator::open() {
     std::cout << "  Package size: " << d->package_size << " bytes\n";
     std::cout << "  Update interval: " << d->read_interval_ms << " ms\n";
     
+    LOG_INFO("Симуляция I2C запущена");
+    
     return true;
 }
 
@@ -119,6 +126,8 @@ void I2CSimulator::close() {
     }
     
     std::cout << "[I2CSimulator] Simulation stopped\n";
+    
+    LOG_INFO("Симуляция I2C остановлена");
 }
 
 bool I2CSimulator::is_open() const {
@@ -137,8 +146,13 @@ bool I2CSimulator::send_data(const uint8_t* data, size_t len) {
     // В режиме симуляции просто логируем отправленные данные
     // Можно добавить обработку команд для изменения состояния симуляции
     if (len >= 1) {
-        std::cout << "[I2CSimulator] Received command: 0x" 
-                  << std::hex << static_cast<int>(data[0]) << std::dec << "\n";
+        uint8_t command = data[0];
+        
+        // Не выводим сообщение, если команда равна предыдущей
+        if (command != d->last_command.load()) {
+            d->last_command.store(command);
+            LOG_INFO("Получена команда: 0x%02X", static_cast<int>(command));
+        }
     }
     
     return true;

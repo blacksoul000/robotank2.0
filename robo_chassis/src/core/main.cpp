@@ -103,7 +103,12 @@ int main() {
         if (i2c_config.simulation_mode) {
             LOG_INFO("IMU отключен: режим симуляции активен");
         } else if (i2c_config.imu_enabled) {
-            robot.init_imu(i2c_config.device);
+            try {
+                robot.init_imu(i2c_config.device);
+                LOG_INFO("IMU успешно инициализирован");
+            } catch (const std::exception& e) {
+                LOG_ERROR("Ошибка инициализации IMU: " + std::string(e.what()));
+            }
         } else {
             LOG_INFO("IMU отключен в конфигурации");
         }
@@ -119,10 +124,16 @@ int main() {
         robo_chassis::SensorFusion sensor_fusion;
         if (i2c_config.simulation_mode) {
             LOG_INFO("SensorFusion отключен: режим симуляции активен");
-        } else if (sensor_fusion.init()) {
-            LOG_INFO("SensorFusion успешно инициализирован");
         } else {
-            LOG_ERROR("Не удалось инициализировать SensorFusion");
+            try {
+                if (sensor_fusion.init()) {
+                    LOG_INFO("SensorFusion успешно инициализирован");
+                } else {
+                    LOG_ERROR("Не удалось инициализировать SensorFusion");
+                }
+            } catch (const std::exception& e) {
+                LOG_ERROR("Ошибка инициализации SensorFusion: " + std::string(e.what()));
+            }
         }
         
         // 8. Инициализация ультразвука отдельно - только в реальном режиме
@@ -130,11 +141,17 @@ int main() {
         
         if (i2c_config.simulation_mode) {
             LOG_INFO("Ультразвуковой дальномер отключен: режим симуляции активен");
-        } else if (ultrasonic.init()) {
-            LOG_INFO("Ультразвуковой дальномер успешно инициализирован");
-            ultrasonic.setMaxDistanceCm(400.0f); // Максимальная дистанция 400 см
         } else {
-            LOG_WARNING("Не удалось инициализировать ультразвуковой дальномер (проверьте GPIO)");
+            try {
+                if (ultrasonic.init()) {
+                    LOG_INFO("Ультразвуковой дальномер успешно инициализирован");
+                    ultrasonic.setMaxDistanceCm(400.0f); // Максимальная дистанция 400 см
+                } else {
+                    LOG_WARNING("Не удалось инициализировать ультразвуковой дальномер (проверьте GPIO)");
+                }
+            } catch (const std::exception& e) {
+                LOG_ERROR("Ошибка инициализации ультразвукового дальномера: " + std::string(e.what()));
+            }
         }
         
         // 9. Инициализация AutonomyManager

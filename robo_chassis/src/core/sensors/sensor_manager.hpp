@@ -142,7 +142,7 @@ private:
     UltrasonicData last_ultrasonic_;
     CompassData last_compass_;
     
-    // Данные для калибровки компаса
+    // Данные для калибровки компаса (резервирование памяти для избежания реаллокаций)
     std::vector<CompassData> calibration_samples_;
     float compass_min_x_ = -1000.0f;
     float compass_max_x_ = 1000.0f;

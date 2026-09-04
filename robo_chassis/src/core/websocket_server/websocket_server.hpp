@@ -93,6 +93,10 @@ private:
     // Список подключенных клиентов (дескрипторы сокетов)
     std::vector<int> m_clients;
     
+    // Потоки обработки клиентов для безопасного завершения
+    std::vector<std::thread> m_client_threads;
+    std::mutex m_threads_mutex;
+    
     // Обработчик команд
     std::function<void(const Command&)> m_command_callback;
     
