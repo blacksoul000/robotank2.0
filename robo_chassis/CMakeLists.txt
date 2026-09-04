@@ -15,6 +15,8 @@ endif()
 set(CMAKE_BUILD_TYPE Release)
 
 # Основной исполняемый файл (чистый C++ без Qt)
+include_directories(${CMAKE_SOURCE_DIR}/src/core)
+
 add_executable(robo_chassis
     src/core/main.cpp
     src/core/tcp_server.cpp

@@ -147,8 +147,11 @@ int main() {
                 MEM_UPDATE;  // Обновление статистики памяти
                 
                 // Чтение данных с дополнительных датчиков
-                float heading = 0.0f, mag_x = 0.0f, mag_y = 0.0f, mag_z = 0.0f;
-                bool compass_ok = compass.isReady() && compass.read(heading, mag_x, mag_y, mag_z);
+                float heading = 0.0f;
+                bool compass_ok = compass.isReady();
+                if (compass_ok) {
+                    heading = compass.getHeading();
+                }
                 
                 float distance_cm = 0.0f;
                 bool ultrasonic_ok = ultrasonic.isReady();
@@ -156,15 +159,15 @@ int main() {
                     distance_cm = ultrasonic.readDistanceCm();
                 }
                 
-                // Отправка телеметрии через WebSocket
+                // Отправка телеметрии через WebSocket (только heading, без mag_x/y/z)
                 Telemetry telem = robot.get_telemetry();
                 ws_server.broadcastTelemetry(telem, 
                                            sys_monitor.getCpuTemperature(),
                                            sys_monitor.getMemoryUsagePercent(),
                                            compass_ok ? heading : -1.0f,
-                                           compass_ok ? mag_x : 0.0f,
-                                           compass_ok ? mag_y : 0.0f,
-                                           compass_ok ? mag_z : 0.0f,
+                                           0.0f,  // mag_x не передается (используется внутри)
+                                           0.0f,  // mag_y не передается (используется внутри)
+                                           0.0f,  // mag_z не передается (используется внутри)
                                            ultrasonic_ok ? distance_cm : -1.0f,
                                            sys_monitor.getWifiLinkQuality());
                 

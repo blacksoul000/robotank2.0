@@ -1,5 +1,5 @@
 ```
-# Compiled and build artifacts
+# Build artifacts
 *.o
 *.obj
 *.out
@@ -7,54 +7,94 @@ build/
 dist/
 
 # Dependencies
-node_modules/
 venv/
 .venv/
 __pycache__/
-.mypy_cache/
-.pytest_cache/
-target/
-.gradle/
+*.pyc
+*.pyo
+*.pyd
+.Python
+env/
+.venv.bak/
+pip-log.txt
+pip-delete-this-directory.txt
 
-# Logs and temp files
+# CMake build system
+CMakeFiles/
+CMakeCache.txt
+cmake_install.manifest
+install_manifest.txt
+Makefile
+*.cmake
+bin/
+
+# Core dumps
+*.core
+
+# Logs
 *.log
-*.tmp
-*.swp
 
-# Environment
+# Environment variables
 .env
 .env.local
 *.env.*
 
-# Editors
+# IDE specific
 .vscode/
 .idea/
-
-# System files
+*.swp
+*.swo
+*~
 .DS_Store
 Thumbs.db
 
-# Compressed files
-*.zip
-*.gz
-*.tar
-*.tgz
-*.bz2
-*.xz
-*.7z
-*.rar
-*.zst
-*.lz4
-*.lzh
-*.cab
-*.arj
-*.rpm
-*.deb
-*.Z
-*.lz
-*.lzo
-*.tar.gz
-*.tar.bz2
-*.tar.xz
-*.tar.zst
-```
+## Coverage reports
+#coverage/
+#htmlcov/
+#.coverage
+#
+## Python cache
+#__pycache__/
+#*.py[cod]
+#*$py.class
+#*.so
+#.Python
+#build/
+#develop-eggs/
+#dist/
+#downloads/
+#eggs/
+#.eggs/
+#lib/
+#lib64/
+#parts/
+#sdist/
+#var/
+#wheels/
+#*.egg-info/
+#.installed.cfg
+#*.egg
+
+## Compressed files
+#*.zip
+#*.gz
+#*.tar
+#*.tgz
+#*.bz2
+#*.xz
+#*.7z
+#*.rar
+#*.zst
+#*.lz4
+#*.lzh
+#*.cab
+#*.arj
+#*.rpm
+#*.deb
+#*.Z
+#*.lz
+#*.lzo
+#*.tar.gz
+#*.tar.bz2
+#*.tar.xz
+#*.tar.zst
