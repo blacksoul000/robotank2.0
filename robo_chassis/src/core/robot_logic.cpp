@@ -1,7 +1,7 @@
 #include "robot_logic.hpp"
 #include "exchangers/i_exchanger.hpp"
 #include "gpio/mpu6050_imu.hpp"
-#include "logger/logger.hpp"
+#include "logger.hpp"
 #include <chrono>
 #include <cstring>
 
@@ -38,9 +38,9 @@ RobotLogic::RobotLogic(std::unique_ptr<robo_chassis::IExchanger> exchanger, bool
     }
     
     if (m_simulation_mode) {
-        LOG_INFO("[RobotLogic] Инициализирован в режиме СИМУЛЯЦИИ");
+        LOG_INFO_SRC("Инициализирован в режиме СИМУЛЯЦИИ", "robot_logic");
     } else {
-        LOG_INFO("RobotLogic initialized with IExchanger.");
+        LOG_INFO_SRC("RobotLogic initialized with IExchanger", "robot_logic");
     }
 }
 
@@ -48,27 +48,27 @@ RobotLogic::~RobotLogic() {
     if (m_exchanger) {
         m_exchanger->close();
     }
-    LOG_INFO("RobotLogic destroyed.");
+    LOG_INFO_SRC("RobotLogic destroyed", "robot_logic");
 }
 
 void RobotLogic::init_imu(const std::string& i2c_device) {
-    LOG_INFO("[RobotLogic] Инициализация IMU...");
+    LOG_INFO_SRC("Инициализация IMU...", "robot_logic");
     
     // Создаем IMU для шасси (адрес 0x68)
     m_chassis_imu = std::make_unique<robo_chassis::Mpu6050Imu>(i2c_device, 0x68);
     if (m_chassis_imu->init()) {
-        LOG_INFO("[RobotLogic] IMU шасси инициализировано");
+        LOG_INFO_SRC("IMU шасси инициализировано", "robot_logic");
     } else {
-        LOG_ERROR("[RobotLogic] Не удалось инициализировать IMU шасси");
+        LOG_ERROR_SRC("Не удалось инициализировать IMU шасси", "robot_logic");
         m_chassis_imu.reset();
     }
     
     // Создаем IMU для башни (адрес 0x69)
     m_tower_imu = std::make_unique<robo_chassis::Mpu6050Imu>(i2c_device, 0x69);
     if (m_tower_imu->init()) {
-        LOG_INFO("[RobotLogic] IMU башни инициализировано");
+        LOG_INFO_SRC("IMU башни инициализировано", "robot_logic");
     } else {
-        LOG_ERROR("[RobotLogic] Не удалось инициализировать IMU башни");
+        LOG_ERROR_SRC("Не удалось инициализировать IMU башни", "robot_logic");
         m_tower_imu.reset();
     }
 }
@@ -86,7 +86,7 @@ void RobotLogic::process_command(const Command& cmd) {
     // Обработка команды стрельбы (логика из GpioController)
     if (cmd.fire && !m_shooting) {
         m_shooting = true;
-        LOG_INFO("ОГОНЬ!");
+        LOG_INFO_SRC("ОГОНЬ!", "robot_logic");
     } else if (!cmd.fire && m_shooting) {
         m_shot_closing = true;
     }
@@ -104,14 +104,14 @@ void RobotLogic::calibrate_gyro() {
     if (m_chassis_imu && m_chassis_imu->isReady()) {
         m_chassis_yaw_offset = m_chassis_imu->yaw();
         m_chassis_imu->setYawOffset(0.0f);
-        LOG_INFO("Гироскоп шасси откалиброван.");
+        LOG_INFO_SRC("Гироскоп шасси откалиброван", "robot_logic");
     }
     
     // Калибровка гироскопа башни
     if (m_tower_imu && m_tower_imu->isReady()) {
         m_tower_yaw_offset = m_tower_imu->yaw();
         m_tower_imu->setYawOffset(0.0f);
-        LOG_INFO("Гироскоп башни откалиброван.");
+        LOG_INFO_SRC("Гироскоп башни откалиброван", "robot_logic");
     }
     
     m_telemetry.yaw = 0.0f;
@@ -120,7 +120,7 @@ void RobotLogic::calibrate_gyro() {
 void RobotLogic::calibrate_gun() {
     std::lock_guard<std::mutex> lock(m_mutex);
     // Установка нулевого угла возвышения оружия
-    LOG_INFO("Оружие откалибровано.");
+    LOG_INFO_SRC("Оружие откалибровано", "robot_logic");
 }
 
 uint16_t RobotLogic::crc16(const unsigned char* data, unsigned short len) const {
@@ -145,7 +145,7 @@ void RobotLogic::process_arduino_data(const uint8_t* data, size_t len) {
     if (len != sizeof(ArduinoPkg)) {
         // В режиме симуляции I2CSimulator отправляет 9 байт, а не sizeof(ArduinoPkg)
         if (!m_simulation_mode) {
-            LOG_ERROR("Неверный размер пакета от Arduino: " + std::to_string(len));
+            LOG_WARNING_SRC("Неверный размер пакета от Arduino: " + std::to_string(len), "robot_logic");
         }
         return;
     }
@@ -154,7 +154,7 @@ void RobotLogic::process_arduino_data(const uint8_t* data, size_t len) {
     
     if (!validate_arduino_package(pkg)) {
         if (!m_simulation_mode) {
-            LOG_ERROR("Ошибка CRC в пакете от Arduino");
+            LOG_ERROR_SRC("Ошибка CRC в пакете от Arduino", "robot_logic");
         }
         return;
     }
@@ -213,7 +213,8 @@ void RobotLogic::read_sensors() {
 
 void RobotLogic::on_arduino_data_received(const std::vector<uint8_t>& data) {
     if (data.size() != sizeof(ArduinoPkg)) {
-        LOG_ERROR("[RobotLogic] Неверный размер пакета от Arduino: " + std::to_string(data.size()) + " байт вместо " + std::to_string(sizeof(ArduinoPkg)));
+        LOG_WARNING_SRC("Неверный размер пакета от Arduino: " + std::to_string(data.size()) + 
+                        " байт вместо " + std::to_string(sizeof(ArduinoPkg)), "robot_logic");
         return;
     }
     

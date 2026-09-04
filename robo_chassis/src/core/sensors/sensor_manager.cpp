@@ -61,28 +61,17 @@ bool SensorManager::initialize(int trigger_pin, int echo_pin, uint8_t compass_ad
 
 bool SensorManager::initUltrasonic(int trigger_pin, int echo_pin) {
 #ifdef HAVE_PIGPIO
-    // Проверка: pigpio уже инициализирован? (избегаем повторной инициализации)
-    static bool pigpio_initialized = false;
-    if (!pigpio_initialized) {
-        if (gpioInitialise() < 0) {
-            LOG_ERROR("Не удалось инициализировать pigpio");
-            return false;
-        }
-        pigpio_initialized = true;
-        LOG_INFO("pigpio успешно инициализирован");
+    if (gpioInitialise() < 0) {
+        LOG_ERROR("Не удалось инициализировать pigpio");
+        return false;
     }
     
     gpioSetMode(trigger_pin, PI_OUTPUT);
     gpioSetMode(echo_pin, PI_INPUT);
     
     // Тестовое измерение
-    try {
-        auto test_distance = readUltrasonicDistance();
-        return test_distance.has_value() && test_distance.value() > 0;
-    } catch (const std::exception& e) {
-        LOG_ERROR("Ошибка при тестировании ультразвука: " + std::string(e.what()));
-        return false;
-    }
+    auto test_distance = readUltrasonicDistance();
+    return test_distance.has_value() && test_distance.value() > 0;
 #else
     LOG_WARNING("pigpio доступен только на Linux/Raspberry Pi");
     return false;
@@ -123,48 +112,40 @@ bool SensorManager::initCompass(uint8_t i2c_addr) {
 }
 
 void SensorManager::update() {
+    std::lock_guard<std::mutex> lock(mutex_);
+    
     auto now = std::chrono::steady_clock::now();
     
-    // Обновление ультразвука (без блокировки на время измерения)
+    // Обновление ультразвука
     if (ultrasonic_available_) {
         auto distance = readUltrasonicDistance();
-        
-        // Краткая блокировка только для записи результата
-        {
-            std::lock_guard<std::mutex> lock(mutex_);
-            if (distance.has_value()) {
-                last_ultrasonic_.distance_cm = distance.value();
-                last_ultrasonic_.timestamp = now;
-                last_ultrasonic_.valid = true;
-                
-                // Оценка качества измерения
-                if (distance.value() < 2.0f || distance.value() > 400.0f) {
-                    last_ultrasonic_.quality = 30;
-                } else if (distance.value() < 10.0f || distance.value() > 300.0f) {
-                    last_ultrasonic_.quality = 70;
-                } else {
-                    last_ultrasonic_.quality = 100;
-                }
+        if (distance.has_value()) {
+            last_ultrasonic_.distance_cm = distance.value();
+            last_ultrasonic_.timestamp = now;
+            last_ultrasonic_.valid = true;
+            
+            // Оценка качества измерения
+            if (distance.value() < 2.0f || distance.value() > 400.0f) {
+                last_ultrasonic_.quality = 30;
+            } else if (distance.value() < 10.0f || distance.value() > 300.0f) {
+                last_ultrasonic_.quality = 70;
             } else {
-                last_ultrasonic_.valid = false;
-                last_ultrasonic_.quality = 0;
+                last_ultrasonic_.quality = 100;
             }
+        } else {
+            last_ultrasonic_.valid = false;
+            last_ultrasonic_.quality = 0;
         }
     }
     
-    // Обновление компаса (без блокировки на время I2C чтения)
+    // Обновление компаса
     if (compass_available_) {
         CompassData new_data;
-        
-        // Чтение без блокировки
         if (readCompassData(new_data)) {
             applyCompassCalibration(new_data);
-            new_data.timestamp = now;
-            new_data.valid = true;
-            
-            // Краткая блокировка для записи результатов и обновления калибровки
-            std::lock_guard<std::mutex> lock(mutex_);
             last_compass_ = new_data;
+            last_compass_.timestamp = now;
+            last_compass_.valid = true;
             
             // Сбор данных для калибровки
             if (compass_calibrating_ && calibration_samples_.size() < 100) {
@@ -178,7 +159,6 @@ void SensorManager::update() {
                 compass_max_y_ = std::max(compass_max_y_, new_data.magnetic_field_y);
             }
         } else {
-            std::lock_guard<std::mutex> lock(mutex_);
             last_compass_.valid = false;
         }
     }
@@ -321,7 +301,6 @@ void SensorManager::startCompassCalibration() {
     }
     
     calibration_samples_.clear();
-    calibration_samples_.reserve(100); // Предварительное резервирование памяти
     compass_min_x_ = 1000.0f;
     compass_max_x_ = -1000.0f;
     compass_min_y_ = 1000.0f;

@@ -1,17 +1,51 @@
 ```
 # Build artifacts
+*.o
+*.obj
+*.a
+*.so
+*.dll
+*.exe
+*.out
+
+# CMake build directories
 build/
-CMakeCache.txt
+cmake-build-*/
 CMakeFiles/
+CMakeCache.txt
 Makefile
 cmake_install.cmake
 compile_commands.json
 
-# Compiled objects
-*.o
-*.obj
-*.d
+# Dependencies
+external/
+lib/
 
-# Executables
-robo_chassis
+# Logs
+*.log
+
+# Temporary files
+*.tmp
+*.swp
+*.swo
+
+# Environment
+.env
+.env.local
+*.env.*
+
+# Editors
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Coverage
+coverage/
+htmlcov/
+.coverage
+
+# OS
+.DS_Store
+Thumbs.db
 ```

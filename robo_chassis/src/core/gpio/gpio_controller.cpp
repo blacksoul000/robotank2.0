@@ -2,8 +2,8 @@
 #include "i_imu.hpp"
 #include "mpu6050_imu.hpp"
 #include "complementary_filter.hpp"
+#include "logger.hpp"
 
-#include <iostream>
 #include <cstring>
 #include <cmath>
 #include <map>
@@ -108,7 +108,7 @@ public:
 };
 
 void GpioController::Impl::onShotStatusChanged(bool shot) {
-    std::cout << "[GpioController] Shot status: " << (shot ? "ON" : "OFF") << std::endl;
+    LOG_INFO_SRC("Shot status: " + std::string(shot ? "ON" : "OFF"), "gpio_controller");
 #ifdef HAVE_PIGPIO
     gpioWrite(SHOT_FINISHED_PIN1, shot);
     gpioWrite(SHOT_PIN, shot);
@@ -118,7 +118,7 @@ void GpioController::Impl::onShotStatusChanged(bool shot) {
 
 void GpioController::Impl::onPointerTriggered() {
     pointer = !pointer;
-    std::cout << "[GpioController] Pointer: " << (pointer ? "ON" : "OFF") << std::endl;
+    LOG_INFO_SRC("Pointer: " + std::string(pointer ? "ON" : "OFF"), "gpio_controller");
 #ifdef HAVE_PIGPIO
     gpioWrite(POINTER_PIN, pointer);
 #endif
@@ -153,7 +153,7 @@ void GpioController::start() {
                 d->statusCb(true);
             }
         } else {
-            std::cerr << "[GpioController] Failed to init IMU" << std::endl;
+            LOG_ERROR_SRC("Failed to init IMU", "gpio_controller");
         }
     }
 
@@ -165,12 +165,12 @@ void GpioController::start() {
         // Установка таймера для сервоприводов
         gpioSetTimerFuncEx(0, TICK_INTERVAL, servoTickProxy, this);
 
-        std::cout << "[GpioController] GPIO initialized" << std::endl;
+        LOG_INFO_SRC("GPIO initialized", "gpio_controller");
     } else {
-        std::cerr << "[GpioController] Failed to initialize GPIO" << std::endl;
+        LOG_ERROR_SRC("Failed to initialize GPIO", "gpio_controller");
     }
 #else
-    std::cout << "[GpioController] pigpio not available, running in simulation mode" << std::endl;
+    LOG_INFO_SRC("pigpio not available, running in simulation mode", "gpio_controller");
 #endif
 }
 

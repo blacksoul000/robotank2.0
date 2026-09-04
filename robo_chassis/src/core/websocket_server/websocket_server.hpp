@@ -7,6 +7,8 @@
 #include <vector>
 #include <mutex>
 #include <functional>
+#include <unordered_map>
+#include <chrono>
 
 // Forward declarations
 struct Telemetry;
@@ -93,15 +95,27 @@ private:
     // Список подключенных клиентов (дескрипторы сокетов)
     std::vector<int> m_clients;
     
-    // Потоки обработки клиентов для безопасного завершения
-    std::vector<std::thread> m_client_threads;
-    std::mutex m_threads_mutex;
-    
     // Обработчик команд
     std::function<void(const Command&)> m_command_callback;
     
     // Обработчик команд автономности
     std::function<void(const std::string&)> m_autonomy_callback;
+    
+    // Rate limiting для защиты от DoS
+    struct ClientRateLimit {
+        std::chrono::steady_clock::time_point last_message_time;
+        int message_count = 0;
+        static constexpr int MAX_MESSAGES_PER_SECOND = 20;
+        static constexpr std::chrono::seconds WINDOW_SEC{1};
+    };
+    std::unordered_map<int, ClientRateLimit> m_client_rate_limits;
+    std::mutex m_rate_limit_mutex;
+    
+    // Проверка rate limit для клиента
+    bool checkRateLimit(int client_fd);
+    
+    // Очистка rate limits при отключении клиента
+    void cleanupClientRateLimit(int client_fd);
     
     // Основной цикл сервера
     void serverLoop();

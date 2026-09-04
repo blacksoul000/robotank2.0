@@ -1,6 +1,6 @@
 #include "tcp_server.hpp"
 #include "robot_logic.hpp"
-#include <iostream>
+#include "logger.hpp"
 #include <sstream>
 #include <cstring>
 #include <unistd.h>
@@ -19,7 +19,7 @@ TcpServer::~TcpServer() {
 void TcpServer::run() {
     m_server_fd = socket(AF_INET, SOCK_STREAM, 0);
     if (m_server_fd == -1) {
-        std::cerr << "Ошибка создания сокета\n";
+        LOG_ERROR_SRC("Ошибка создания сокета", "tcp_server");
         return;
     }
 
@@ -32,18 +32,18 @@ void TcpServer::run() {
     address.sin_port = htons(m_port);
 
     if (bind(m_server_fd, (struct sockaddr*)&address, sizeof(address)) < 0) {
-        std::cerr << "Ошибка привязки к порту " << m_port << "\n";
+        LOG_ERROR_SRC("Ошибка привязки к порту " + std::to_string(m_port), "tcp_server");
         close(m_server_fd);
         return;
     }
 
     if (listen(m_server_fd, 3) < 0) {
-        std::cerr << "Ошибка listen\n";
+        LOG_ERROR_SRC("Ошибка listen", "tcp_server");
         close(m_server_fd);
         return;
     }
 
-    std::cout << "TCP сервер запущен на порту " << m_port << "\n";
+    LOG_INFO_SRC("TCP сервер запущен на порту " + std::to_string(m_port), "tcp_server");
     m_running = true;
 
     while (m_running) {
@@ -56,7 +56,7 @@ void TcpServer::run() {
             break;
         }
 
-        std::cout << "Клиент подключен: " << inet_ntoa(client_addr.sin_addr) << "\n";
+        LOG_INFO_SRC("Клиент подключен: " + std::string(inet_ntoa(client_addr.sin_addr)), "tcp_server");
         handle_client(client_fd);
         close(client_fd);
     }
@@ -99,7 +99,7 @@ void TcpServer::handle_client(int client_fd) {
         if (parse_command(line, cmd)) {
             m_robot.process_command(cmd);
         } else {
-            std::cerr << "Неверный формат команды: " << line << "\n";
+            LOG_WARNING_SRC("Неверный формат команды: " + line, "tcp_server");
         }
     }
 }

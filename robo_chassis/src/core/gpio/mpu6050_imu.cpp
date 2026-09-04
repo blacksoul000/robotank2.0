@@ -1,11 +1,11 @@
 #include "mpu6050_imu.hpp"
+#include "logger.hpp"
 
 #include <fcntl.h>
 #include <unistd.h>
 #include <sys/ioctl.h>
 #include <linux/i2c-dev.h>
 #include <cstring>
-#include <iostream>
 #include <chrono>
 #include <cmath>
 
@@ -65,14 +65,12 @@ bool Mpu6050Imu::openI2c() {
     
     m_fd = ::open(m_device.c_str(), O_RDWR);
     if (m_fd < 0) {
-        std::cerr << "[Mpu6050Imu] Failed to open " << m_device 
-                  << ": " << std::strerror(errno) << "\n";
+        LOG_ERROR_SRC("Failed to open " + m_device + ": " + std::strerror(errno), "mpu6050_imu");
         return false;
     }
     
     if (ioctl(m_fd, I2C_SLAVE, m_address) < 0) {
-        std::cerr << "[Mpu6050Imu] Failed to set slave address: " 
-                  << std::strerror(errno) << "\n";
+        LOG_ERROR_SRC("Failed to set slave address: " + std::string(std::strerror(errno)), "mpu6050_imu");
         closeI2c();
         return false;
     }
@@ -117,52 +115,51 @@ bool Mpu6050Imu::init() {
     // Проверка WHO_AM_I
     uint8_t who_am_i = 0;
     if (!readRegisters(MPU6050_WHO_AM_I, &who_am_i, 1)) {
-        std::cerr << "[Mpu6050Imu] Failed to read WHO_AM_I register\n";
+        LOG_ERROR_SRC("Failed to read WHO_AM_I register", "mpu6050_imu");
         closeI2c();
         return false;
     }
     
     if (who_am_i != MPU6050_WHO_AM_I_VALUE) {
-        std::cerr << "[Mpu6050Imu] Invalid WHO_AM_I value: 0x" 
-                  << std::hex << static_cast<int>(who_am_i) << std::dec << "\n";
+        LOG_ERROR_SRC("Invalid WHO_AM_I value: 0x" + 
+                      std::to_string(who_am_i), "mpu6050_imu");
         closeI2c();
         return false;
     }
     
-    std::cout << "[Mpu6050Imu] MPU6050 detected at address 0x" 
-              << std::hex << m_address << std::dec << "\n";
+    LOG_INFO_SRC("MPU6050 detected at address 0x" + std::to_string(m_address), "mpu6050_imu");
     
     // Wake up MPU6050
     if (!writeRegister(MPU6050_PWR_MGMT_1, 0x00)) {
-        std::cerr << "[Mpu6050Imu] Failed to wake up MPU6050\n";
+        LOG_ERROR_SRC("Failed to wake up MPU6050", "mpu6050_imu");
         closeI2c();
         return false;
     }
     
     // Настройка фильтра низких частот (DLPF)
     if (!writeRegister(MPU6050_CONFIG, 0x03)) {  // DLPF_CFG = 3, 44Hz
-        std::cerr << "[Mpu6050Imu] Failed to configure DLPF\n";
+        LOG_ERROR_SRC("Failed to configure DLPF", "mpu6050_imu");
         closeI2c();
         return false;
     }
     
     // Настройка гироскопа: +/- 250 deg/s
     if (!writeRegister(MPU6050_GYRO_CONFIG, 0x00)) {
-        std::cerr << "[Mpu6050Imu] Failed to configure gyro scale\n";
+        LOG_ERROR_SRC("Failed to configure gyro scale", "mpu6050_imu");
         closeI2c();
         return false;
     }
     
     // Настройка акселерометра: +/- 2g
     if (!writeRegister(MPU6050_ACCEL_CONFIG, 0x00)) {
-        std::cerr << "[Mpu6050Imu] Failed to configure accel scale\n";
+        LOG_ERROR_SRC("Failed to configure accel scale", "mpu6050_imu");
         closeI2c();
         return false;
     }
     
     // Частота дискретизации: 1kHz / (1 + SMPLRT_DIV) = 125Hz
     if (!writeRegister(MPU6050_SMPLRT_DIV, 0x07)) {
-        std::cerr << "[Mpu6050Imu] Failed to configure sample rate\n";
+        LOG_ERROR_SRC("Failed to configure sample rate", "mpu6050_imu");
         closeI2c();
         return false;
     }
@@ -175,12 +172,12 @@ bool Mpu6050Imu::init() {
     
     d->last_read_time = std::chrono::steady_clock::now();
     
-    std::cout << "[Mpu6050Imu] Initialized successfully\n";
+    LOG_INFO_SRC("Initialized successfully", "mpu6050_imu");
     return true;
 }
 
 void Mpu6050Imu::calibrateGyro() {
-    std::cout << "[Mpu6050Imu] Calibrating gyro...\n";
+    LOG_INFO_SRC("Calibrating gyro...", "mpu6050_imu");
     
     // Считываем несколько значений для усреднения
     constexpr int samples = 100;
@@ -199,9 +196,9 @@ void Mpu6050Imu::calibrateGyro() {
     float gy_bias = gy_sum / samples;
     float gz_bias = gz_sum / samples;
     
-    std::cout << "[Mpu6050Imu] Gyro bias: X=" << gx_bias 
-              << ", Y=" << gy_bias 
-              << ", Z=" << gz_bias << " deg/s\n";
+    LOG_INFO_SRC("Gyro bias: X=" + std::to_string(gx_bias) + 
+                 ", Y=" + std::to_string(gy_bias) + 
+                 ", Z=" + std::to_string(gz_bias) + " deg/s", "mpu6050_imu");
 }
 
 bool Mpu6050Imu::isReady() const {
@@ -212,7 +209,7 @@ void Mpu6050Imu::readRawData() {
     uint8_t buffer[14];
     
     if (!readRegisters(MPU6050_ACCEL_XOUT_H, buffer, 14)) {
-        std::cerr << "[Mpu6050Imu] Failed to read sensor data\n";
+        LOG_ERROR_SRC("Failed to read sensor data", "mpu6050_imu");
         return;
     }
     

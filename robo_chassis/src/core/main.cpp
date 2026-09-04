@@ -4,6 +4,7 @@
 #include <csignal>
 #include <atomic>
 #include <memory>
+#include <chrono>
 
 #include "config/config.hpp"
 #include "logger/logger.hpp"
@@ -17,13 +18,9 @@
 #include "sensors/compass_ultrasonic.hpp"
 #include "sensors/sensor_fusion.hpp"
 #include "autonomy/autonomy_manager.hpp"
+#include "safety/safety_manager.hpp"
 
 std::atomic<bool> g_running{true};
-
-void signal_handler(int signum) {
-    LOG_INFO("Получен сигнал остановки (" + std::to_string(signum) + "). Завершение работы...");
-    g_running = false;
-}
 
 int main() {
     // Инициализация логгера первой (до использования макросов LOG_*)
@@ -43,10 +40,6 @@ int main() {
         LOG_WARNING("Не удалось загрузить конфигурацию, используются значения по умолчанию");
     }
     
-    // Установка обработчика сигналов
-    signal(SIGINT, signal_handler);
-    signal(SIGTERM, signal_handler);
-
     try {
         // Централизованная инициализация компонентов
         LOG_INFO("Инициализация подсистем...");
@@ -103,12 +96,7 @@ int main() {
         if (i2c_config.simulation_mode) {
             LOG_INFO("IMU отключен: режим симуляции активен");
         } else if (i2c_config.imu_enabled) {
-            try {
-                robot.init_imu(i2c_config.device);
-                LOG_INFO("IMU успешно инициализирован");
-            } catch (const std::exception& e) {
-                LOG_ERROR("Ошибка инициализации IMU: " + std::string(e.what()));
-            }
+            robot.init_imu(i2c_config.device);
         } else {
             LOG_INFO("IMU отключен в конфигурации");
         }
@@ -124,16 +112,10 @@ int main() {
         robo_chassis::SensorFusion sensor_fusion;
         if (i2c_config.simulation_mode) {
             LOG_INFO("SensorFusion отключен: режим симуляции активен");
+        } else if (sensor_fusion.init()) {
+            LOG_INFO("SensorFusion успешно инициализирован");
         } else {
-            try {
-                if (sensor_fusion.init()) {
-                    LOG_INFO("SensorFusion успешно инициализирован");
-                } else {
-                    LOG_ERROR("Не удалось инициализировать SensorFusion");
-                }
-            } catch (const std::exception& e) {
-                LOG_ERROR("Ошибка инициализации SensorFusion: " + std::string(e.what()));
-            }
+            LOG_ERROR("Не удалось инициализировать SensorFusion");
         }
         
         // 8. Инициализация ультразвука отдельно - только в реальном режиме
@@ -141,17 +123,11 @@ int main() {
         
         if (i2c_config.simulation_mode) {
             LOG_INFO("Ультразвуковой дальномер отключен: режим симуляции активен");
+        } else if (ultrasonic.init()) {
+            LOG_INFO("Ультразвуковой дальномер успешно инициализирован");
+            ultrasonic.setMaxDistanceCm(400.0f); // Максимальная дистанция 400 см
         } else {
-            try {
-                if (ultrasonic.init()) {
-                    LOG_INFO("Ультразвуковой дальномер успешно инициализирован");
-                    ultrasonic.setMaxDistanceCm(400.0f); // Максимальная дистанция 400 см
-                } else {
-                    LOG_WARNING("Не удалось инициализировать ультразвуковой дальномер (проверьте GPIO)");
-                }
-            } catch (const std::exception& e) {
-                LOG_ERROR("Ошибка инициализации ультразвукового дальномера: " + std::string(e.what()));
-            }
+            LOG_WARNING("Не удалось инициализировать ультразвуковой дальномер (проверьте GPIO)");
         }
         
         // 9. Инициализация AutonomyManager
@@ -201,6 +177,29 @@ int main() {
         LOG_INFO("Ожидание команд от Python Bridge на порту " + std::to_string(tcp_config.port));
         LOG_INFO("WebSocket сервер запущен на порту 8765");
 
+        // Инициализация и запуск SafetyManager (watchdog + graceful shutdown)
+        robo_chassis::SafetyManager safety_mgr(10, 5);  // 10 сек watchdog, 5 сек Arduino timeout
+        if (!safety_mgr.init()) {
+            LOG_ERROR("Не удалось инициализировать SafetyManager");
+        } else {
+            // Установка обработчика аварийной остановки
+            safety_mgr.setEmergencyStopCallback([&robot]() {
+                Command safe_cmd;
+                safe_cmd.left_y = 0.0f;
+                safe_cmd.right_y = 0.0f;
+                safe_cmd.left_x = 0.0f;
+                safe_cmd.right_x = 0.0f;
+                safe_cmd.tower_h = 0;
+                safe_cmd.fire = false;
+                safe_cmd.lights = false;
+                safe_cmd.pointer = false;
+                robot.process_command(safe_cmd);
+            });
+            
+            safety_mgr.start();
+            LOG_INFO("SafetyManager запущен");
+        }
+        
         // Запуск TCP сервера в отдельном потоке
         std::thread server_thread([&server]() {
             server.run();
@@ -280,6 +279,12 @@ int main() {
         while (g_running) {
             // Обновление автономного менеджера (вызывается перед send_to_arduino)
             autonomy.update();
+            
+            // Сброс watchdog (pet) в основном цикле
+            safety_mgr.petWatchdog();
+            
+            // Обновление статуса Arduino для SafetyManager
+            safety_mgr.updateArduinoStatus(robot.is_arduino_online());
             
             // Отправка команд на Arduino
             robot.send_to_arduino();
@@ -386,6 +391,9 @@ int main() {
         LOG_INFO("Остановка серверов...");
         ws_server.stop();
         server.stop();
+        
+        // Остановка SafetyManager (закроет watchdog и выполнит graceful shutdown)
+        safety_mgr.stop();
         
         if (server_thread.joinable()) {
             server_thread.join();

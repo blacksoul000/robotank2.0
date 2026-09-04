@@ -5,80 +5,68 @@
 #include <chrono>
 #include <cmath>
 #include <memory>
-#include <mutex>
 
 namespace robo_chassis {
 
-SensorFusion::SensorFusion() 
-    : imu_instance_(nullptr),
-      compass_instance_(nullptr),
-      imu_(nullptr),
-      compass_(nullptr) {}
+// Статические экземпляры датчиков (владеют ресурсами)
+static std::unique_ptr<Mpu6050Imu> g_mpu6050_instance = nullptr;
+static std::unique_ptr<sensors::Compass> g_compass_instance = nullptr;
 
-SensorFusion::~SensorFusion() {
-    // Умные указатели автоматически освободят ресурсы
-}
+// Глобальные указатели для совместимости
+Mpu6050Imu* g_mpu6050 = nullptr;
+sensors::Compass* g_compass = nullptr;
+
+SensorFusion::SensorFusion() = default;
 
 bool SensorFusion::init() {
-    std::lock_guard<std::mutex> lock(mutex_);
-    
     LOG_INFO("Initializing SensorFusion...");
     
-    try {
-        // Создание IMU если еще не создан
-        if (!imu_instance_) {
-            imu_instance_ = std::make_unique<Mpu6050Imu>("/dev/i2c-1", 0x68, 0.0f);
-            if (imu_instance_->init()) {
-                imu_ = imu_instance_.get();
-                LOG_INFO("MPU6050 initialized successfully");
-            } else {
-                LOG_ERROR("MPU6050 IMU not available!");
-                status_ = FusionStatus::ERROR;
-                return false;
-            }
-        }
-        
-        // Проверка IMU
-        if (!imu_ || !imu_->isReady()) {
-            LOG_ERROR("MPU6050 IMU not ready!");
+    // Создание IMU если еще не создан
+    if (!g_mpu6050) {
+        g_mpu6050_instance = std::make_unique<Mpu6050Imu>("/dev/i2c-1", 0x68, 0.0f); // I2C device, address, yaw_offset
+        if (g_mpu6050_instance->init()) {
+            g_mpu6050 = g_mpu6050_instance.get();
+            LOG_INFO("MPU6050 initialized successfully");
+        } else {
+            LOG_ERROR("MPU6050 IMU not available!");
             status_ = FusionStatus::ERROR;
             return false;
         }
-        
-        // Создание компаса если еще не создан
-        if (!compass_instance_) {
-            compass_instance_ = std::make_unique<sensors::Compass>(1, 0x1E);
-            if (compass_instance_->init()) {
-                compass_ = compass_instance_.get();
-                LOG_INFO("Compass initialized successfully");
-            } else {
-                LOG_WARNING("Compass not available, using IMU-only mode");
-            }
-        }
-        
-        // Сохраняем указатель для локального использования
-        compass_ = compass_instance_.get();
-        
-        // Проверка магнитометра
-        magnetometer_present_ = (compass_ && compass_->isReady());
-        
-        if (magnetometer_present_) {
-            status_ = FusionStatus::IMU_MAGNETOMETER;
-            LOG_INFO("SensorFusion: IMU + Magnetometer mode");
-        } else {
-            status_ = FusionStatus::IMU_ONLY;
-            LOG_INFO("SensorFusion: IMU-only mode (no magnetometer)");
-        }
-        
-        initialized_ = true;
-        last_update_ms_ = getCurrentTimeMs();
-        
-        return true;
-    } catch (const std::exception& e) {
-        LOG_ERROR("Exception during SensorFusion init: " + std::string(e.what()));
+    }
+    
+    // Проверка IMU
+    if (!g_mpu6050 || !g_mpu6050->isReady()) {
+        LOG_ERROR("MPU6050 IMU not ready!");
         status_ = FusionStatus::ERROR;
         return false;
     }
+    
+    // Создание компаса если еще не создан
+    if (!g_compass) {
+        g_compass_instance = std::make_unique<sensors::Compass>(1, 0x1E); // I2C bus 1, адрес HMC5883L
+        if (g_compass_instance->init()) {
+            g_compass = g_compass_instance.get();
+            LOG_INFO("Compass initialized successfully");
+        } else {
+            LOG_WARNING("Compass not available, using IMU-only mode");
+        }
+    }
+    
+    // Проверка магнитометра
+    magnetometer_present_ = (g_compass && g_compass->isReady());
+    
+    if (magnetometer_present_) {
+        status_ = FusionStatus::IMU_MAGNETOMETER;
+        LOG_INFO("SensorFusion: IMU + Magnetometer mode");
+    } else {
+        status_ = FusionStatus::IMU_ONLY;
+        LOG_INFO("SensorFusion: IMU-only mode (no magnetometer)");
+    }
+    
+    initialized_ = true;
+    last_update_ms_ = getCurrentTimeMs();
+    
+    return true;
 }
 
 void SensorFusion::update() {
@@ -111,11 +99,11 @@ void SensorFusion::update() {
 }
 
 void SensorFusion::readIMU() {
-    if (!imu_) return;
+    if (!g_mpu6050) return;
     
     // Получение углов из MPU6050 через интерфейс IImu
-    fusion_data_.pitch = imu_->pitch();
-    fusion_data_.roll = imu_->roll();
+    fusion_data_.pitch = g_mpu6050->pitch();
+    fusion_data_.roll = g_mpu6050->roll();
     
     // Для комплементарного фильтра нужны сырые данные
     // Используем заглушки, т.к. прямой доступ к сырым данным не предусмотрен интерфейсом
@@ -128,14 +116,14 @@ void SensorFusion::readIMU() {
 }
 
 void SensorFusion::readMagnetometer() {
-    if (!compass_) return;
+    if (!g_compass) return;
     
     // Получение курса напрямую
-    float heading = compass_->getHeading();
+    float heading = g_compass->getHeading();
     
     // Сырые данные (если понадобятся для калибровки)
     int16_t x, y, z;
-    compass_->readRaw(x, y, z);
+    g_compass->readRaw(x, y, z);
     
     fusion_data_.mag_x = static_cast<float>(x);
     fusion_data_.mag_y = static_cast<float>(y);

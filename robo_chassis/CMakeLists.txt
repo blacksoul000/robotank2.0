@@ -11,11 +11,17 @@ option(BUILD_TESTS "Build unit tests with Google Test" OFF)
 # Оптимизация для Raspberry Pi 2 (ARM Cortex-A7)
 # Используем универсальные флаги, совместимые с x86 и ARM
 if(CMAKE_SYSTEM_PROCESSOR MATCHES "armv7l|aarch64")
-    set(CMAKE_CXX_FLAGS_RELEASE "-O3 -march=armv7-a -mfpu=neon-vfpv4 -mfloat-abi=hard")
+    # Оптимизация специально для Cortex-A7 (Raspberry Pi 2)
+    set(CMAKE_CXX_FLAGS_RELEASE "-O3 -march=armv7-a -mtune=cortex-a7 -mfpu=neon-vfpv4 -mfloat-abi=hard -ffast-math")
+    # Дополнительная оптимизация размера кода для экономии памяти
+    set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -fdata-sections -ffunction-sections")
 else()
     set(CMAKE_CXX_FLAGS_RELEASE "-O3")
 endif()
 set(CMAKE_BUILD_TYPE Release)
+
+# Флаги линковщика для оптимизации размера
+set(CMAKE_EXE_LINKER_FLAGS_RELEASE "-Wl,--gc-sections")
 
 # Основной исполняемый файл (чистый C++ без Qt)
 include_directories(${CMAKE_SOURCE_DIR}/src/core)
@@ -38,15 +44,12 @@ add_executable(robo_chassis
     src/core/sensors/compass_ultrasonic.cpp
     src/core/sensors/sensor_fusion.cpp
     src/core/autonomy/autonomy_manager.cpp
+    src/core/safety/safety_manager.cpp
 )
 
 # Поиск pthread
 find_package(Threads REQUIRED)
 target_link_libraries(robo_chassis PRIVATE Threads::Threads)
-
-# nlohmann/json для парсинга JSON
-find_package(nlohmann_json REQUIRED)
-target_link_libraries(robo_chassis PRIVATE nlohmann_json::nlohmann_json)
 
 # pigpio для работы с GPIO (ультразвук) - замена wiringPi
 find_library(PIGPIO_LIB NAMES pigpiod_if2 pigpio)
@@ -65,8 +68,3 @@ endif()
 
 # Установка
 install(TARGETS robo_chassis DESTINATION bin)
-
-# HAL (Hardware Abstraction Layer) для GPIO/I2C
-target_sources(robo_chassis PRIVATE
-    src/core/hal/linux_gpio_hal.cpp
-)

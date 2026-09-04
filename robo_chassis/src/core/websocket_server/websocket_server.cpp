@@ -10,8 +10,7 @@
 #include <arpa/inet.h>
 #include <algorithm>
 #include <cmath>
-#include <set>
-#include <map>
+#include <chrono>
 
 namespace robo_chassis {
 
@@ -83,7 +82,6 @@ void WebSocketServer::stop() {
     
     m_running = false;
     
-    // Закрываем все клиентские сокеты для сигнализации потокам об остановке
     {
         std::lock_guard<std::mutex> lock(m_mutex);
         for (int client_fd : m_clients) {
@@ -93,17 +91,6 @@ void WebSocketServer::stop() {
             }
         }
         m_clients.clear();
-    }
-    
-    // Ждем завершения всех активных потоков обработки клиентов
-    {
-        std::lock_guard<std::mutex> thread_lock(m_threads_mutex);
-        for (auto& t : m_client_threads) {
-            if (t.joinable()) {
-                t.join();
-            }
-        }
-        m_client_threads.clear();
     }
     
     if (m_server_thread.joinable()) {
@@ -176,10 +163,7 @@ void WebSocketServer::serverLoop() {
                 if (performHandshake(client_fd)) {
                     std::lock_guard<std::mutex> lock(m_mutex);
                     m_clients.push_back(client_fd);
-                    
-                    // Создаём поток в joinable режиме и сохраняем его для последующего join
-                    std::lock_guard<std::mutex> thread_lock(m_threads_mutex);
-                    m_client_threads.emplace_back(&WebSocketServer::handleClient, this, client_fd);
+                    std::thread(&WebSocketServer::handleClient, this, client_fd).detach();
                 } else {
                     close(client_fd);
                 }
@@ -193,10 +177,22 @@ void WebSocketServer::serverLoop() {
 void WebSocketServer::handleClient(int client_fd) {
     unsigned char buffer[4096];
     
+    // Инициализация rate limit для нового клиента
+    {
+        std::lock_guard<std::mutex> lock(m_rate_limit_mutex);
+        m_client_rate_limits[client_fd] = ClientRateLimit{};
+    }
+    
     while (m_running.load()) {
         ssize_t bytes_read = read(client_fd, buffer, sizeof(buffer));
         
         if (bytes_read <= 0) break;
+        
+        // Проверка rate limit перед обработкой сообщения
+        if (!checkRateLimit(client_fd)) {
+            LOG_WARNING("Rate limit превышен для клиента " + std::to_string(client_fd));
+            continue;  // Пропускаем сообщение, но не закрываем соединение
+        }
         
         std::string payload;
         bool is_text = false;
@@ -266,6 +262,8 @@ void WebSocketServer::handleClient(int client_fd) {
         if (it != m_clients.end()) m_clients.erase(it);
     }
     
+    // Очистка rate limit для отключившегося клиента
+    cleanupClientRateLimit(client_fd);
     
     close(client_fd);
     LOG_INFO("Клиент WebSocket отключился");
@@ -418,42 +416,45 @@ void WebSocketServer::broadcastTelemetry(const Telemetry& telemetry,
     std::string message = json.str();
     auto frame = createWebSocketFrame(message, true);
     
-    // Backpressure: отключение медленных клиентов
-    std::vector<int> clients_to_remove;
-    const size_t max_send_attempts = 3;
-    
     std::lock_guard<std::mutex> lock(m_mutex);
     for (int client_fd : m_clients) {
-        if (client_fd < 0) continue;
-        
-        // Попытка отправки с обработкой ошибок
-        size_t attempts = 0;
-        ssize_t sent = 0;
-        while (attempts < max_send_attempts) {
-            sent = write(client_fd, frame.data(), frame.size());
-            if (sent >= 0 || errno != EAGAIN) {
-                break; // Успех или некритическая ошибка
-            }
-            attempts++;
-            std::this_thread::sleep_for(std::chrono::milliseconds(5));
+        if (client_fd >= 0) {
+            write(client_fd, frame.data(), frame.size());
         }
-        
-        // Если не удалось отправить - помечаем клиента на удаление
-        if (sent < 0 && (errno == EPIPE || errno == EBADF || errno == ECONNRESET)) {
-            clients_to_remove.push_back(client_fd);
-            LOG_WARNING("WebSocket клиент отключился или медленно отправляет данные (fd={})", client_fd);
-        }
+    }
+}
+
+// Реализация проверки rate limit
+bool WebSocketServer::checkRateLimit(int client_fd) {
+    std::lock_guard<std::mutex> lock(m_rate_limit_mutex);
+    
+    auto it = m_client_rate_limits.find(client_fd);
+    if (it == m_client_rate_limits.end()) {
+        return true;  // Клиент не найден, разрешаем
     }
     
-    // Удаление проблемных клиентов
-    for (int fd : clients_to_remove) {
-        auto it = std::find(m_clients.begin(), m_clients.end(), fd);
-        if (it != m_clients.end()) {
-            close(*it);
-            m_clients.erase(it);
-            LOG_INFO("WebSocket клиент удален из списка подключений");
-        }
+    auto now = std::chrono::steady_clock::now();
+    auto& limit = it->second;
+    
+    // Сброс счётчика если прошла секунда
+    if (now - limit.last_message_time >= ClientRateLimit::WINDOW_SEC) {
+        limit.message_count = 0;
+        limit.last_message_time = now;
     }
+    
+    // Проверка лимита
+    if (limit.message_count >= ClientRateLimit::MAX_MESSAGES_PER_SECOND) {
+        return false;  // Превышен лимит
+    }
+    
+    limit.message_count++;
+    return true;
+}
+
+// Очистка rate limits при отключении клиента
+void WebSocketServer::cleanupClientRateLimit(int client_fd) {
+    std::lock_guard<std::mutex> lock(m_rate_limit_mutex);
+    m_client_rate_limits.erase(client_fd);
 }
 
 } // namespace robo_chassis

@@ -8,6 +8,8 @@
 #include <cerrno>
 #include <cstring>
 #include <iostream>
+#include <chrono>
+#include <thread>
 
 namespace robo_chassis {
 
@@ -32,14 +34,27 @@ bool I2CMaster::Impl::read_data(std::vector<uint8_t>& buffer) {
         return false;
     }
     
-    ssize_t bytes_read = ::read(fd, buffer.data(), package_size);
-    if (bytes_read != static_cast<ssize_t>(package_size)) {
-        std::cerr << "[I2CMaster] Failed to read from bus: " 
-                  << std::strerror(errno) << "\n";
-        return false;
+    // Retry логика для обработки временных сбоев I2C
+    constexpr int MAX_RETRIES = 3;
+    constexpr int RETRY_DELAY_MS = 10;
+    
+    for (int attempt = 0; attempt < MAX_RETRIES; ++attempt) {
+        ssize_t bytes_read = ::read(fd, buffer.data(), package_size);
+        if (bytes_read == static_cast<ssize_t>(package_size)) {
+            return true;
+        }
+        
+        // Логирование только для последней попытки
+        if (attempt == MAX_RETRIES - 1) {
+            std::cerr << "[I2CMaster] Failed to read from bus after " 
+                      << MAX_RETRIES << " attempts: " << std::strerror(errno) << "\n";
+        } else {
+            // Краткая задержка перед повторной попыткой
+            std::this_thread::sleep_for(std::chrono::milliseconds(RETRY_DELAY_MS));
+        }
     }
     
-    return true;
+    return false;
 }
 
 I2CMaster::I2CMaster(

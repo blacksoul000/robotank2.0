@@ -50,7 +50,7 @@ struct LoggingConfig {
  * @brief Структура для хранения настроек телеметрии
  */
 struct TelemetryConfig {
-    int update_interval_ms = 50;  // Увеличено с 20 до 50 мс для снижения нагрузки на RPi 2B
+    int update_interval_ms = 20;
     int connection_timeout_attempts = 10;
 };
 

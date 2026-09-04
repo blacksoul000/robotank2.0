@@ -1,5 +1,5 @@
 #include "config.hpp"
-#include <iostream>
+#include "logger.hpp"
 #include <fstream>
 #include <sstream>
 #include <algorithm>
