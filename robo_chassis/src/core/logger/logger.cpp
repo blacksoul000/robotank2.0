@@ -42,8 +42,7 @@ void Logger::init(LogLevel level, bool enable_console, bool enable_file,
         // Открыть файл для записи (добавление в конец)
         file_stream_.open(file_path_, std::ios::app);
         if (!file_stream_.is_open()) {
-            std::cerr << "[Logger] Не удалось открыть файл для логирования: " 
-                      << file_path_ << ". Логирование в файл отключено.\n";
+            LOG_ERROR("Failed to open log file: %s. File logging disabled.", file_path_.c_str());
             file_enabled_ = false;
         } else {
             checkRotation();
@@ -52,13 +51,12 @@ void Logger::init(LogLevel level, bool enable_console, bool enable_file,
     
     initialized_ = true;
     
-    std::cout << "[Logger] Инициализирован: уровень=" << levelToString(level)
-              << ", консоль=" << (enable_console ? "да" : "нет")
-              << ", файл=" << (enable_file ? "да" : "нет");
-    if (enable_file) {
-        std::cout << ", путь=" << file_path;
-    }
-    std::cout << "\n";
+    LOG_INFO("Logger initialized: level=%s, console=%s, file=%s%s%s", 
+             levelToString(level).c_str(),
+             enable_console ? "yes" : "no",
+             enable_file ? "yes" : "no",
+             enable_file ? ", path: " : "",
+             enable_file ? file_path.c_str() : "");
 }
 
 Logger::~Logger() {
@@ -134,7 +132,7 @@ void Logger::rotate() {
     // Открыть новый файл
     file_stream_.open(file_path_, std::ios::app);
     if (!file_stream_.is_open()) {
-        std::cerr << "[Logger] Ошибка при ротации: не удалось создать новый файл\n";
+        LOG_ERROR("Log rotation failed: unable to create new file");
         file_enabled_ = false;
     }
 }

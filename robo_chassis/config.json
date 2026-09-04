@@ -25,5 +25,45 @@
   "watchdog": {
     "enabled": false,
     "timeout_sec": 30
+  },
+  "throttling": {
+    "enabled": true,
+    "temperature_warning_threshold": 70.0,
+    "temperature_critical_threshold": 80.0,
+    "frequency_min_mhz": 600,
+    "check_interval_ms": 5000
+  },
+  "motors": {
+    "pwm_frequency": 1000,
+    "max_speed": 1.0,
+    "acceleration_ramp": 0.5,
+    "pid_kp": 1.0,
+    "pid_ki": 0.1,
+    "pid_kd": 0.05
+  },
+  "sensors": {
+    "fusion_update_rate_hz": 50,
+    "magnetometer_calib_min_x": -1.0,
+    "magnetometer_calib_max_x": 1.0,
+    "magnetometer_calib_min_y": -1.0,
+    "magnetometer_calib_max_y": 1.0,
+    "magnetometer_calib_min_z": -1.0,
+    "magnetometer_calib_max_z": 1.0,
+    "gyro_bias_x": 0.0,
+    "gyro_bias_y": 0.0,
+    "gyro_bias_z": 0.0
+  },
+  "websocket": {
+    "port": 8765,
+    "bind_address": "0.0.0.0",
+    "max_clients": 5,
+    "rate_limit_messages_per_sec": 20,
+    "compression_enabled": true
+  },
+  "safety": {
+    "emergency_stop_timeout_sec": 5.0,
+    "watchdog_hardware_enabled": false,
+    "watchdog_device": "/dev/watchdog",
+    "watchdog_timeout_sec": 30
   }
 }

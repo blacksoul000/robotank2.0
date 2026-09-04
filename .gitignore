@@ -8,33 +8,32 @@
 *.exe
 *.out
 
-# CMake build directory
+# CMake build directories
 build/
+cmake-build-*/
 
 # Dependencies
-third_party/
+external/
 
 # Logs
 *.log
-
-# Temporary files
-*.tmp
-*.swp
-*.swo
 
 # Environment
 .env
 .env.local
 *.env.*
 
-# Editors
+# Editor/IDE
 .vscode/
 .idea/
+*.swp
+*.swo
+*.tmp
 
 # Coverage
 coverage/
 htmlcov/
-.coverage
+*.coverage
 
 # OS
 .DS_Store

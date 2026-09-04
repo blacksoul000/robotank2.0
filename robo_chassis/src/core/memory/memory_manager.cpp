@@ -125,7 +125,7 @@ bool MemoryManager::clear_kernel_cache() {
     // Очистка кэша страниц, inode и dentry
     FILE* f = fopen("/proc/sys/vm/drop_caches", "w");
     if (f) {
-        fprintf(f, "3");  // 3 = очистка pagecache + dentries + inodes
+        fputs("3", f);  // 3 = очистка pagecache + dentries + inodes
         fclose(f);
         cache_clear_count_++;
         LOG_INFO("Kernel cache cleared successfully");

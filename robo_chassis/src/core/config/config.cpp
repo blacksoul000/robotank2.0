@@ -69,6 +69,78 @@ bool Config::load(const std::string& config_path) {
             if (watchdog.contains("timeout_sec")) instance_.watchdog_.timeout_sec = watchdog["timeout_sec"].get<int>();
         }
         
+        // Парсинг секции throttling
+        if (j.contains("throttling")) {
+            auto& throttling = j["throttling"];
+            if (throttling.contains("enabled")) instance_.throttling_.enabled = throttling["enabled"].get<bool>();
+            if (throttling.contains("temperature_warning_threshold")) 
+                instance_.throttling_.temperature_warning_threshold = throttling["temperature_warning_threshold"].get<float>();
+            if (throttling.contains("temperature_critical_threshold")) 
+                instance_.throttling_.temperature_critical_threshold = throttling["temperature_critical_threshold"].get<float>();
+            if (throttling.contains("frequency_min_mhz")) 
+                instance_.throttling_.frequency_min_mhz = throttling["frequency_min_mhz"].get<int>();
+            if (throttling.contains("check_interval_ms")) 
+                instance_.throttling_.check_interval_ms = throttling["check_interval_ms"].get<int>();
+        }
+        
+        // Парсинг секции motors
+        if (j.contains("motors")) {
+            auto& motors = j["motors"];
+            if (motors.contains("pwm_frequency")) instance_.motors_.pwm_frequency = motors["pwm_frequency"].get<int>();
+            if (motors.contains("max_speed")) instance_.motors_.max_speed = motors["max_speed"].get<float>();
+            if (motors.contains("acceleration_ramp")) instance_.motors_.acceleration_ramp = motors["acceleration_ramp"].get<float>();
+            if (motors.contains("pid_kp")) instance_.motors_.pid_kp = motors["pid_kp"].get<float>();
+            if (motors.contains("pid_ki")) instance_.motors_.pid_ki = motors["pid_ki"].get<float>();
+            if (motors.contains("pid_kd")) instance_.motors_.pid_kd = motors["pid_kd"].get<float>();
+        }
+        
+        // Парсинг секции sensors
+        if (j.contains("sensors")) {
+            auto& sensors = j["sensors"];
+            if (sensors.contains("fusion_update_rate_hz")) 
+                instance_.sensors_.fusion_update_rate_hz = sensors["fusion_update_rate_hz"].get<int>();
+            if (sensors.contains("magnetometer_calib_min_x")) 
+                instance_.sensors_.magnetometer_calib_min_x = sensors["magnetometer_calib_min_x"].get<float>();
+            if (sensors.contains("magnetometer_calib_max_x")) 
+                instance_.sensors_.magnetometer_calib_max_x = sensors["magnetometer_calib_max_x"].get<float>();
+            if (sensors.contains("magnetometer_calib_min_y")) 
+                instance_.sensors_.magnetometer_calib_min_y = sensors["magnetometer_calib_min_y"].get<float>();
+            if (sensors.contains("magnetometer_calib_max_y")) 
+                instance_.sensors_.magnetometer_calib_max_y = sensors["magnetometer_calib_max_y"].get<float>();
+            if (sensors.contains("magnetometer_calib_min_z")) 
+                instance_.sensors_.magnetometer_calib_min_z = sensors["magnetometer_calib_min_z"].get<float>();
+            if (sensors.contains("magnetometer_calib_max_z")) 
+                instance_.sensors_.magnetometer_calib_max_z = sensors["magnetometer_calib_max_z"].get<float>();
+            if (sensors.contains("gyro_bias_x")) instance_.sensors_.gyro_bias_x = sensors["gyro_bias_x"].get<float>();
+            if (sensors.contains("gyro_bias_y")) instance_.sensors_.gyro_bias_y = sensors["gyro_bias_y"].get<float>();
+            if (sensors.contains("gyro_bias_z")) instance_.sensors_.gyro_bias_z = sensors["gyro_bias_z"].get<float>();
+        }
+        
+        // Парсинг секции websocket
+        if (j.contains("websocket")) {
+            auto& websocket = j["websocket"];
+            if (websocket.contains("port")) instance_.websocket_.port = websocket["port"].get<int>();
+            if (websocket.contains("bind_address")) instance_.websocket_.bind_address = websocket["bind_address"].get<std::string>();
+            if (websocket.contains("max_clients")) instance_.websocket_.max_clients = websocket["max_clients"].get<int>();
+            if (websocket.contains("rate_limit_messages_per_sec")) 
+                instance_.websocket_.rate_limit_messages_per_sec = websocket["rate_limit_messages_per_sec"].get<int>();
+            if (websocket.contains("compression_enabled")) 
+                instance_.websocket_.compression_enabled = websocket["compression_enabled"].get<bool>();
+        }
+        
+        // Парсинг секции safety
+        if (j.contains("safety")) {
+            auto& safety = j["safety"];
+            if (safety.contains("emergency_stop_timeout_sec")) 
+                instance_.safety_.emergency_stop_timeout_sec = safety["emergency_stop_timeout_sec"].get<float>();
+            if (safety.contains("watchdog_hardware_enabled")) 
+                instance_.safety_.watchdog_hardware_enabled = safety["watchdog_hardware_enabled"].get<bool>();
+            if (safety.contains("watchdog_device")) 
+                instance_.safety_.watchdog_device = safety["watchdog_device"].get<std::string>();
+            if (safety.contains("watchdog_timeout_sec")) 
+                instance_.safety_.watchdog_timeout_sec = safety["watchdog_timeout_sec"].get<int>();
+        }
+        
         LOG_INFO("Configuration successfully loaded from %s", config_path.c_str());
         LOG_INFO("  TCP Server: port %d on %s", 
                  instance_.tcp_server_.port, instance_.tcp_server_.bind_address.c_str());

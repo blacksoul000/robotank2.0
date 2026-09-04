@@ -52,6 +52,15 @@ add_executable(robo_chassis
 find_package(Threads REQUIRED)
 target_link_libraries(robo_chassis PRIVATE Threads::Threads)
 
+# Поиск nlohmann/json
+find_package(nlohmann_json REQUIRED)
+if(nlohmann_json_FOUND)
+    target_link_libraries(robo_chassis PRIVATE nlohmann_json::nlohmann_json)
+    message(STATUS "nlohmann/json found: ${nlohmann_json_VERSION}")
+else()
+    message(FATAL_ERROR "nlohmann/json not found, please install nlohmann-json3-dev")
+endif()
+
 # pigpio для работы с GPIO (ультразвук) - замена wiringPi
 find_library(PIGPIO_LIB NAMES pigpiod_if2 pigpio)
 if(PIGPIO_LIB)
