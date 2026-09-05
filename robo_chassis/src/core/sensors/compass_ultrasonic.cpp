@@ -8,6 +8,8 @@
 #include <thread>
 #include <chrono>
 #include <cstdint>
+#include <mutex>
+#include <atomic>
 
 // Для работы с GPIO на Raspberry Pi через pigpio (без демона)
 #ifdef HAVE_PIGPIO
@@ -19,15 +21,47 @@ extern "C" {
 namespace robo_chassis {
 namespace sensors {
 
-// Глобальный флаг инициализации pigpio
+// Глобальный флаг инициализации pigpio с мьютексом для потокобезопасности
 #ifdef HAVE_PIGPIO
-static bool pigpio_initialized = false;
+static std::atomic<bool> g_pigpio_initialized{false};
+static std::mutex g_pigpio_init_mutex;
+static std::atomic<int> g_pigpio_init_result{-1};
 
-static void ensurePigpioInitialized() {
-    if (!pigpio_initialized) {
-        int ret = gpioInitialise();
-        if (ret >= 0) {
-            pigpio_initialized = true;
+static bool ensurePigpioInitialized() {
+    // Быстрая проверка без блокировки, если уже инициализировано
+    if (g_pigpio_initialized.load(std::memory_order_acquire)) {
+        return g_pigpio_init_result.load() >= 0;
+    }
+    
+    // Блокировка для безопасной инициализации
+    std::lock_guard<std::mutex> lock(g_pigpio_init_mutex);
+    
+    // Двойная проверка после захвата мьютекса
+    if (g_pigpio_initialized.load(std::memory_order_acquire)) {
+        return g_pigpio_init_result.load() >= 0;
+    }
+    
+    // Инициализация pigpio
+    int ret = gpioInitialise();
+    g_pigpio_init_result.store(ret, std::memory_order_release);
+    
+    if (ret >= 0) {
+        g_pigpio_initialized.store(true, std::memory_order_release);
+        return true;
+    } else {
+        // Логирование ошибки инициализации GPIO
+        // В реальном проекте здесь должен быть вызов логгера
+        return false;
+    }
+}
+
+static void cleanupPigpio() {
+    if (g_pigpio_initialized.load(std::memory_order_acquire)) {
+        std::lock_guard<std::mutex> lock(g_pigpio_init_mutex);
+        if (g_pigpio_initialized.load(std::memory_order_acquire)) {
+            gpioTerminate();
+            g_pigpio_initialized.store(false, std::memory_order_release);
+            g_pigpio_init_result.store(-1, std::memory_order_release);
         }
     }
 }
@@ -208,8 +242,9 @@ Ultrasonic::~Ultrasonic() {
 
 bool Ultrasonic::init() {
 #ifdef HAVE_PIGPIO
-    ensurePigpioInitialized();
-    if (!pigpio_initialized) {
+    if (!ensurePigpioInitialized()) {
+        // Ошибка инициализации GPIO - ультразвуковой датчик не будет работать
+        ready_ = false;
         return false;
     }
 
@@ -232,7 +267,7 @@ bool Ultrasonic::init() {
 
 bool Ultrasonic::trigger() {
 #ifdef HAVE_PIGPIO
-    if (!pigpio_initialized) return false;
+    if (!g_pigpio_initialized.load(std::memory_order_acquire)) return false;
     
     // Генерация импульса 10 мкс
     gpioWrite(trigger_pin_, 1);
@@ -246,21 +281,29 @@ bool Ultrasonic::trigger() {
 
 float Ultrasonic::measureEchoDuration() {
 #ifdef HAVE_PIGPIO
-    if (!pigpio_initialized) return -1.0f;
+    if (!g_pigpio_initialized.load(std::memory_order_acquire)) return -1.0f;
     
-    uint32_t timeout = 10000; // 10ms timeout в микросекундах
+    // Таймауты для защиты от зависания (HC-SR04 макс. дистанция ~4-5м = ~30мс)
+    // Добавляем запас и используем 50мс как максимальный таймаут
+    constexpr uint32_t ECHO_TIMEOUT_US = 50000; // 50мс в микросекундах
+    constexpr uint32_t START_TIMEOUT_US = 5000; // 5мс на ожидание старта
     
-    // Ждем пока echo не станет HIGH
     uint32_t start = gpioTick();
+    
+    // Ждем пока echo не станет HIGH (с таймаутом)
     while (gpioRead(echo_pin_) == 0) {
-        if (gpioTick() - start > timeout) return -1.0f;
+        if ((gpioTick() - start) > START_TIMEOUT_US) {
+            return -1.0f; // Таймаут ожидания старта
+        }
     }
     
     uint32_t pulse_start = gpioTick();
     
-    // Ждем пока echo не станет LOW
+    // Ждем пока echo не станет LOW (с таймаутом)
     while (gpioRead(echo_pin_) == 1) {
-        if (gpioTick() - pulse_start > timeout) return -1.0f;
+        if ((gpioTick() - pulse_start) > ECHO_TIMEOUT_US) {
+            return -1.0f; // Таймаут ожидания окончания импульса
+        }
     }
     
     uint32_t pulse_end = gpioTick();

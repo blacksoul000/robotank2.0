@@ -8,6 +8,9 @@
 #include <cmath>
 #include <map>
 #include <climits>
+#include <mutex>
+#include <atomic>
+#include <csignal>
 
 // pigpio headers (если доступен)
 #ifdef HAVE_PIGPIO
@@ -35,6 +38,13 @@ namespace {
     constexpr uint16_t TRIGGER_LEFT_BIT = 6;
     constexpr uint16_t TRIGGER_RIGHT_BIT = 7;
     constexpr uint16_t POINTER_BIT = 5;
+    
+    // Глобальные переменные для потокобезопасной инициализации pigpio
+#ifdef HAVE_PIGPIO
+    std::atomic<bool> g_pigpio_initialized{false};
+    std::atomic<int> g_pigpio_init_result{-1};
+    std::mutex g_pigpio_init_mutex;
+#endif
 }
 
 class GpioController::Impl {
@@ -126,8 +136,24 @@ GpioController::GpioController() : d(std::make_unique<Impl>()) {
 GpioController::~GpioController() {
 #ifdef HAVE_PIGPIO
     if (d->gpioInitialized) {
+        // Остановка всех сервоприводов перед завершением
+        for (auto& [pin, info] : d->servo) {
+            gpioServo(pin, 0);
+        }
+        
+        // Отключение выходов
         gpioWrite(SHOT_FINISHED_PIN1, 0);
+        gpioWrite(SHOT_PIN, 0);
+        gpioWrite(POINTER_PIN, 0);
+        
+        // Корректное завершение работы с pigpio
         gpioTerminate();
+        
+        // Сброс глобального флага
+        g_pigpio_initialized.store(false, std::memory_order_release);
+        g_pigpio_init_result.store(-1, std::memory_order_release);
+        
+        LOG_INFO_SRC("GPIO controller terminated gracefully", "gpio_controller");
     }
 #endif
 }
@@ -148,17 +174,40 @@ void GpioController::start() {
         }
     }
 
-    // Инициализация GPIO
+    // Потокобезопасная инициализация GPIO с проверкой ошибок
 #ifdef HAVE_PIGPIO
-    if (gpioInitialise() >= 0) {
-        d->gpioInitialized = true;
+    {
+        std::lock_guard<std::mutex> lock(g_pigpio_init_mutex);
         
-        // Установка таймера для сервоприводов
-        gpioSetTimerFuncEx(0, TICK_INTERVAL, servoTickProxy, this);
+        // Двойная проверка (double-checked locking)
+        if (!g_pigpio_initialized.load(std::memory_order_acquire)) {
+            int ret = gpioInitialise();
+            g_pigpio_init_result.store(ret, std::memory_order_release);
+            
+            if (ret >= 0) {
+                g_pigpio_initialized.store(true, std::memory_order_release);
+                d->gpioInitialized = true;
+                
+                // Установка таймера для сервоприводов
+                gpioSetTimerFuncEx(0, TICK_INTERVAL, servoTickProxy, this);
 
-        LOG_INFO_SRC("GPIO initialized", "gpio_controller");
-    } else {
-        LOG_ERROR_SRC("Failed to initialize GPIO", "gpio_controller");
+                LOG_INFO_SRC("GPIO initialized successfully (pigpio version: " + 
+                            std::to_string(ret) + ")", "gpio_controller");
+            } else {
+                // Критическая ошибка - аварийное завершение
+                LOG_ERROR_SRC("Failed to initialize GPIO (pigpio error code: " + 
+                             std::to_string(ret) + "). " +
+                             "Possible causes: insufficient permissions, " +
+                             "pigpio daemon running, or hardware conflict. " +
+                             "Robot cannot operate safely without GPIO.", "gpio_controller");
+                
+                // Останавливаем роботу при ошибке инициализации GPIO
+                throw std::runtime_error("GPIO initialization failed. Robot shutdown required.");
+            }
+        } else {
+            // Уже инициализировано другим потоком
+            d->gpioInitialized = (g_pigpio_init_result.load(std::memory_order_acquire) >= 0);
+        }
     }
 #else
     LOG_INFO_SRC("pigpio not available, running in simulation mode", "gpio_controller");

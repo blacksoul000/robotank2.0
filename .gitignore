@@ -8,26 +8,22 @@
 *.exe
 *.out
 
-# CMake build directories
-build/
-cmake-build-*/
-CMakeFiles/
-CMakeCache.txt
-Makefile
-cmake_install.cmake
-
 # Dependencies
+node_modules/
 venv/
 .venv/
 __pycache__/
-*.egg-info/
+.mypy_cache/
+.pytest_cache/
+target/
+.gradle/
 
-# Logs and temp files
+# Logs and temporary files
 *.log
 *.tmp
 *.swp
 
-# Environment
+# Environment files
 .env
 .env.local
 *.env.*
@@ -41,7 +37,7 @@ coverage/
 htmlcov/
 .coverage
 
-# OS files
+# System files
 .DS_Store
 Thumbs.db
 ```

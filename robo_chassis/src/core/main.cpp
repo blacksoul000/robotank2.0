@@ -19,10 +19,41 @@
 #include "sensors/sensor_fusion.hpp"
 #include "autonomy/autonomy_manager.hpp"
 #include "safety/safety_manager.hpp"
+#include "gpio/gpio_controller.hpp"
 
 std::atomic<bool> g_running{true};
 
+// Глобальный обработчик сигналов для graceful shutdown
+static robo_chassis::SafetyManager* g_safety_mgr_ptr = nullptr;
+static robo_chassis::GpioController* g_gpio_controller_ptr = nullptr;
+
+static void signalHandler(int signum) {
+    LOG_INFO("Получен сигнал " + std::to_string(signum) + ". Завершение работы...");
+    g_running.store(false, std::memory_order_release);
+    
+    // Принудительная остановка двигателей через SafetyManager
+    if (g_safety_mgr_ptr) {
+        g_safety_mgr_ptr->activateSafeMode();
+    }
+}
+
 int main() {
+    // Установка обработчика сигналов до инициализации компонентов
+    struct sigaction sa{};
+    sa.sa_handler = signalHandler;
+    sa.sa_flags = 0;
+    sigemptyset(&sa.sa_mask);
+    
+    if (sigaction(SIGINT, &sa, nullptr) < 0) {
+        std::cerr << "Ошибка установки обработчика SIGINT" << std::endl;
+        return 1;
+    }
+    
+    if (sigaction(SIGTERM, &sa, nullptr) < 0) {
+        std::cerr << "Ошибка установки обработчика SIGTERM" << std::endl;
+        return 1;
+    }
+    
     // Инициализация логгера первой (до использования макросов LOG_*)
     robo_chassis::Logger::instance().init(
         robo_chassis::LogLevel::INFO,
@@ -179,6 +210,8 @@ int main() {
 
         // Инициализация и запуск SafetyManager (watchdog + graceful shutdown)
         robo_chassis::SafetyManager safety_mgr(10, 5);  // 10 сек watchdog, 5 сек Arduino timeout
+        g_safety_mgr_ptr = &safety_mgr;  // Установка глобального указателя для обработчика сигналов
+        
         if (!safety_mgr.init()) {
             LOG_ERROR("Не удалось инициализировать SafetyManager");
         } else {
@@ -402,6 +435,7 @@ int main() {
         
         // Остановка SafetyManager (закроет watchdog и выполнит graceful shutdown)
         safety_mgr.stop();
+        g_safety_mgr_ptr = nullptr;  // Сброс глобального указателя
         
         if (server_thread.joinable()) {
             server_thread.join();
@@ -411,8 +445,19 @@ int main() {
 
     } catch (const std::exception& e) {
         LOG_CRITICAL("Критическая ошибка: " + std::string(e.what()));
+        
+        // Аварийная остановка при исключении
+        if (g_safety_mgr_ptr) {
+            g_safety_mgr_ptr->activateSafeMode();
+        }
+        g_safety_mgr_ptr = nullptr;
+        
         return 1;
     }
+    
+    // Сброс глобальных указателей перед выходом
+    g_safety_mgr_ptr = nullptr;
+    g_gpio_controller_ptr = nullptr;
 
     return 0;
 }
