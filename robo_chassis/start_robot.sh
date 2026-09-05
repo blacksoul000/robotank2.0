@@ -199,13 +199,16 @@ rpicam-vid -t 0 \
     --libav-format h264 \
     --libav-video-codec h264_v4l2m2m \
     --width 640 --height 480 \
-    --framerate 25 \
-    --bitrate 500000 \
-    --intra 25 \
+    --framerate 30 \
+    --bitrate 1000000 \
+    --intra 15 \
     --inline -o - | \
-    gst-launch-1.0 -v fdsrc ! \
-    application/x-rtp,media=video,clock-rate=90000,encoding-name=H264,payload=96 ! \
-    rtspsink location=rtsp://127.0.0.1:${MEDIA_RTSP_PORT}/stream latency=0 &
+    ffmpeg -f h264 \
+    -i /dev/stdin \
+    -c copy \
+    -f rtsp \
+    -rtsp_transport tcp \
+    rtsp://127.0.0.1:8554/stream &
 CAM_PID=$!
 
 # Проверка запуска камеры
