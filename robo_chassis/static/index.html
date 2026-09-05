@@ -37,6 +37,17 @@
             height: 100%;
             border: none;
             object-fit: cover;
+            display: block;
+        }
+        
+        #video-placeholder {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: #666;
+            font-size: 18px;
+            text-align: center;
         }
         
         /* Интерфейс поверх видео */
@@ -434,7 +445,8 @@
 <body>
     <!-- Видеопоток -->
     <div id="video-container">
-        <iframe id="video-frame" allow="autoplay; encrypted-media;"></iframe>
+        <div id="video-placeholder">Загрузка видеопотока...<br><small>http://<span id="video-url-host"></span>:8889/stream/</small></div>
+        <iframe id="video-frame" src="" allow="autoplay; encrypted-media;"></iframe>
     </div>
     
     <!-- Интерфейс -->
@@ -454,16 +466,40 @@
                 <div class="telemetry-value" id="distance-val">-- см</div>
             </div>
             <div class="telemetry-item">
-                <div class="telemetry-label">Качество WiFi</div>
+                <div class="telemetry-label">WiFi</div>
                 <div class="telemetry-value" id="wifi-quality-val">--%</div>
             </div>
             <div class="telemetry-item">
-                <div class="telemetry-label">CPU Temp</div>
+                <div class="telemetry-label">CPU</div>
                 <div class="telemetry-value" id="cpu-temp-val">--°C</div>
             </div>
             <div class="telemetry-item">
-                <div class="telemetry-label">Память</div>
+                <div class="telemetry-label">RAM</div>
                 <div class="telemetry-value" id="memory-val">--%</div>
+            </div>
+            <div class="telemetry-item">
+                <div class="telemetry-label">Roll</div>
+                <div class="telemetry-value" id="roll-val">0°</div>
+            </div>
+            <div class="telemetry-item">
+                <div class="telemetry-label">Pitch</div>
+                <div class="telemetry-value" id="pitch-val">0°</div>
+            </div>
+            <div class="telemetry-item">
+                <div class="telemetry-label">Башня</div>
+                <div class="telemetry-value" id="turret-val">0°</div>
+            </div>
+            <div class="telemetry-item">
+                <div class="telemetry-label">Ток L</div>
+                <div class="telemetry-value" id="current-left-val">-- A</div>
+            </div>
+            <div class="telemetry-item">
+                <div class="telemetry-label">Ток R</div>
+                <div class="telemetry-value" id="current-right-val">-- A</div>
+            </div>
+            <div class="telemetry-item">
+                <div class="telemetry-label">Ток T</div>
+                <div class="telemetry-value" id="current-tower-val">-- A</div>
             </div>
         </div>
         
@@ -548,8 +584,22 @@
         let isConnected = false;
         let lightsOn = false;
 
-        // Устанавливаем URL для видео
-        document.getElementById('video-frame').src = `http://${HOST}:${PORT_VIDEO}/stream/`;
+        // Устанавливаем URL для видео и обновляем placeholder
+        document.getElementById('video-url-host').textContent = HOST;
+        const videoFrame = document.getElementById('video-frame');
+        const videoUrl = `http://${HOST}:${PORT_VIDEO}/stream/`;
+        
+        // Пробуем загрузить видео, скрываем placeholder при успехе
+        videoFrame.src = videoUrl;
+        videoFrame.onload = function() {
+            document.getElementById('video-placeholder').style.display = 'none';
+        };
+        // Fallback: если через 3 секунды видео не загрузилось, показываем ошибку
+        setTimeout(function() {
+            if (videoFrame.readyState < 3) {
+                document.getElementById('video-placeholder').innerHTML = '⚠️ Видеопоток недоступен<br><small>Проверьте соединение с ' + videoUrl + '</small>';
+            }
+        }, 3000);
         
         const command = {
             type: 'COMMAND',
@@ -670,8 +720,10 @@
             const maxDistance = 50; // Максимальное отклонение в пикселях
             
             let isTouching = false;
+            let isMouseDown = false;
             let centerX, centerY;
             
+            // Touch события
             zone.addEventListener('touchstart', (e) => {
                 e.preventDefault();
                 isTouching = true;
@@ -695,9 +747,53 @@
                 callback(0, 0);
             });
             
+            // Mouse события для работы с мышкой
+            zone.addEventListener('mousedown', (e) => {
+                e.preventDefault();
+                isMouseDown = true;
+                const rect = zone.getBoundingClientRect();
+                centerX = rect.left + rect.width / 2;
+                centerY = rect.top + rect.height / 2;
+                handleMouse(e);
+            });
+            
+            document.addEventListener('mousemove', (e) => {
+                if (isMouseDown) {
+                    handleMouse(e);
+                }
+            });
+            
+            document.addEventListener('mouseup', (e) => {
+                if (isMouseDown) {
+                    isMouseDown = false;
+                    stick.style.transform = 'translate(0, 0)';
+                    callback(0, 0);
+                }
+            });
+            
             function handleTouch(touch) {
                 let dx = touch.clientX - centerX;
                 let dy = touch.clientY - centerY;
+                
+                const distance = Math.sqrt(dx * dx + dy * dy);
+                if (distance > maxDistance) {
+                    const ratio = maxDistance / distance;
+                    dx *= ratio;
+                    dy *= ratio;
+                }
+                
+                stick.style.transform = `translate(${dx}px, ${dy}px)`;
+                
+                // Нормализуем значения от -1 до 1
+                const x = dx / maxDistance;
+                const y = -(dy / maxDistance); // Инвертируем Y
+                
+                callback(x, y);
+            }
+            
+            function handleMouse(mouse) {
+                let dx = mouse.clientX - centerX;
+                let dy = mouse.clientY - centerY;
                 
                 const distance = Math.sqrt(dx * dx + dy * dy);
                 if (distance > maxDistance) {
@@ -733,24 +829,31 @@
         // === Кнопка огня ===
         const fireButton = document.getElementById('fire-button');
         
-        fireButton.addEventListener('touchstart', (e) => {
+        // Поддержка touch и mouse событий
+        function fireStart(e) {
             e.preventDefault();
             command.fire = true;
             sendCommand();
             fireButton.style.transform = 'scale(0.95)';
-        });
+        }
         
-        fireButton.addEventListener('touchend', (e) => {
+        function fireEnd(e) {
             e.preventDefault();
             command.fire = false;
             sendCommand();
             fireButton.style.transform = 'scale(1)';
-        });
+        }
+        
+        fireButton.addEventListener('touchstart', fireStart);
+        fireButton.addEventListener('touchend', fireEnd);
+        fireButton.addEventListener('mousedown', fireStart);
+        fireButton.addEventListener('mouseup', fireEnd);
+        fireButton.addEventListener('mouseleave', fireEnd);
         
         // === Кнопка света ===
         const lightsButton = document.getElementById('lights-button');
         
-        lightsButton.addEventListener('touchstart', (e) => {
+        function toggleLights(e) {
             e.preventDefault();
             lightsOn = !lightsOn;
             command.lights = lightsOn;
@@ -762,7 +865,10 @@
             }
             
             sendCommand();
-        });
+        }
+        
+        lightsButton.addEventListener('touchstart', toggleLights);
+        lightsButton.addEventListener('mousedown', toggleLights);
         
         // === E-STOP кнопка ===
         const estopButton = document.getElementById('estop-button');
