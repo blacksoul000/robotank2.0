@@ -214,56 +214,186 @@ void WebSocketServer::handleClient(int client_fd) {
             if (is_text && !payload.empty()) {
                 LOG_DEBUG("Получена команда: " + payload);
                 
-                Command cmd;
-                auto findValue = [&](const std::string& key) -> std::string {
-                    size_t pos = payload.find("\"" + key + "\"");
-                    if (pos == std::string::npos) return "";
-                    pos = payload.find(':', pos);
-                    if (pos == std::string::npos) return "";
-                    pos++;
-                    while (pos < payload.size() && 
-                           (payload[pos] == ' ' || payload[pos] == '\t')) pos++;
-                    if (pos >= payload.size()) return "";
-                    
-                    size_t end = pos;
-                    if (payload[pos] == '"') {
-                        end = payload.find('"', pos + 1);
-                        if (end == std::string::npos) return "";
-                        return payload.substr(pos + 1, end - pos - 1);
-                    } else {
-                        while (end < payload.size() && 
-                               payload[end] != ',' && payload[end] != '}') {
-                            end++;
+                // Проверяем тип сообщения
+                size_t typePos = payload.find("\"type\"");
+                std::string msgType = "";
+                if (typePos != std::string::npos) {
+                    size_t colonPos = payload.find(':', typePos);
+                    if (colonPos != std::string::npos) {
+                        size_t startQuote = payload.find('"', colonPos);
+                        if (startQuote != std::string::npos) {
+                            size_t endQuote = payload.find('"', startQuote + 1);
+                            if (endQuote != std::string::npos) {
+                                msgType = payload.substr(startQuote + 1, endQuote - startQuote - 1);
+                            }
                         }
-                        return payload.substr(pos, end - pos);
                     }
-                };
+                }
                 
-                try {
-                    std::string val;
-                    val = findValue("left_x");
-                    if (!val.empty()) cmd.left_x = std::stof(val);
+                if (msgType == "COMMAND") {
+                    // Обработка команды джойстиков
+                    Command cmd;
+                    auto findValue = [&](const std::string& key) -> std::string {
+                        size_t pos = payload.find("\"" + key + "\"");
+                        if (pos == std::string::npos) return "";
+                        pos = payload.find(':', pos);
+                        if (pos == std::string::npos) return "";
+                        pos++;
+                        while (pos < payload.size() && 
+                               (payload[pos] == ' ' || payload[pos] == '\t')) pos++;
+                        if (pos >= payload.size()) return "";
+                        
+                        size_t end = pos;
+                        if (payload[pos] == '"') {
+                            end = payload.find('"', pos + 1);
+                            if (end == std::string::npos) return "";
+                            return payload.substr(pos + 1, end - pos - 1);
+                        } else {
+                            while (end < payload.size() && 
+                                   payload[end] != ',' && payload[end] != '}') {
+                                end++;
+                            }
+                            return payload.substr(pos, end - pos);
+                        }
+                    };
                     
-                    val = findValue("left_y");
-                    if (!val.empty()) cmd.left_y = std::stof(val);
-                    
-                    val = findValue("right_x");
-                    if (!val.empty()) cmd.right_x = std::stof(val);
-                    
-                    val = findValue("right_y");
-                    if (!val.empty()) cmd.right_y = std::stof(val);
-                    
-                    val = findValue("fire");
-                    cmd.fire = (val == "true");
-                    
-                    val = findValue("lights");
-                    cmd.lights = (val == "true");
-                    
-                    if (m_command_callback) {
-                        m_command_callback(cmd);
+                    try {
+                        std::string val;
+                        // Парсим left: {x: ..., y: ...}
+                        size_t leftPos = payload.find("\"left\"");
+                        if (leftPos != std::string::npos) {
+                            size_t bracePos = payload.find('{', leftPos);
+                            if (bracePos != std::string::npos) {
+                                size_t xValPos = payload.find("\"x\"", bracePos);
+                                if (xValPos != std::string::npos) {
+                                    val = findValue("x");
+                                    if (!val.empty()) cmd.left_x = std::stof(val);
+                                }
+                                size_t yValPos = payload.find("\"y\"", bracePos);
+                                if (yValPos != std::string::npos) {
+                                    val = findValue("y");
+                                    if (!val.empty()) cmd.left_y = std::stof(val);
+                                }
+                            }
+                        }
+                        
+                        // Парсим right: {x: ..., y: ...}
+                        size_t rightPos = payload.find("\"right\"");
+                        if (rightPos != std::string::npos) {
+                            size_t bracePos = payload.find('{', rightPos);
+                            if (bracePos != std::string::npos) {
+                                size_t xValPos = payload.find("\"x\"", bracePos);
+                                if (xValPos != std::string::npos) {
+                                    val = findValue("x");
+                                    if (!val.empty()) cmd.right_x = std::stof(val);
+                                }
+                                size_t yValPos = payload.find("\"y\"", bracePos);
+                                if (yValPos != std::string::npos) {
+                                    val = findValue("y");
+                                    if (!val.empty()) cmd.right_y = std::stof(val);
+                                }
+                            }
+                        }
+                        
+                        if (m_command_callback) {
+                            m_command_callback(cmd);
+                        }
+                    } catch (...) {
+                        LOG_WARNING("Ошибка парсинга команды джойстика");
                     }
-                } catch (...) {
-                    LOG_WARNING("Ошибка парсинга команды");
+                } else if (msgType == "ACTION") {
+                    // Обработка действий (свет, огонь)
+                    std::string action, state;
+                    auto findStringValue = [&](const std::string& key) -> std::string {
+                        size_t pos = payload.find("\"" + key + "\"");
+                        if (pos == std::string::npos) return "";
+                        pos = payload.find(':', pos);
+                        if (pos == std::string::npos) return "";
+                        pos++;
+                        while (pos < payload.size() && 
+                               (payload[pos] == ' ' || payload[pos] == '\t')) pos++;
+                        if (pos >= payload.size()) return "";
+                        
+                        if (payload[pos] == '"') {
+                            size_t end = payload.find('"', pos + 1);
+                            if (end == std::string::npos) return "";
+                            return payload.substr(pos + 1, end - pos - 1);
+                        }
+                        return "";
+                    };
+                    
+                    action = findStringValue("action");
+                    state = findStringValue("state");
+                    
+                    if (!action.empty()) {
+                        Command cmd;
+                        if (action == "light") {
+                            cmd.lights = (state == "true");
+                            LOG_INFO("Свет: " + std::string(state == "true" ? "ВКЛ" : "ВЫКЛ"));
+                            if (m_command_callback) {
+                                m_command_callback(cmd);
+                            }
+                        } else if (action == "fire") {
+                            cmd.fire = (state == "true");
+                            LOG_INFO("Огонь: " + std::string(state == "true" ? "ВКЛ" : "ВЫКЛ"));
+                            if (m_command_callback) {
+                                m_command_callback(cmd);
+                            }
+                        }
+                    }
+                } else {
+                    // Старый формат для обратной совместимости
+                    Command cmd;
+                    auto findValue = [&](const std::string& key) -> std::string {
+                        size_t pos = payload.find("\"" + key + "\"");
+                        if (pos == std::string::npos) return "";
+                        pos = payload.find(':', pos);
+                        if (pos == std::string::npos) return "";
+                        pos++;
+                        while (pos < payload.size() && 
+                               (payload[pos] == ' ' || payload[pos] == '\t')) pos++;
+                        if (pos >= payload.size()) return "";
+                        
+                        size_t end = pos;
+                        if (payload[pos] == '"') {
+                            end = payload.find('"', pos + 1);
+                            if (end == std::string::npos) return "";
+                            return payload.substr(pos + 1, end - pos - 1);
+                        } else {
+                            while (end < payload.size() && 
+                                   payload[end] != ',' && payload[end] != '}') {
+                                end++;
+                            }
+                            return payload.substr(pos, end - pos);
+                        }
+                    };
+                    
+                    try {
+                        std::string val;
+                        val = findValue("left_x");
+                        if (!val.empty()) cmd.left_x = std::stof(val);
+                        
+                        val = findValue("left_y");
+                        if (!val.empty()) cmd.left_y = std::stof(val);
+                        
+                        val = findValue("right_x");
+                        if (!val.empty()) cmd.right_x = std::stof(val);
+                        
+                        val = findValue("right_y");
+                        if (!val.empty()) cmd.right_y = std::stof(val);
+                        
+                        val = findValue("fire");
+                        cmd.fire = (val == "true");
+                        
+                        val = findValue("lights");
+                        cmd.lights = (val == "true");
+                        
+                        if (m_command_callback) {
+                            m_command_callback(cmd);
+                        }
+                    } catch (...) {
+                        LOG_WARNING("Ошибка парсинга команды");
+                    }
                 }
             }
         }

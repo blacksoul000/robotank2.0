@@ -1,6 +1,6 @@
 ```
-# CMake build directory
-build/
+# CMake build artifacts
+robo_chassis/build/
 
 # Compiled object files
 *.o
@@ -8,19 +8,40 @@ build/
 *.d
 
 # Executables
-robo_chassis
-tests/run_tests
+robo_chassis/build/robo_chassis
 
 # CMake generated files
 CMakeCache.txt
 cmake_install.cmake
 compile_commands.json
 Makefile
-CTestTestfile.cmake
 
-# CMake build system files
-CMakeFiles/
+# Test executables
+robo_chassis/build/tests/run_tests
 
-# Generated binaries and cache
-*.bin
+# Coverage reports
+coverage/
+htmlcov/
+.coverage
+
+# Logs
+*.log
+
+# Temporary files
+*.tmp
+*.swp
+*.swo
+
+# Environment variables
+.env
+.env.local
+*.env.*
+
+# IDE specific
+.vscode/
+.idea/
+
+# OS generated
+.DS_Store
+Thumbs.db
 ```

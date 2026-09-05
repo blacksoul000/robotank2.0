@@ -62,7 +62,7 @@ else()
 endif()
 
 # pigpio для работы с GPIO (ультразвук) - замена wiringPi
-find_library(PIGPIO_LIB NAMES pigpiod_if2 pigpio)
+find_library(PIGPIO_LIB NAMES pigpio)
 if(PIGPIO_LIB)
     target_link_libraries(robo_chassis PRIVATE ${PIGPIO_LIB})
     target_compile_definitions(robo_chassis PRIVATE HAVE_PIGPIO)
