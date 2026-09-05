@@ -207,8 +207,3 @@ TEST_F(SensorFusionMockTest, SimulatedMovement) {
     EXPECT_TRUE(imu_->init());
     EXPECT_GT(imu_->getAccelX(), 0.0f);  // Есть ускорение вперед
 }
-
-int main(int argc, char **argv) {
-    ::testing::InitGoogleTest(&argc, argv);
-    return RUN_ALL_TESTS();
-}

@@ -23,9 +23,13 @@ include_directories(
 
 # Source files needed for tests
 set(TEST_SOURCES
+    test_main.cpp
     test_pid.cpp
     test_sensor_fusion.cpp
     test_sensor_fusion_mock.cpp
+    test_config.cpp
+    test_logger.cpp
+    test_gpio_controller.cpp
     ../src/core/autonomy/autonomy_manager.cpp
     ../src/core/sensors/sensor_fusion.cpp
     ../src/core/sensors/compass_ultrasonic.cpp
@@ -49,3 +53,12 @@ target_link_libraries(run_tests
 add_test(NAME PIDControllerTests COMMAND run_tests --gtest_filter="PIDControllerTest.*")
 add_test(NAME SensorFusionTests COMMAND run_tests --gtest_filter="SensorFusionTest.*")
 add_test(NAME SensorFusionMockTests COMMAND run_tests --gtest_filter="SensorFusionMockTest.*")
+add_test(NAME ConfigTests COMMAND run_tests --gtest_filter="ConfigTest.*")
+add_test(NAME LoggerTests COMMAND run_tests --gtest_filter="LoggerTest.*")
+add_test(NAME GpioDataStructuresTests COMMAND run_tests --gtest_filter="GpioDataStructuresTest.*")
+add_test(NAME GpioCallbacksTests COMMAND run_tests --gtest_filter="GpioCallbacksTest.*")
+add_test(NAME JoyButtonsBitwiseTests COMMAND run_tests --gtest_filter="JoyButtonsBitwiseTest.*")
+add_test(NAME PointerTests COMMAND run_tests --gtest_filter="PointerTest.*")
+add_test(NAME YprTests COMMAND run_tests --gtest_filter="YprTest.*")
+add_test(NAME CalibrationTests COMMAND run_tests --gtest_filter="CalibrationTest.*")
+add_test(NAME ArduinoStatusTests COMMAND run_tests --gtest_filter="ArduinoStatusTest.*")
