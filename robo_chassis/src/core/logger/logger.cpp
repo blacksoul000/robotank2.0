@@ -15,15 +15,15 @@ Logger& Logger::instance() {
 
 void Logger::init(LogLevel level, bool enable_console, bool enable_file,
                   const std::string& file_path, int max_size_mb, int max_files) {
-    std::lock_guard<std::mutex> lock(mutex_);
-    
+    std::unique_lock<std::mutex> lock(mutex_);
+
     min_level_ = level;
     console_enabled_ = enable_console;
     file_enabled_ = enable_file;
     file_path_ = file_path;
     max_size_bytes_ = max_size_mb * 1024 * 1024;
     max_files_ = max_files;
-    
+
     // Создать директорию для логов если она не существует
     if (file_enabled_) {
         size_t last_slash = file_path_.find_last_of('/');
@@ -38,7 +38,6 @@ void Logger::init(LogLevel level, bool enable_console, bool enable_file,
                 system(mkdir_cmd.c_str());
             }
         }
-        
         // Открыть файл для записи (добавление в конец)
         file_stream_.open(file_path_, std::ios::app);
         if (!file_stream_.is_open()) {
@@ -50,7 +49,7 @@ void Logger::init(LogLevel level, bool enable_console, bool enable_file,
     }
     
     initialized_ = true;
-    
+    lock.unlock();
     LOG_INFO("Logger initialized: level=%s, console=%s, file=%s%s%s", 
              levelToString(level).c_str(),
              enable_console ? "yes" : "no",

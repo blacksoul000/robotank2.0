@@ -177,6 +177,12 @@ void WebSocketServer::serverLoop() {
 void WebSocketServer::handleClient(int client_fd) {
     unsigned char buffer[4096];
     
+    // Устанавливаем таймаут на чтение для клиентского сокета
+    struct timeval timeout;
+    timeout.tv_sec = 1;  // 1 секунда таймаут
+    timeout.tv_usec = 0;
+    setsockopt(client_fd, SOL_SOCKET, SO_RCVTIMEO, &timeout, sizeof(timeout));
+    
     // Инициализация rate limit для нового клиента
     {
         std::lock_guard<std::mutex> lock(m_rate_limit_mutex);
@@ -186,7 +192,14 @@ void WebSocketServer::handleClient(int client_fd) {
     while (m_running.load()) {
         ssize_t bytes_read = read(client_fd, buffer, sizeof(buffer));
         
-        if (bytes_read <= 0) break;
+        if (bytes_read < 0) {
+            // Таймаут - продолжаем цикл
+            if (errno == EAGAIN || errno == EWOULDBLOCK) {
+                continue;
+            }
+            break;  // Другая ошибка - выход
+        }
+        if (bytes_read == 0) break;  // Клиент отключился
         
         // Проверка rate limit перед обработкой сообщения
         if (!checkRateLimit(client_fd)) {
@@ -341,8 +354,19 @@ std::vector<unsigned char> WebSocketServer::createWebSocketFrame(const std::stri
 }
 
 bool WebSocketServer::performHandshake(int client_fd) {
+    // Устанавливаем таймаут на чтение для handshake
+    struct timeval timeout;
+    timeout.tv_sec = 5;  // 5 секунд таймаут
+    timeout.tv_usec = 0;
+    setsockopt(client_fd, SOL_SOCKET, SO_RCVTIMEO, &timeout, sizeof(timeout));
+    
     char buffer[4096] = {0};
     ssize_t bytes_read = read(client_fd, buffer, sizeof(buffer) - 1);
+    
+    // Сбрасываем таймаут обратно в бесконечность
+    timeout.tv_sec = 0;
+    timeout.tv_usec = 0;
+    setsockopt(client_fd, SOL_SOCKET, SO_RCVTIMEO, &timeout, sizeof(timeout));
     
     if (bytes_read <= 0) {
         LOG_WARNING("Не удалось прочитать данные для handshake");

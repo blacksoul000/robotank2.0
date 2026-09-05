@@ -43,27 +43,27 @@ int main() {
     sa.sa_handler = signalHandler;
     sa.sa_flags = 0;
     sigemptyset(&sa.sa_mask);
-    
+
     if (sigaction(SIGINT, &sa, nullptr) < 0) {
         std::cerr << "Ошибка установки обработчика SIGINT" << std::endl;
         return 1;
     }
-    
+
     if (sigaction(SIGTERM, &sa, nullptr) < 0) {
         std::cerr << "Ошибка установки обработчика SIGTERM" << std::endl;
         return 1;
     }
-    
+
     // Инициализация логгера первой (до использования макросов LOG_*)
     robo_chassis::Logger::instance().init(
         robo_chassis::LogLevel::INFO,
         true,   // console
         true,   // file
-        "/var/log/robo_chassis/robot.log",
+        "/tmp/robo_schassis/robot.log",
         10,     // max_size_mb
         5       // max_files
     );
-    
+
     LOG_INFO("=== RoboChassis Core (Pure C++20) ===");
     
     // Загрузка конфигурации
