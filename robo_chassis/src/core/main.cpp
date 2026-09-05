@@ -274,7 +274,11 @@ int main() {
         int connection_attempts = 0;
         const int max_connection_attempts = telemetry_config.connection_timeout_attempts;
         auto last_sys_update = std::chrono::steady_clock::now();
-        const auto sys_update_interval = std::chrono::seconds(2); // Обновление каждые 2 секунды
+        const auto sys_update_interval = std::chrono::milliseconds(500); // Обновление системы каждые 500мс
+        
+        // Rate limiting для телеметрии (2 Гц = 500мс)
+        auto last_telemetry_send = std::chrono::steady_clock::now();
+        const auto telemetry_interval = std::chrono::milliseconds(500); // 2 Hz
         
         while (g_running) {
             // Обновление автономного менеджера (вызывается перед send_to_arduino)
@@ -297,7 +301,11 @@ int main() {
             if (now - last_sys_update >= sys_update_interval) {
                 sys_monitor.update();
                 MEM_UPDATE;  // Обновление статистики памяти
-                
+                last_sys_update = now;
+            }
+            
+            // Отправка телеметрии через WebSocket с rate limiting (2 Гц)
+            if (now - last_telemetry_send >= telemetry_interval) {
                 // Чтение данных из SensorFusion и ультразвука - только в реальном режиме
                 float heading = -1.0f;
                 float distance_cm = 0.0f;
@@ -332,6 +340,8 @@ int main() {
                                            i2c_config.simulation_mode ? distance_cm : (ultrasonic.isReady() ? ultrasonic.readDistanceCm() : -1.0f),
                                            sys_monitor.getWifiLinkQuality());
                 
+                last_telemetry_send = now;
+                
                 // Проверка на троттлинг и критические состояния
                 if (sys_monitor.needsThrottling()) {
                     std::string msg = "Системный троттлинг! Температура: " + 
@@ -352,10 +362,8 @@ int main() {
                 
                 // Автоматическая оптимизация памяти при необходимости
                 if (MEM_OPTIMIZE) {
-                    LOG_INFO("Выполнена автоматическая оптимизация памяти");
+                    LOG_DEBUG("Выполнена автоматическая оптимизация памяти");
                 }
-                
-                last_sys_update = now;
             }
             
             // Вывод телеметрии для отладки

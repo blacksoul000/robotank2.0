@@ -1,31 +1,43 @@
 [Unit]
 Description=RoboChassis Robot Control Service
 After=network.target
+Documentation=https://github.com/your-repo/robo_chassis
 
 [Service]
 Type=simple
 User=pi
+Group=pi
 WorkingDirectory=/home/pi/robo_chassis
-ExecStart=/home/pi/robo_chassis/build/robo_chassis
-Restart=always
-RestartSec=5
+ExecStart=/home/pi/robo_chassis/start_robot.sh
+Restart=on-failure
+RestartSec=10
+TimeoutStartSec=30
+TimeoutStopSec=30
 
-# Watchdog settings (опционально)
-# WatchdogSec=30s
+# Watchdog integration (если поддерживается оборудованием)
+WatchdogSec=30s
+RuntimeDirectory=robo_chassis
 
-# Логирование через systemd journal
+# Логирование через systemd journal с ротацией
 StandardOutput=journal
 StandardError=journal
 SyslogIdentifier=robo_chassis
 
-# Ограничение ресурсов
+# Ограничение ресурсов для Raspberry Pi 2B
 MemoryMax=256M
-CPUQuota=50%
+CPUQuota=60%
+TasksMax=50
 
 # Безопасность
 NoNewPrivileges=true
 ProtectSystem=strict
+ProtectHome=read-only
+PrivateTmp=true
 ReadWritePaths=/var/log/robo_chassis /home/pi/robo_chassis
+
+# Environment variables
+Environment="LOG_DIR=/var/log/robo_chassis"
+Environment="CAMERA_HEALTH_CHECK=true"
 
 [Install]
 WantedBy=multi-user.target
