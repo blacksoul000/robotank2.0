@@ -7,7 +7,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 # Enable testing
 enable_testing()
 
-# Find Google Test
+# Find Google Test (system installed)
 find_package(GTest REQUIRED)
 
 # Include directories
@@ -24,6 +24,13 @@ add_executable(run_tests
     test_pid.cpp
     test_sensor_fusion.cpp
     test_sensor_fusion_mock.cpp
+    ../src/core/autonomy/autonomy_manager.cpp
+    ../src/core/gpio/complementary_filter.cpp
+    ../src/core/gpio/mpu6050_imu.cpp
+    ../src/core/sensors/sensor_fusion.cpp
+    ../src/core/sensors/compass_ultrasonic.cpp
+    ../src/core/logger/logger.cpp
+    ../src/core/config/config.cpp
 )
 
 target_link_libraries(run_tests
