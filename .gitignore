@@ -1,43 +1,26 @@
 ```
-# Build artifacts
+# CMake build directory
+build/
+
+# Compiled object files
 *.o
 *.obj
-*.a
-*.so
-*.dll
-*.exe
-*.out
+*.d
 
-# Dependencies
-node_modules/
-venv/
-.venv/
-__pycache__/
-.mypy_cache/
-.pytest_cache/
-target/
-.gradle/
+# Executables
+robo_chassis
+tests/run_tests
 
-# Logs and temporary files
-*.log
-*.tmp
-*.swp
+# CMake generated files
+CMakeCache.txt
+cmake_install.cmake
+compile_commands.json
+Makefile
+CTestTestfile.cmake
 
-# Environment files
-.env
-.env.local
-*.env.*
+# CMake build system files
+CMakeFiles/
 
-# Editors
-.vscode/
-.idea/
-
-# Coverage reports
-coverage/
-htmlcov/
-.coverage
-
-# System files
-.DS_Store
-Thumbs.db
+# Generated binaries and cache
+*.bin
 ```

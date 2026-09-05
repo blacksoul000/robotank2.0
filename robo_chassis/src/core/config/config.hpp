@@ -90,15 +90,24 @@ struct MotorsConfig {
  */
 struct SensorsConfig {
     int fusion_update_rate_hz = 50;       // Частота обновления SensorFusion (Гц)
+    
+    // Настройки магнитометра (калибровка)
     float magnetometer_calib_min_x = -1.0f;
     float magnetometer_calib_max_x = 1.0f;
     float magnetometer_calib_min_y = -1.0f;
     float magnetometer_calib_max_y = 1.0f;
     float magnetometer_calib_min_z = -1.0f;
     float magnetometer_calib_max_z = 1.0f;
+    
+    // Настройки гироскопа (смещение)
     float gyro_bias_x = 0.0f;
     float gyro_bias_y = 0.0f;
     float gyro_bias_z = 0.0f;
+    
+    // Настройки GPIO для ультразвукового дальномера
+    int ultrasonic_trigger_pin = 17;      // GPIO пин для Trigger (HC-SR04)
+    int ultrasonic_echo_pin = 27;         // GPIO пин для Echo (HC-SR04)
+    float ultrasonic_max_distance_cm = 400.0f;  // Максимальная дистанция измерения (см)
 };
 
 /**

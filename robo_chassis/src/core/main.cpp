@@ -150,13 +150,17 @@ int main() {
         }
         
         // 8. Инициализация ультразвука отдельно - только в реальном режиме
-        robo_chassis::sensors::Ultrasonic ultrasonic(17, 27); // GPIO 17 (Trigger), GPIO 27 (Echo)
+        const auto& sensors_config = robo_chassis::Config::getSensors();
+        robo_chassis::sensors::Ultrasonic ultrasonic(
+            sensors_config.ultrasonic_trigger_pin, 
+            sensors_config.ultrasonic_echo_pin
+        );
         
         if (i2c_config.simulation_mode) {
             LOG_INFO("Ультразвуковой дальномер отключен: режим симуляции активен");
         } else if (ultrasonic.init()) {
             LOG_INFO("Ультразвуковой дальномер успешно инициализирован");
-            ultrasonic.setMaxDistanceCm(400.0f); // Максимальная дистанция 400 см
+            ultrasonic.setMaxDistanceCm(sensors_config.ultrasonic_max_distance_cm);
         } else {
             LOG_WARNING("Не удалось инициализировать ультразвуковой дальномер (проверьте GPIO)");
         }

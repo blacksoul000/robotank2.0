@@ -99,6 +99,8 @@ bool Config::load(const std::string& config_path) {
             auto& sensors = j["sensors"];
             if (sensors.contains("fusion_update_rate_hz")) 
                 instance_.sensors_.fusion_update_rate_hz = sensors["fusion_update_rate_hz"].get<int>();
+            
+            // Настройки магнитометра
             if (sensors.contains("magnetometer_calib_min_x")) 
                 instance_.sensors_.magnetometer_calib_min_x = sensors["magnetometer_calib_min_x"].get<float>();
             if (sensors.contains("magnetometer_calib_max_x")) 
@@ -111,9 +113,19 @@ bool Config::load(const std::string& config_path) {
                 instance_.sensors_.magnetometer_calib_min_z = sensors["magnetometer_calib_min_z"].get<float>();
             if (sensors.contains("magnetometer_calib_max_z")) 
                 instance_.sensors_.magnetometer_calib_max_z = sensors["magnetometer_calib_max_z"].get<float>();
+            
+            // Настройки гироскопа
             if (sensors.contains("gyro_bias_x")) instance_.sensors_.gyro_bias_x = sensors["gyro_bias_x"].get<float>();
             if (sensors.contains("gyro_bias_y")) instance_.sensors_.gyro_bias_y = sensors["gyro_bias_y"].get<float>();
             if (sensors.contains("gyro_bias_z")) instance_.sensors_.gyro_bias_z = sensors["gyro_bias_z"].get<float>();
+            
+            // Настройки GPIO для ультразвукового дальномера
+            if (sensors.contains("ultrasonic_trigger_pin"))
+                instance_.sensors_.ultrasonic_trigger_pin = sensors["ultrasonic_trigger_pin"].get<int>();
+            if (sensors.contains("ultrasonic_echo_pin"))
+                instance_.sensors_.ultrasonic_echo_pin = sensors["ultrasonic_echo_pin"].get<int>();
+            if (sensors.contains("ultrasonic_max_distance_cm"))
+                instance_.sensors_.ultrasonic_max_distance_cm = sensors["ultrasonic_max_distance_cm"].get<float>();
         }
         
         // Парсинг секции websocket

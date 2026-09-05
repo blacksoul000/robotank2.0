@@ -51,7 +51,10 @@
     "magnetometer_calib_max_z": 1.0,
     "gyro_bias_x": 0.0,
     "gyro_bias_y": 0.0,
-    "gyro_bias_z": 0.0
+    "gyro_bias_z": 0.0,
+    "ultrasonic_trigger_pin": 17,
+    "ultrasonic_echo_pin": 27,
+    "ultrasonic_max_distance_cm": 400.0
   },
   "websocket": {
     "port": 8765,
