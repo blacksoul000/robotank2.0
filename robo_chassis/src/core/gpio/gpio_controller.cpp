@@ -11,18 +11,9 @@
 
 // pigpio headers (если доступен)
 #ifdef HAVE_PIGPIO
-// Пробуем pigpiod_if2.h для клиентской библиотеки
-#  ifdef __has_include
-#    if __has_include(<pigpiod_if2.h>)
-#      include <pigpiod_if2.h>
-#    elif __has_include(<pigpio.h>)
-#      include <pigpio.h>
-#    else
-#      undef HAVE_PIGPIO
-#    endif
-#  else
-#    include <pigpiod_if2.h>
-#  endif
+extern "C" {
+#include <pigpio.h>
+}
 #endif
 
 namespace robo_chassis {

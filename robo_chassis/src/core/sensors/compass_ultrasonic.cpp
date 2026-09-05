@@ -9,35 +9,29 @@
 #include <chrono>
 #include <cstdint>
 
-// Для работы с GPIO на Raspberry Pi через pigpio
+// Для работы с GPIO на Raspberry Pi через pigpio (без демона)
 #ifdef HAVE_PIGPIO
 extern "C" {
-#include <pigpiod_if2.h>
+#include <pigpio.h>
 }
 #endif
 
 namespace robo_chassis {
 namespace sensors {
 
-// Глобальный дескриптор pigpio (инициализируется один раз)
+// Глобальный флаг инициализации pigpio
 #ifdef HAVE_PIGPIO
-static int pigpio_handle = -1;
 static bool pigpio_initialized = false;
-#endif
 
-static int getPigpioHandle() {
-#ifdef HAVE_PIGPIO
+static void ensurePigpioInitialized() {
     if (!pigpio_initialized) {
-        pigpio_handle = pigpio_start(0, 0); // Подключение к локальному daemon
-        if (pigpio_handle >= 0) {
+        int ret = gpioInitialise();
+        if (ret >= 0) {
             pigpio_initialized = true;
         }
     }
-    return pigpio_handle;
-#else
-    return -1;
-#endif
 }
+#endif
 
 // ============================================================================
 // Compass Implementation
@@ -214,17 +208,17 @@ Ultrasonic::~Ultrasonic() {
 
 bool Ultrasonic::init() {
 #ifdef HAVE_PIGPIO
-    int handle = getPigpioHandle();
-    if (handle < 0) {
+    ensurePigpioInitialized();
+    if (!pigpio_initialized) {
         return false;
     }
 
     // Настройка пинов: Trigger - OUTPUT, Echo - INPUT
-    set_mode(handle, trigger_pin_, PI_OUTPUT);
-    set_mode(handle, echo_pin_, PI_INPUT);
+    gpioSetMode(trigger_pin_, PI_OUTPUT);
+    gpioSetMode(echo_pin_, PI_INPUT);
     
     // Начальное состояние Trigger - LOW
-    gpio_write(handle, trigger_pin_, 0);
+    gpioWrite(trigger_pin_, 0);
     
     std::this_thread::sleep_for(std::chrono::milliseconds(100));
     ready_ = true;
@@ -238,13 +232,12 @@ bool Ultrasonic::init() {
 
 bool Ultrasonic::trigger() {
 #ifdef HAVE_PIGPIO
-    int handle = getPigpioHandle();
-    if (handle < 0) return false;
+    if (!pigpio_initialized) return false;
     
     // Генерация импульса 10 мкс
-    gpio_write(handle, trigger_pin_, 1);
+    gpioWrite(trigger_pin_, 1);
     std::this_thread::sleep_for(std::chrono::microseconds(10));
-    gpio_write(handle, trigger_pin_, 0);
+    gpioWrite(trigger_pin_, 0);
     return true;
 #else
     return false;
@@ -253,21 +246,20 @@ bool Ultrasonic::trigger() {
 
 float Ultrasonic::measureEchoDuration() {
 #ifdef HAVE_PIGPIO
-    int handle = getPigpioHandle();
-    if (handle < 0) return -1.0f;
+    if (!pigpio_initialized) return -1.0f;
     
     uint32_t timeout = 10000; // 10ms timeout в микросекундах
     
     // Ждем пока echo не станет HIGH
     uint32_t start = gpioTick();
-    while (gpio_read(handle, echo_pin_) == 0) {
+    while (gpioRead(echo_pin_) == 0) {
         if (gpioTick() - start > timeout) return -1.0f;
     }
     
     uint32_t pulse_start = gpioTick();
     
     // Ждем пока echo не станет LOW
-    while (gpio_read(handle, echo_pin_) == 1) {
+    while (gpioRead(echo_pin_) == 1) {
         if (gpioTick() - pulse_start > timeout) return -1.0f;
     }
     

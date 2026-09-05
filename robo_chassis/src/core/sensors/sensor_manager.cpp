@@ -6,7 +6,9 @@
 #include <numeric>
 
 #ifdef HAVE_PIGPIO
+extern "C" {
 #include <pigpio.h>
+}
 #include <fcntl.h>
 #include <unistd.h>
 #include <sys/ioctl.h>
@@ -14,6 +16,20 @@
 #endif
 
 namespace robo {
+
+// Глобальный флаг инициализации pigpio
+#ifdef HAVE_PIGPIO
+static bool g_pigpio_initialized = false;
+
+static void ensurePigpioInitialized() {
+    if (!g_pigpio_initialized) {
+        int ret = gpioInitialise();
+        if (ret >= 0) {
+            g_pigpio_initialized = true;
+        }
+    }
+}
+#endif
 
 SensorManager& SensorManager::getInstance() {
     static SensorManager instance;
@@ -25,8 +41,9 @@ SensorManager::~SensorManager() {
     if (i2c_fd_ >= 0) {
         close(i2c_fd_);
     }
-    if (ultrasonic_available_) {
+    if (g_pigpio_initialized) {
         gpioTerminate();
+        g_pigpio_initialized = false;
     }
 #endif
 }
@@ -61,7 +78,8 @@ bool SensorManager::initialize(int trigger_pin, int echo_pin, uint8_t compass_ad
 
 bool SensorManager::initUltrasonic(int trigger_pin, int echo_pin) {
 #ifdef HAVE_PIGPIO
-    if (gpioInitialise() < 0) {
+    ensurePigpioInitialized();
+    if (!g_pigpio_initialized) {
         LOG_ERROR("Не удалось инициализировать pigpio");
         return false;
     }
@@ -166,6 +184,10 @@ void SensorManager::update() {
 
 std::optional<float> SensorManager::readUltrasonicDistance() {
 #ifdef HAVE_PIGPIO
+    if (!g_pigpio_initialized) {
+        return std::nullopt;
+    }
+    
     // Генерация импульса 10 мкс
     gpioWrite(ultrasonic_trigger_pin_, PI_LOW);
     gpioDelay(2);
