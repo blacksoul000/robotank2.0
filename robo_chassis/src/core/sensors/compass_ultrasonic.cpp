@@ -259,19 +259,19 @@ float Ultrasonic::measureEchoDuration() {
     uint32_t timeout = 10000; // 10ms timeout в микросекундах
     
     // Ждем пока echo не станет HIGH
-    uint32_t start = get_current_time(handle);
+    uint32_t start = gpioTick();
     while (gpio_read(handle, echo_pin_) == 0) {
-        if (get_current_time(handle) - start > timeout) return -1.0f;
+        if (gpioTick() - start > timeout) return -1.0f;
     }
     
-    uint32_t pulse_start = get_current_time(handle);
+    uint32_t pulse_start = gpioTick();
     
     // Ждем пока echo не станет LOW
     while (gpio_read(handle, echo_pin_) == 1) {
-        if (get_current_time(handle) - pulse_start > timeout) return -1.0f;
+        if (gpioTick() - pulse_start > timeout) return -1.0f;
     }
     
-    uint32_t pulse_end = get_current_time(handle);
+    uint32_t pulse_end = gpioTick();
     return static_cast<float>(pulse_end - pulse_start);
 #else
     return -1.0f;
