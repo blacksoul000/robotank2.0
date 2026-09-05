@@ -50,7 +50,7 @@
 
 **Видеопоток (отдельный процесс):**
 ```
-Камера → rpicam-vid → RTSP → MediaMTX → HLS/WebRTC → Браузер
+Камера → rpicam-vid → RTSP → MediaMTX → HTTP stream → Браузер (iframe)
 (порт 8554/8889)
 ```
 
@@ -62,17 +62,15 @@
 - **Назначение:** Трансляция видео с камеры через RTSP сервер
 - **Порты:** 
   - 8554 (RTSP для приема потока)
-  - 8889 (HLS для веб-интерфейса)
-  - 8890 (WebRTC для низкой задержки)
+  - 8889 (HTTP stream для веб-интерфейса через iframe)
 - **Аппаратное кодирование:** H.264 через VPU Raspberry Pi 2
 - **Запуск:** 
   ```bash
   mediamtx mediamtx.yml &
   rpicam-vid -t 0 --codec libav --libav-format h264 \
     --libav-video-codec h264_v4l2m2m --width 640 --height 480 \
-    --framerate 30 --bitrate 1000000 --intra 15 --inline -o - | \
-    ffmpeg -f h264 -i /dev/stdin -c copy -f rtsp \
-    rtsp://127.0.0.1:8554/stream
+    --framerate 30 --bitrate 1000000 --intra 15 --inline \
+    -o rtsp://127.0.0.1:8554/stream
   ```
 
 ### 2. Python Bridge
@@ -115,7 +113,7 @@
   - Два сенсорных джойстика (левый - движение, правый - башня)
   - Кнопки "ОГОНЬ" и "СВЕТ"
   - Панель телеметрии в реальном времени
-  - Видеопоток на фоне (iframe с HLS/WebRTC от MediaMTX)
+  - Видеопоток на фоне (iframe с HTTP stream от MediaMTX, порт 8889)
 - **Адаптивность:** Полная поддержка мобильных устройств
 
 ### 5. Arduino Firmware
@@ -181,9 +179,9 @@
          ↓
 3. Поток передается через RTSP в MediaMTX
          ↓
-4. MediaMTX транслирует через HLS/WebRTC в браузер
+4. MediaMTX предоставляет HTTP stream на порту 8889
          ↓
-5. Воспроизведение через HTML5 video element
+5. Воспроизведение через iframe в браузере
 ```
 
 **Задержка:** 100-300 мс  
@@ -264,9 +262,8 @@ python3 python_bridge/bridge.py
 mediamtx mediamtx.yml &
 rpicam-vid -t 0 --codec libav --libav-format h264 \
   --libav-video-codec h264_v4l2m2m --width 640 --height 480 \
-  --framerate 30 --bitrate 1000000 --intra 15 --inline -o - | \
-  ffmpeg -f h264 -i /dev/stdin -c copy -f rtsp \
-  rtsp://127.0.0.1:8554/stream
+  --framerate 30 --bitrate 1000000 --intra 15 --inline \
+  -o rtsp://127.0.0.1:8554/stream
 ```
 
 ## Порты
@@ -276,11 +273,10 @@ rpicam-vid -t 0 --codec libav --libav-format h264 \
 | Python Bridge HTTP | 8080 | HTTP | Веб-интерфейс |
 | Python Bridge WebSocket | 8765 | WebSocket | Обмен данными с браузером |
 | C++ TCP Server | 5555 | TCP | Связь Python ↔ C++ |
-| MediaMTX RTSP | 8554 | RTSP | Прием видеопотока |
-| MediaMTX HLS | 8889 | HTTP | HLS трансляция |
-| MediaMTX WebRTC | 8890 | HTTPS | WebRTC трансляция |
+| MediaMTX RTSP | 8554 | RTSP | Прием видеопотока от rpicam-vid |
+| MediaMTX HTTP stream | 8889 | HTTP | HTTP stream для iframe в браузере |
 
-**Примечание:** MediaMTX использует порты 8554, 8889, 8890 для видеотрансляции. Убедитесь, что эти порты не заняты другими сервисами.
+**Примечание:** MediaMTX использует порты 8554 (RTSP) и 8889 (HTTP stream) для видеотрансляции. Убедитесь, что эти порты не заняты другими сервисами.
 
 ## Преимущества архитектуры
 
@@ -321,11 +317,11 @@ ps aux | grep bridge.py
 # Проверка MediaMTX
 ps aux | grep mediamtx
 
-# Проверка rpicam-vid/ffmpeg
-ps aux | grep -E 'rpicam-vid|ffmpeg'
+# Проверка rpicam-vid
+ps aux | grep rpicam-vid
 
 # Проверка портов
-netstat -tlnp | grep -E '8080|8765|5555|8554|8889|8890'
+netstat -tlnp | grep -E '8080|8765|5555|8554|8889'
 
 # Проверка камеры
 ls -la /dev/video*

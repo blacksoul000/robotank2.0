@@ -10,7 +10,7 @@
 
 - ✅ **Веб-интерфейс** - управление с любого устройства через браузер
 - ✅ **Два сенсорных джойстика** - раздельное управление движением и башней
-- ✅ **HLS/WebRTC видеотрансляция** - минимальная задержка (~100-300 мс) через rpicam-vid + MediaMTX
+- ✅ **Видеотрансляция** - минимальная задержка (~100-300 мс) через rpicam-vid + MediaMTX
 - ✅ **Телеметрия в реальном времени**:
   - 🔋 Заряд батареи (V, %)
   - 📐 Крен и тангаж (MPU6050)
@@ -31,7 +31,7 @@ C++ Ядро (robo_chassis)
 Arduino → Моторы, сервы, датчики
 ```
 
-**Видеопоток:** Отдельный процесс `rpicam-vid` + `mediamtx` передаёт видео с камеры через RTSP/HLS/WebRTC напрямую в браузер.
+**Видеопоток:** Отдельный процесс `rpicam-vid` + `mediamtx` передаёт видео с камеры через RTSP напрямую в браузер через HTTP-поток.
 
 Подробная документация архитектуры: [ARCHITECTURE.md](ARCHITECTURE.md)
 
@@ -80,7 +80,7 @@ sudo apt install -y \
     cmake g++ make \
     libjsoncpp-dev \
     python3 python3-pip \
-    mediamtx ffmpeg \
+    mediamtx \
     libcamera-dev v4l-utils
 
 # Установить Python зависимости
@@ -119,9 +119,8 @@ python3 python_bridge/bridge.py &
 mediamtx mediamtx.yml &
 rpicam-vid -t 0 --codec libav --libav-format h264 \
   --libav-video-codec h264_v4l2m2m --width 640 --height 480 \
-  --framerate 30 --bitrate 1000000 --intra 15 --inline -o - | \
-  ffmpeg -f h264 -i /dev/stdin -c copy -f rtsp \
-  rtsp://127.0.0.1:8554/stream &
+  --framerate 30 --bitrate 1000000 --intra 15 --inline \
+  -o rtsp://127.0.0.1:8554/stream &
 ```
 
 ### 4. Подключение
@@ -139,8 +138,7 @@ rpicam-vid -t 0 --codec libav --libav-format h264 \
 | Python Bridge WebSocket | 8765 | WebSocket | Обмен данными с браузером |
 | C++ TCP Server | 5555 | TCP | Связь Python ↔ C++ |
 | MediaMTX RTSP | 8554 | RTSP | Прием видеопотока |
-| MediaMTX HLS | 8889 | HTTP | HLS трансляция |
-| MediaMTX WebRTC | 8890 | HTTPS | WebRTC трансляция |
+| MediaMTX HTTP | 8889 | HTTP | Видеотрансляция |
 
 ## 📦 Форматы сообщений
 

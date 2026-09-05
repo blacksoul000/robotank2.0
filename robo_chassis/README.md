@@ -14,7 +14,7 @@ C++ ядро (robo_chassis)
 Arduino → Моторы, сервы, датчики
 ```
 
-**Видеопоток:** Отдельный процесс `webrtc-streamer` передаёт видео с камеры через WebRTC напрямую в браузер.
+**Видеопоток:** Отдельный процесс `rpicam-vid` + `mediamtx` передаёт видео с камеры через RTSP напрямую в браузер через HTTP-поток.
 
 ## Компоненты
 
@@ -36,12 +36,13 @@ Arduino → Моторы, сервы, датчики
   - Кнопка "ОГОНЬ"
   - Кнопка "СВЕТ"
   - Панель телеметрии (батарея, крен, тангаж, башня)
-  - Видеопоток на фоне
+  - Видеопоток на фоне (HTTP-поток от MediaMTX)
 
-### 4. WebRTC Streamer
+### 4. MediaMTX + rpicam-vid
 - Отдельный системный сервис для трансляции видео
 - Аппаратное кодирование H.264 через VPU Raspberry Pi
 - Минимальная задержка (~100-300 мс)
+- Потоки: RTSP (8554), HTTP (8889)
 
 ## Зависимости
 
@@ -55,7 +56,7 @@ sudo apt install -y \
     libjsoncpp-dev \
     python3 \
     python3-pip \
-    webrtc-streamer
+    mediamtx ffmpeg
 ```
 
 ### Python зависимости
@@ -100,9 +101,14 @@ cd python_bridge
 python3 bridge.py
 ```
 
-3. **WebRTC стример:**
+3. **MediaMTX + rpicam-vid:**
 ```bash
-webrtc-streamer -H 0.0.0.0:8000 rpi:///dev/video0
+mediamtx mediamtx.yml &
+rpicam-vid -t 0 --codec libav --libav-format h264 \
+  --libav-video-codec h264_v4l2m2m --width 640 --height 480 \
+  --framerate 30 --bitrate 1000000 --intra 15 --inline -o - | \
+  ffmpeg -f h264 -i /dev/stdin -c copy -f rtsp \
+  rtsp://127.0.0.1:8554/stream
 ```
 
 ## Использование
@@ -145,7 +151,7 @@ webrtc-streamer -H 0.0.0.0:8000 rpi:///dev/video0
 ✅ **Чистый C++20**
 ✅ **Минимальное потребление памяти** - ~5 МБ
 ✅ **Разделение процессов** - падение видео не влияет на управление  
-✅ **Низкая задержка** - WebRTC обеспечивает 100-300 мс  
+✅ **Низкая задержка** - rpicam-vid + MediaMTX обеспечивают 100-300 мс  
 ✅ **Кроссплатформенность** - работает на любом устройстве с браузером  
 ✅ **Простота развертывания** - один скрипт запускает всё  
 
@@ -162,6 +168,7 @@ robo_chassis/
 │   └── bridge.py
 ├── static/                # Веб-интерфейс
 │   └── index.html
+├── mediamtx.yml           # Конфигурация MediaMTX
 ├── CMakeLists.txt
 ├── start_robot.sh
 └── README.md
@@ -177,7 +184,9 @@ robo_chassis/
 ## Troubleshooting
 
 ### Не видно видеопоток
-- Проверьте установку webrtc-streamer: `which webrtc-streamer`
+- Проверьте установку mediamtx: `which mediamtx`
+- Проверьте процесс rpicam-vid: `ps aux | grep rpicam-vid`
+- Проверьте процесс ffmpeg: `ps aux | grep ffmpeg`
 - Убедитесь что камера подключена: `ls /dev/video*`
 - Проверьте права доступа: `sudo usermod -aG video $USER`
 

@@ -203,7 +203,7 @@ async def handle_http(request):
 <body>
     <div class="container">
         <div class="video-container">
-            <iframe src="http://localhost:8080/webrtc-streamer/video.html?url=rtsp://localhost:8554/unicast" allowfullscreen></iframe>
+            <iframe src="http://localhost:8889/stream/" allowfullscreen></iframe>
             <div class="telemetry">
                 <div>🔋 Батарея: <span id="battery">--</span>%</div>
                 <div>📐 Крен: <span id="roll">--</span>°</div>

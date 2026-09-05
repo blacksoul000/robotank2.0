@@ -32,9 +32,10 @@
             background: #000;
         }
         
-        #video-stream {
+        #video-frame {
             width: 100%;
             height: 100%;
+            border: none;
             object-fit: cover;
         }
         
@@ -433,11 +434,7 @@
 <body>
     <!-- Видеопоток -->
     <div id="video-container">
-        <!-- Замените src на адрес вашего webrtc-streamer -->
-        <video id="video-stream" autoplay playsinline muted>
-            <source src="http://localhost:8000/webrtc-streamer/video.html" type="video/mp4">
-            Ваш браузер не поддерживает видео.
-        </video>
+        <iframe id="video-frame" allow="autoplay; encrypted-media;"></iframe>
     </div>
     
     <!-- Интерфейс -->
@@ -542,12 +539,17 @@
 
     <script>
         // === Конфигурация ===
-        const WS_URL = `ws://${window.location.hostname}:8765`;
+        const HOST = window.location.hostname;
+        const PORT_VIDEO = 8889;
+        const WS_URL = `ws://${HOST}:8765`;
         
         // === Состояние ===
         let ws = null;
         let isConnected = false;
         let lightsOn = false;
+
+        // Устанавливаем URL для видео
+        document.getElementById('video-frame').src = `http://${HOST}:${PORT_VIDEO}/stream/`;
         
         const command = {
             type: 'COMMAND',

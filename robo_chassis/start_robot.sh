@@ -265,10 +265,10 @@ while true; do
         python_failures=0
     fi
     
-    # Проверка WebRTC (без авто-перезапуска)
-    if [ -n "$CAM_PID" ] && ! health_check $CAM_PID "WebRTC"; then
-        echo "⚠️  WebRTC стример упал. Требуется ручной перезапуск."
-        WEBRTC_PID=""
+    # Проверка видеопотока (без авто-перезапуска)
+    if [ -n "$CAM_PID" ] && ! health_check $CAM_PID "Видеопоток"; then
+        echo "⚠️  Видеопоток упал. Требуется ручной перезапуск."
+        CAM_PID=""
     fi
 done
 
