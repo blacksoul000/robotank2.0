@@ -19,6 +19,7 @@ include_directories(
     ${PROJECT_SOURCE_DIR}/../src/core/autonomy
     ${PROJECT_SOURCE_DIR}/../src/core/sensors
     ${PROJECT_SOURCE_DIR}/../src/core/gpio
+    ${PROJECT_SOURCE_DIR}/../src/core/safety
 )
 
 # Source files needed for tests
@@ -30,6 +31,8 @@ set(TEST_SOURCES
     test_config.cpp
     test_logger.cpp
     test_gpio_controller.cpp
+    safety_manager_tests.cpp
+    test_tcp_server.cpp
     ../src/core/autonomy/autonomy_manager.cpp
     ../src/core/sensors/sensor_fusion.cpp
     ../src/core/sensors/compass_ultrasonic.cpp
@@ -39,6 +42,8 @@ set(TEST_SOURCES
     ../src/core/config/config.cpp
     ../src/core/logger/logger.cpp
     ../src/core/robot_logic.cpp
+    ../src/core/safety/safety_manager.cpp
+    ../src/core/tcp_server.cpp
 )
 
 # Unit tests directory
@@ -69,3 +74,5 @@ add_test(NAME PointerTests COMMAND run_tests --gtest_filter="PointerTest.*")
 add_test(NAME YprTests COMMAND run_tests --gtest_filter="YprTest.*")
 add_test(NAME CalibrationTests COMMAND run_tests --gtest_filter="CalibrationTest.*")
 add_test(NAME ArduinoStatusTests COMMAND run_tests --gtest_filter="ArduinoStatusTest.*")
+add_test(NAME SafetyManagerTests COMMAND run_tests --gtest_filter="SafetyManagerTest.*")
+add_test(NAME TcpServerTests COMMAND run_tests --gtest_filter="TcpServerTest.*")
