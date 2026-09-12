@@ -5,10 +5,15 @@ Documentation=https://github.com/your-repo/robo_chassis
 
 [Service]
 Type=simple
-User=pi
-Group=pi
-WorkingDirectory=/home/pi/robo_chassis
-ExecStart=/home/pi/robo_chassis/start_robot.sh
+# Dynamic user paths - install script sets actual user
+User=%i
+Group=%i
+WorkingDirectory=/home/%i/robo_chassis
+ExecStart=/home/%i/robo_chassis/start_robot.sh
+
+# Check if installation exists before starting
+ConditionPathExists=/home/%i/robo_chassis/config.json
+
 Restart=on-failure
 RestartSec=10
 TimeoutStartSec=30
@@ -33,7 +38,7 @@ NoNewPrivileges=true
 ProtectSystem=strict
 ProtectHome=read-only
 PrivateTmp=true
-ReadWritePaths=/var/log/robo_chassis /home/pi/robo_chassis
+ReadWritePaths=/var/log/robo_chassis /home/%i/robo_chassis
 
 # Environment variables
 Environment="LOG_DIR=/var/log/robo_chassis"

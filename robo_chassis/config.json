@@ -6,25 +6,31 @@
   "i2c": {
     "device": "/dev/i2c-1",
     "imu_enabled": true,
-    "simulation_mode": true
+    "simulation_mode": false
   },
   "logging": {
-    "level": "warning",
+    "level": "info",
     "console": true,
-    "file": false,
+    "file": true,
     "file_path": "/var/log/robo_chassis/robot.log",
     "max_size_mb": 5,
     "max_files": 3,
     "memory_cache_clear_threshold": 0.80,
-    "memory_critical_threshold": 0.90
+    "memory_critical_threshold": 0.90,
+    "json_format": false
   },
   "telemetry": {
-    "update_interval_ms": 50,
-    "connection_timeout_attempts": 10
+    "update_interval_ms": 100,
+    "connection_timeout_attempts": 10,
+    "adaptive_rate_enabled": true,
+    "min_update_interval_ms": 50,
+    "max_update_interval_ms": 500
   },
   "watchdog": {
     "enabled": false,
-    "timeout_sec": 30
+    "timeout_sec": 30,
+    "hardware_enabled": false,
+    "device": "/dev/watchdog"
   },
   "throttling": {
     "enabled": true,
@@ -68,5 +74,10 @@
     "watchdog_hardware_enabled": false,
     "watchdog_device": "/dev/watchdog",
     "watchdog_timeout_sec": 30
+  },
+  "rate_limiting": {
+    "enabled": true,
+    "commands_max_per_second": 30,
+    "telemetry_max_per_second": 10
   }
 }

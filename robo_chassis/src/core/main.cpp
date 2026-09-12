@@ -29,17 +29,21 @@ std::atomic<bool> g_shutting_down{false};  // Флаг для предотвра
 std::atomic<int> g_shutdown_stage{0};      // Стадия завершения для отладки
 
 // Глобальные smart pointers для корректного управления временем жизни
+// Инициализируются до регистрации обработчика сигналов (critical for safety)
 static std::shared_ptr<robo_chassis::SafetyManager> g_safety_mgr;
 static std::shared_ptr<robo_chassis::GpioController> g_gpio_controller;
 static std::shared_ptr<TcpServer> g_server;
 static std::shared_ptr<robo_chassis::WebSocketServer> g_ws_server;
 
 // Глобальный обработчик сигналов для graceful shutdown
+// ВАЖНО: Все проверки на nullptr обязательны, т.к. обработчик может быть вызван
+// в любой момент, включая время до инициализации глобальных переменных
 static void signalHandler(int signum) {
     // Предотвращаем повторный вход в обработчик
     if (g_shutting_down.exchange(true)) {
         // Если сигнал получен повторно во время shutdown - просто форсируем остановку двигателей
         LOG_WARNING("Повторный сигнал " + std::to_string(signum) + ". Аварийная остановка двигателей...");
+        // Проверка на nullptr обязательна - обработчик может быть вызван до инициализации
         if (g_safety_mgr) {
             g_safety_mgr->activateSafeMode();
         }
@@ -53,12 +57,14 @@ static void signalHandler(int signum) {
     g_running.store(false, std::memory_order_release);
     
     // Принудительная остановка двигателей через SafetyManager
+    // Проверка на nullptr обязательна - обработчик может быть вызван до инициализации
     if (g_safety_mgr) {
         LOG_DEBUG("Остановка двигателей через SafetyManager");
         g_safety_mgr->activateSafeMode();
     }
     
     // Останавливаем серверы (они должны выйти из своих циклов)
+    // Проверка на nullptr обязательна - обработчик может быть вызван до инициализации
     if (g_ws_server) {
         LOG_DEBUG("Остановка WebSocket сервера");
         g_ws_server->stop();

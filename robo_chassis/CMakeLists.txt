@@ -25,7 +25,7 @@ set(CMAKE_EXE_LINKER_FLAGS_RELEASE "-Wl,--gc-sections")
 
 # Основной исполняемый файл (чистый C++ без Qt)
 include_directories(${CMAKE_SOURCE_DIR}/src/core)
-include_directories(${CMAKE_SOURCE_DIR}/third_party)
+# Удалена ссылка на несуществующий third_party/
 
 add_executable(robo_chassis
     src/core/main.cpp
@@ -50,7 +50,16 @@ add_executable(robo_chassis
 
 # Поиск pthread
 find_package(Threads REQUIRED)
-target_link_libraries(robo_chassis PRIVATE Threads::Threads fmt)
+target_link_libraries(robo_chassis PRIVATE Threads::Threads)
+
+# Поиск fmt library (опционально)
+find_package(fmt QUIET)
+if(fmt_FOUND)
+    target_link_libraries(robo_chassis PRIVATE fmt::fmt)
+    message(STATUS "fmt library found: ${fmt_VERSION}")
+else()
+    message(STATUS "fmt library not found, using alternative logging")
+endif()
 
 # Поиск nlohmann/json
 find_package(nlohmann_json REQUIRED)

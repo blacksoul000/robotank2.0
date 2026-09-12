@@ -124,25 +124,33 @@ void WebSocketServer::start() {
 }
 
 void WebSocketServer::stop() {
-    m_running = false;
-    
+    if (!m_running.exchange(false)) {
+        // Сервер уже остановлен
+        return;
+    }
+
+    // Закрываем серверный сокет для прерывания accept() в serverLoop
+    if (m_server_fd != -1) {
+        shutdown(m_server_fd, SHUT_RDWR);
+        close(m_server_fd);
+        m_server_fd = -1;
+    }
+
+    // Graceful shutdown всех клиентских соединений
     {
         std::lock_guard<std::mutex> lock(m_mutex);
         for (auto& client : m_clients) {
             if (client && client->fd != -1) {
                 shutdown(client->fd, SHUT_RDWR);
                 close(client->fd);
+                client->fd = -1;
             }
         }
         m_clients.clear();
     }
-    
-    if (m_server_fd != -1) {
-        close(m_server_fd);
-        m_server_fd = -1;
-    }
-    
+
     // Присоединяем все потоки клиентов для предотвращения утечек
+    // Это критически важно для proper cleanup
     {
         std::lock_guard<std::mutex> thread_lock(m_client_threads_mutex);
         for (auto& thread : m_client_threads) {
@@ -152,11 +160,18 @@ void WebSocketServer::stop() {
         }
         m_client_threads.clear();
     }
-    
+
+    // Присоединяем поток сервера
     if (m_server_thread.joinable()) {
         m_server_thread.join();
     }
-    
+
+    // Очистка rate limit данных
+    {
+        std::lock_guard<std::mutex> lock(m_rate_limit_mutex);
+        m_client_rate_limits.clear();
+    }
+
     LOG_INFO("WebSocket сервер остановлен");
 }
 
