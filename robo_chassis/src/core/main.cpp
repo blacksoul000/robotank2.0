@@ -20,6 +20,9 @@
 #include "autonomy/autonomy_manager.hpp"
 #include "safety/safety_manager.hpp"
 #include "gpio/gpio_controller.hpp"
+#include <nlohmann/json.hpp>
+
+using json = nlohmann::json;
 
 std::atomic<bool> g_running{true};
 std::atomic<bool> g_shutting_down{false};  // Флаг для предотвращения повторного входа
@@ -39,7 +42,9 @@ static void signalHandler(int signum) {
         if (g_safety_mgr_ptr) {
             g_safety_mgr_ptr->activateSafeMode();
         }
-        _exit(1);  // Выходим, но только после остановки двигателей
+        // Не используем _exit(1), чтобы дать возможность корректной очистки
+        // Вместо этого просто выходим после остановки двигателей
+        _exit(0);  // Выходим с кодом 0 после остановки двигателей
     }
     
     g_shutdown_stage.store(1);
@@ -165,11 +170,11 @@ int main() {
         g_server_ptr = &server;  // Установка глобального указателя для обработчика сигналов
         
         // 6. Запуск WebSocket сервера (для веб-интерфейса)
-        // Используем отдельную конфигурацию для WebSocket или дефолтный порт
-        const int ws_port = 8765; // Порт WebSocket по умолчанию
-        robo_chassis::WebSocketServer ws_server(ws_port);
+        // Используем конфигурацию WebSocket из config.json
+        const auto& ws_config = robo_chassis::Config::getWebSocket();
+        robo_chassis::WebSocketServer ws_server(ws_config.port);
         g_ws_server_ptr = &ws_server;  // Установка глобального указателя для обработчика сигналов
-        LOG_INFO("WebSocket сервер запущен на порту " + std::to_string(ws_port));
+        LOG_INFO("WebSocket сервер запущен на порту " + std::to_string(ws_config.port));
         
         // 7. Инициализация SensorFusion (IMU + компас + ультразвук) - только в реальном режиме
         robo_chassis::SensorFusion sensor_fusion;
@@ -279,55 +284,37 @@ int main() {
             robot.process_command(cmd);
         });
         
-        // Обработчик команд автономности
+        // Обработчик команд автономности с использованием nlohmann/json для безопасного парсинга
         ws_server.setAutonomyCallback([&autonomy](const std::string& payload) {
-            // Парсинг JSON для извлечения режима и целевого курса
-            auto findValue = [&](const std::string& key) -> std::string {
-                size_t pos = payload.find("\"" + key + "\"");
-                if (pos == std::string::npos) return "";
-                pos = payload.find(':', pos);
-                if (pos == std::string::npos) return "";
-                pos++;
-                while (pos < payload.size() && 
-                       (payload[pos] == ' ' || payload[pos] == '\t')) pos++;
-                if (pos >= payload.size()) return "";
-                
-                size_t end = pos;
-                if (payload[pos] == '"') {
-                    end = payload.find('"', pos + 1);
-                    if (end == std::string::npos) return "";
-                    return payload.substr(pos + 1, end - pos - 1);
-                } else {
-                    while (end < payload.size() && 
-                           payload[end] != ',' && payload[end] != '}') {
-                        end++;
-                    }
-                    return payload.substr(pos, end - pos);
-                }
-            };
-            
             try {
-                std::string mode = findValue("auto_mode");
-                if (mode == "IDLE") {
-                    autonomy.setState(robo_chassis::AutoState::IDLE);
-                    LOG_INFO("Autonomy: IDLE mode activated");
-                } else if (mode == "HOLD_HEADING") {
-                    std::string heading_str = findValue("target_heading");
-                    if (!heading_str.empty()) {
-                        float heading = std::stof(heading_str);
-                        autonomy.setTargetHeading(heading);
-                        autonomy.setState(robo_chassis::AutoState::HOLD_HEADING);
-                        LOG_INFO("Autonomy: HOLD_HEADING mode, target=" + std::to_string(heading));
+                // Используем безопасный парсер nlohmann/json
+                json j = json::parse(payload);
+                
+                if (j.contains("auto_mode")) {
+                    std::string mode = j["auto_mode"].get<std::string>();
+                    
+                    if (mode == "IDLE") {
+                        autonomy.setState(robo_chassis::AutoState::IDLE);
+                        LOG_INFO("Autonomy: IDLE mode activated");
+                    } else if (mode == "HOLD_HEADING") {
+                        if (j.contains("target_heading")) {
+                            float heading = j["target_heading"].get<float>();
+                            autonomy.setTargetHeading(heading);
+                            autonomy.setState(robo_chassis::AutoState::HOLD_HEADING);
+                            LOG_INFO("Autonomy: HOLD_HEADING mode, target=" + std::to_string(heading));
+                        }
+                    } else if (mode == "AVOID_OBSTACLE") {
+                        autonomy.setState(robo_chassis::AutoState::AVOID_OBSTACLE);
+                        LOG_INFO("Autonomy: AVOID_OBSTACLE mode activated");
+                    } else if (mode == "PATROL") {
+                        autonomy.setState(robo_chassis::AutoState::PATROL);
+                        LOG_INFO("Autonomy: PATROL mode activated");
                     }
-                } else if (mode == "AVOID_OBSTACLE") {
-                    autonomy.setState(robo_chassis::AutoState::AVOID_OBSTACLE);
-                    LOG_INFO("Autonomy: AVOID_OBSTACLE mode activated");
-                } else if (mode == "PATROL") {
-                    autonomy.setState(robo_chassis::AutoState::PATROL);
-                    LOG_INFO("Autonomy: PATROL mode activated");
                 }
+            } catch (const json::parse_error& e) {
+                LOG_WARNING("Ошибка парсинга JSON команды автономности: " + std::string(e.what()));
             } catch (const std::exception& e) {
-                LOG_WARNING("Ошибка парсинга команды автономности: " + std::string(e.what()));
+                LOG_WARNING("Ошибка обработки команды автономности: " + std::string(e.what()));
             }
         });
         
