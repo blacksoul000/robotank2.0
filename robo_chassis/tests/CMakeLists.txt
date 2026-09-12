@@ -38,6 +38,12 @@ set(TEST_SOURCES
     ../src/core/gpio/gpio_controller.cpp
     ../src/core/config/config.cpp
     ../src/core/logger/logger.cpp
+    ../src/core/robot_logic.cpp
+)
+
+# Unit tests directory
+set(UNIT_TEST_SOURCES
+    unit/test_robot_logic.cpp
 )
 
 # Test executable

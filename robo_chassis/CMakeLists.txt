@@ -95,7 +95,8 @@ if(PIGPIO_LIB)
     target_compile_definitions(robo_chassis PRIVATE HAVE_PIGPIO)
     message(STATUS "pigpio library found: ${PIGPIO_LIB}")
 else()
-    message(WARNING "pigpio library not found, ultrasonic sensor will not work")
+    # Не останавливаем сборку, но предупреждаем что ультразвук не будет работать
+    message(WARNING "pigpio library not found. Ultrasonic sensor will not work. Install with: sudo apt-get install pigpio")
 endif()
 
 # Сборка тестов
