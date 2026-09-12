@@ -28,19 +28,20 @@ std::atomic<bool> g_running{true};
 std::atomic<bool> g_shutting_down{false};  // Флаг для предотвращения повторного входа
 std::atomic<int> g_shutdown_stage{0};      // Стадия завершения для отладки
 
-// Глобальный обработчик сигналов для graceful shutdown
-static robo_chassis::SafetyManager* g_safety_mgr_ptr = nullptr;
-static robo_chassis::GpioController* g_gpio_controller_ptr = nullptr;
-static TcpServer* g_server_ptr = nullptr;        // Глобальный указатель на сервер
-static robo_chassis::WebSocketServer* g_ws_server_ptr = nullptr;  // Глобальный указатель на WS сервер
+// Глобальные smart pointers для корректного управления временем жизни
+static std::shared_ptr<robo_chassis::SafetyManager> g_safety_mgr;
+static std::shared_ptr<robo_chassis::GpioController> g_gpio_controller;
+static std::shared_ptr<TcpServer> g_server;
+static std::shared_ptr<robo_chassis::WebSocketServer> g_ws_server;
 
+// Глобальный обработчик сигналов для graceful shutdown
 static void signalHandler(int signum) {
     // Предотвращаем повторный вход в обработчик
     if (g_shutting_down.exchange(true)) {
         // Если сигнал получен повторно во время shutdown - просто форсируем остановку двигателей
         LOG_WARNING("Повторный сигнал " + std::to_string(signum) + ". Аварийная остановка двигателей...");
-        if (g_safety_mgr_ptr) {
-            g_safety_mgr_ptr->activateSafeMode();
+        if (g_safety_mgr) {
+            g_safety_mgr->activateSafeMode();
         }
         // Не используем _exit(1), чтобы дать возможность корректной очистки
         // Вместо этого просто выходим после остановки двигателей
@@ -52,19 +53,19 @@ static void signalHandler(int signum) {
     g_running.store(false, std::memory_order_release);
     
     // Принудительная остановка двигателей через SafetyManager
-    if (g_safety_mgr_ptr) {
+    if (g_safety_mgr) {
         LOG_DEBUG("Остановка двигателей через SafetyManager");
-        g_safety_mgr_ptr->activateSafeMode();
+        g_safety_mgr->activateSafeMode();
     }
     
     // Останавливаем серверы (они должны выйти из своих циклов)
-    if (g_ws_server_ptr) {
+    if (g_ws_server) {
         LOG_DEBUG("Остановка WebSocket сервера");
-        g_ws_server_ptr->stop();
+        g_ws_server->stop();
     }
-    if (g_server_ptr) {
+    if (g_server) {
         LOG_DEBUG("Остановка TCP сервера");
-        g_server_ptr->stop();
+        g_server->stop();
     }
     
     g_shutdown_stage.store(2);
@@ -166,14 +167,12 @@ int main() {
         }
         
         // 5. Запуск TCP сервера (для Python Bridge)
-        TcpServer server(tcp_config.port, robot);
-        g_server_ptr = &server;  // Установка глобального указателя для обработчика сигналов
+        g_server = std::make_shared<TcpServer>(tcp_config.port, robot);
         
         // 6. Запуск WebSocket сервера (для веб-интерфейса)
         // Используем конфигурацию WebSocket из config.json
         const auto& ws_config = robo_chassis::Config::getWebSocket();
-        robo_chassis::WebSocketServer ws_server(ws_config.port);
-        g_ws_server_ptr = &ws_server;  // Установка глобального указателя для обработчика сигналов
+        g_ws_server = std::make_shared<robo_chassis::WebSocketServer>(ws_config.port);
         LOG_INFO("WebSocket сервер запущен на порту " + std::to_string(ws_config.port));
         
         // 7. Инициализация SensorFusion (IMU + компас + ультразвук) - только в реальном режиме
@@ -250,14 +249,13 @@ int main() {
         LOG_INFO("WebSocket сервер запущен на порту 8765");
 
         // Инициализация и запуск SafetyManager (watchdog + graceful shutdown)
-        robo_chassis::SafetyManager safety_mgr(10, 5);  // 10 сек watchdog, 5 сек Arduino timeout
-        g_safety_mgr_ptr = &safety_mgr;  // Установка глобального указателя для обработчика сигналов
+        g_safety_mgr = std::make_shared<robo_chassis::SafetyManager>(10, 5);  // 10 сек watchdog, 5 сек Arduino timeout
         
-        if (!safety_mgr.init()) {
+        if (!g_safety_mgr->init()) {
             LOG_ERROR("Не удалось инициализировать SafetyManager");
         } else {
             // Установка обработчика аварийной остановки
-            safety_mgr.setEmergencyStopCallback([&robot]() {
+            g_safety_mgr->setEmergencyStopCallback([&robot]() {
                 Command safe_cmd;
                 safe_cmd.left_y = 0.0f;
                 safe_cmd.right_y = 0.0f;
@@ -270,22 +268,22 @@ int main() {
                 robot.process_command(safe_cmd);
             });
             
-            safety_mgr.start();
+            g_safety_mgr->start();
             LOG_INFO("SafetyManager запущен");
         }
         
         // Запуск TCP сервера в отдельном потоке
-        std::thread server_thread([&server]() {
-            server.run();
+        std::thread server_thread([server = g_server]() {
+            server->run();
         });
         
         // Запуск WebSocket сервера
-        ws_server.setCommandCallback([&robot](const Command& cmd) {
+        g_ws_server->setCommandCallback([&robot](const Command& cmd) {
             robot.process_command(cmd);
         });
         
         // Обработчик команд автономности с использованием nlohmann/json для безопасного парсинга
-        ws_server.setAutonomyCallback([&autonomy](const std::string& payload) {
+        g_ws_server->setAutonomyCallback([&autonomy](const std::string& payload) {
             try {
                 // Используем безопасный парсер nlohmann/json
                 json j = json::parse(payload);
@@ -318,7 +316,7 @@ int main() {
             }
         });
         
-        ws_server.start();
+        g_ws_server->start();
 
         // Отправка первичной команды на Arduino для синхронизации
         if (robot.is_arduino_online()) {
@@ -341,10 +339,14 @@ int main() {
             autonomy.update();
             
             // Сброс watchdog (pet) в основном цикле
-            safety_mgr.petWatchdog();
+            if (g_safety_mgr) {
+                g_safety_mgr->petWatchdog();
+            }
             
             // Обновление статуса Arduino для SafetyManager
-            safety_mgr.updateArduinoStatus(robot.is_arduino_online());
+            if (g_safety_mgr) {
+                g_safety_mgr->updateArduinoStatus(robot.is_arduino_online());
+            }
             
             // Отправка команд на Arduino
             robot.send_to_arduino();
@@ -386,7 +388,7 @@ int main() {
                 
                 // Отправка телеметрии через WebSocket
                 Telemetry telem = robot.get_telemetry();
-                ws_server.broadcastTelemetry(telem, 
+                g_ws_server->broadcastTelemetry(telem, 
                                            sys_monitor.getCpuTemperature(),
                                            sys_monitor.getMemoryUsagePercent(),
                                            i2c_config.simulation_mode ? heading : (sensor_fusion.isInitialized() ? sensor_fusion.getHeading() : -1.0f),
@@ -461,17 +463,23 @@ int main() {
         
         // Остановка SafetyManager ДО серверов (чтобы watchdog не сработал во время shutdown)
         LOG_DEBUG("Остановка SafetyManager...");
-        safety_mgr.stop();
-        g_safety_mgr_ptr = nullptr;
+        if (g_safety_mgr) {
+            g_safety_mgr->stop();
+            g_safety_mgr.reset();
+        }
         
         // Остановка серверов
         LOG_DEBUG("Остановка WebSocket сервера...");
-        ws_server.stop();
-        g_ws_server_ptr = nullptr;
+        if (g_ws_server) {
+            g_ws_server->stop();
+            g_ws_server.reset();
+        }
         
         LOG_DEBUG("Остановка TCP сервера...");
-        server.stop();
-        g_server_ptr = nullptr;
+        if (g_server) {
+            g_server->stop();
+            g_server.reset();
+        }
         
         // Join потока TCP сервера с таймаутом
         if (server_thread.joinable()) {
@@ -485,21 +493,21 @@ int main() {
         LOG_CRITICAL("Критическая ошибка: " + std::string(e.what()));
         
         // Аварийная остановка при исключении
-        if (g_safety_mgr_ptr) {
-            g_safety_mgr_ptr->activateSafeMode();
+        if (g_safety_mgr) {
+            g_safety_mgr->activateSafeMode();
+            g_safety_mgr.reset();
         }
-        g_safety_mgr_ptr = nullptr;
-        g_server_ptr = nullptr;
-        g_ws_server_ptr = nullptr;
+        g_server.reset();
+        g_ws_server.reset();
         
         return 1;
     }
     
-    // Сброс глобальных указателей перед выходом
-    g_safety_mgr_ptr = nullptr;
-    g_gpio_controller_ptr = nullptr;
-    g_server_ptr = nullptr;
-    g_ws_server_ptr = nullptr;
+    // Сброс глобальных smart pointers перед выходом
+    g_safety_mgr.reset();
+    g_gpio_controller.reset();
+    g_server.reset();
+    g_ws_server.reset();
 
     return 0;
 }
