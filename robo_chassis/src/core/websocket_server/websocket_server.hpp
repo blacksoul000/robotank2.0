@@ -112,6 +112,10 @@ private:
     // Список подключенных клиентов
     std::vector<std::unique_ptr<WslayClient>> m_clients;
     
+    // Отслеживание потоков клиентов для предотвращения утечек
+    std::vector<std::thread> m_client_threads;
+    std::mutex m_client_threads_mutex;
+    
     // Обработчик команд
     std::function<void(const Command&)> m_command_callback;
     

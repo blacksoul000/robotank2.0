@@ -47,10 +47,12 @@ static bool ensurePigpioInitialized() {
     
     if (ret >= 0) {
         g_pigpio_initialized.store(true, std::memory_order_release);
+        LOG_INFO("pigpio успешно инициализирован");
         return true;
     } else {
         // Логирование ошибки инициализации GPIO
-        // В реальном проекте здесь должен быть вызов логгера
+        LOG_ERROR("Не удалось инициализировать pigpio (код ошибки: " + std::to_string(ret) + 
+                  "). Ультразвуковой датчик не будет работать. Проверьте права доступа к GPIO.");
         return false;
     }
 }

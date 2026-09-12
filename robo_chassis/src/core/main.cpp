@@ -34,12 +34,12 @@ static robo_chassis::WebSocketServer* g_ws_server_ptr = nullptr;  // Глоба�
 static void signalHandler(int signum) {
     // Предотвращаем повторный вход в обработчик
     if (g_shutting_down.exchange(true)) {
-        // Если сигнал получен повторно во время shutdown - форсируем выход
-        if (g_shutdown_stage.load() > 0) {
-            LOG_WARNING("Повторный сигнал " + std::to_string(signum) + ". Принудительное завершение...");
-            _exit(1);
+        // Если сигнал получен повторно во время shutdown - просто форсируем остановку двигателей
+        LOG_WARNING("Повторный сигнал " + std::to_string(signum) + ". Аварийная остановка двигателей...");
+        if (g_safety_mgr_ptr) {
+            g_safety_mgr_ptr->activateSafeMode();
         }
-        return;
+        _exit(1);  // Выходим, но только после остановки двигателей
     }
     
     g_shutdown_stage.store(1);
@@ -165,9 +165,11 @@ int main() {
         g_server_ptr = &server;  // Установка глобального указателя для обработчика сигналов
         
         // 6. Запуск WebSocket сервера (для веб-интерфейса)
-        const auto& ws_config = robo_chassis::Config::getTcpServer(); // Используем тот же порт config
-        robo_chassis::WebSocketServer ws_server(8765); // Порт WebSocket по умолчанию
+        // Используем отдельную конфигурацию для WebSocket или дефолтный порт
+        const int ws_port = 8765; // Порт WebSocket по умолчанию
+        robo_chassis::WebSocketServer ws_server(ws_port);
         g_ws_server_ptr = &ws_server;  // Установка глобального указателя для обработчика сигналов
+        LOG_INFO("WebSocket сервер запущен на порту " + std::to_string(ws_port));
         
         // 7. Инициализация SensorFusion (IMU + компас + ультразвук) - только в реальном режиме
         robo_chassis::SensorFusion sensor_fusion;

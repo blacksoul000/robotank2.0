@@ -142,6 +142,17 @@ void WebSocketServer::stop() {
         m_server_fd = -1;
     }
     
+    // Присоединяем все потоки клиентов для предотвращения утечек
+    {
+        std::lock_guard<std::mutex> thread_lock(m_client_threads_mutex);
+        for (auto& thread : m_client_threads) {
+            if (thread.joinable()) {
+                thread.join();
+            }
+        }
+        m_client_threads.clear();
+    }
+    
     if (m_server_thread.joinable()) {
         m_server_thread.join();
     }
@@ -222,7 +233,12 @@ void WebSocketServer::serverLoop() {
                         
                         std::lock_guard<std::mutex> lock(m_mutex);
                         m_clients.push_back(std::move(client));
-                        std::thread(&WebSocketServer::handleClient, this, client_fd).detach();
+                        
+                        // Запускаем поток клиента и сохраняем его для отслеживания
+                        {
+                            std::lock_guard<std::mutex> thread_lock(m_client_threads_mutex);
+                            m_client_threads.emplace_back(&WebSocketServer::handleClient, this, client_fd);
+                        }
                     } else {
                         LOG_ERROR("Не удалось инициализировать wslay контекст");
                         close(client_fd);
@@ -357,6 +373,25 @@ void WebSocketServer::on_msg_recv_callback(wslay_event_context* ctx, const wslay
                     wslay_event_queue_msg(ctx, &pong_msg);
                     wslay_event_send(ctx);
                 }
+                // Обработка команд управления от веб-джойстиков
+                else if (type == "command" && server->m_command_callback) {
+                    Command cmd{};
+                    
+                    if (j.contains("left_y")) cmd.left_y = j["left_y"].get<float>();
+                    if (j.contains("right_y")) cmd.right_y = j["right_y"].get<float>();
+                    if (j.contains("left_x")) cmd.left_x = j["left_x"].get<float>();
+                    if (j.contains("right_x")) cmd.right_x = j["right_x"].get<float>();
+                    if (j.contains("tower_h")) cmd.tower_h = j["tower_h"].get<int>();
+                    if (j.contains("fire")) cmd.fire = j["fire"].get<bool>();
+                    if (j.contains("lights")) cmd.lights = j["lights"].get<bool>();
+                    if (j.contains("pointer")) cmd.pointer = j["pointer"].get<bool>();
+                    
+                    server->m_command_callback(cmd);
+                }
+                // Обработка команд автономности
+                else if ((type == "autonomy" || type == "auto_mode") && server->m_autonomy_callback) {
+                    server->m_autonomy_callback(message);
+                }
             }
         } catch (const std::exception& e) {
             LOG_WARNING("Ошибка парсинга JSON команды: {}", e.what());
@@ -396,6 +431,14 @@ void WebSocketServer::handleClient(int client_fd) {
     
     if (!client) {
         close(client_fd);
+        // Очищаем поток из списка при ошибке
+        std::lock_guard<std::mutex> thread_lock(m_client_threads_mutex);
+        auto it = std::find_if(m_client_threads.begin(), m_client_threads.end(),
+            [](std::thread& t) { return t.joinable(); });
+        if (it != m_client_threads.end()) {
+            it->join();
+            m_client_threads.erase(it);
+        }
         return;
     }
     
