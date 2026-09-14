@@ -3,6 +3,7 @@
     "port": 5555,
     "bind_address": "0.0.0.0"
   },
+  "log_dir": "./logs",
   "i2c": {
     "device": "/dev/i2c-1",
     "imu_enabled": true,

@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.10)
 
-# BUILD_TESTS option - OFF by default for production builds
-option(BUILD_TESTS "Build unit tests" OFF)
+# BUILD_TESTS option is defined in parent CMakeLists.txt
+# Do not redefine here - use from parent scope
 
 if(NOT BUILD_TESTS)
     message(STATUS "Unit tests are disabled (set BUILD_TESTS=ON to enable)")
@@ -63,8 +63,8 @@ set(UNIT_TEST_SOURCES
     unit/test_robot_logic.cpp
 )
 
-# Test executable
-add_executable(run_tests ${TEST_SOURCES})
+# Test executable - include both TEST_SOURCES and UNIT_TEST_SOURCES
+add_executable(run_tests ${TEST_SOURCES} ${UNIT_TEST_SOURCES})
 
 target_link_libraries(run_tests
     GTest::gtest_main

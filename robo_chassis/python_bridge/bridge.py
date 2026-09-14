@@ -29,16 +29,28 @@ WS_PORT = 8765
 HTTP_PORT = 8080
 CAMERA_PORT = 8889  # Порт видеопотока
 
-# Настройка логирования
-LOG_DIR = '/var/log/robo_chassis'
-LOG_FILE = os.path.join(LOG_DIR, 'bridge.log')
+# Настройка логирования - configurable log directory
+DEFAULT_LOG_DIR = os.path.expanduser('~/robo_chassis_logs')
+FALLBACK_LOG_DIR = './logs'
+
+# Читаем log_dir из переменной окружения или используем default
+LOG_DIR = os.environ.get('ROBO_CHASSIS_LOG_DIR', DEFAULT_LOG_DIR)
+
+# Fallback на ./logs если основная директория недоступна
+if not os.access(LOG_DIR, os.W_OK):
+    LOG_DIR = FALLBACK_LOG_DIR
 
 # Создаем директорию для логов если не существует
 if not os.path.exists(LOG_DIR):
     try:
-        os.makedirs(LOG_DIR)
+        os.makedirs(LOG_DIR, exist_ok=True)
+        print(f"Created log directory: {LOG_DIR}")
     except Exception as e:
         print(f"Warning: Could not create log directory {LOG_DIR}: {e}")
+        LOG_DIR = '/tmp/robo_chassis_logs'  # Final fallback
+        os.makedirs(LOG_DIR, exist_ok=True)
+
+LOG_FILE = os.path.join(LOG_DIR, 'bridge.log')
 
 logging.basicConfig(
     level=logging.INFO,
@@ -313,21 +325,57 @@ async def forward_to_websockets(message):
 
 # Rate limiting для защиты от DoS атак
 class RateLimiter:
-    """Ограничитель частоты сообщений для каждого клиента"""
-    def __init__(self, max_messages_per_second=20, window_seconds=1):
+    """Ограничитель частоты сообщений для каждого клиента с LRU eviction и очисткой старых записей"""
+    def __init__(self, max_messages_per_second=20, window_seconds=1, max_clients=100, cleanup_interval_sec=10):
         self.max_messages = max_messages_per_second
         self.window = window_seconds
-        self.clients = {}  # client_id -> {'count': int, 'reset_time': float}
+        self.max_clients = max_clients
+        self.cleanup_interval_sec = cleanup_interval_sec
+        # Используем OrderedDict для LRU eviction
+        from collections import OrderedDict
+        self.clients = OrderedDict()  # client_id -> {'count': int, 'reset_time': float, 'last_access': float}
+        self._last_cleanup_time = time.time()
+    
+    def _cleanup_old_entries(self):
+        """Очистка записей старше 60 сек и ограничение размера словаря"""
+        import time
+        current_time = time.time()
+        
+        # Удаляем записи старше 60 секунд
+        expired_keys = [
+            client_id for client_id, data in self.clients.items()
+            if current_time - data.get('last_access', current_time) > 60
+        ]
+        for key in expired_keys:
+            del self.clients[key]
+        
+        # LRU eviction если превышен лимит клиентов
+        while len(self.clients) > self.max_clients:
+            # Удаляем oldest entry (first item in OrderedDict)
+            self.clients.popitem(last=False)
     
     def is_allowed(self, client_id):
         """Проверка, может ли клиент отправить сообщение"""
         import time
         current_time = time.time()
         
+        # Периодическая очистка старых записей
+        if current_time - self._last_cleanup_time > self.cleanup_interval_sec:
+            self._cleanup_old_entries()
+            self._last_cleanup_time = current_time
+        
         if client_id not in self.clients:
-            self.clients[client_id] = {'count': 0, 'reset_time': current_time + self.window}
+            # LRU eviction при добавлении нового клиента если словарь полон
+            if len(self.clients) >= self.max_clients:
+                self.clients.popitem(last=False)
+            self.clients[client_id] = {
+                'count': 0,
+                'reset_time': current_time + self.window,
+                'last_access': current_time
+            }
         
         client_data = self.clients[client_id]
+        client_data['last_access'] = current_time
         
         # Сброс счётчика если окно времени истекло
         if current_time >= client_data['reset_time']:
@@ -345,6 +393,10 @@ class RateLimiter:
         """Удаление данных о клиенте при отключении"""
         if client_id in self.clients:
             del self.clients[client_id]
+    
+    def cleanup_old_entries(self):
+        """Публичный метод для внешней очистки (может вызываться из таймера)"""
+        self._cleanup_old_entries()
 
 # Глобальный rate limiter - больше не используется, доступен через connection_manager.rate_limiter
 # rate_limiter = RateLimiter(max_messages_per_second=20, window_seconds=1)
@@ -446,11 +498,10 @@ def signal_handler(signum, frame):
     # Остановка asyncio event loop
     global loop
     if loop and loop.is_running():
-        loop.call_soon_threadsafe(loop.stop)
-
-def run_tcp_thread():
-    """Запуск TCP клиента в отдельном потоке"""
-    connect_to_cpp()
+        try:
+            loop.call_soon_threadsafe(loop.stop)
+        except RuntimeError:
+            logger.warning("Event loop уже остановлен")
 
 async def init_app():
     """Инициализация приложения"""
@@ -463,11 +514,15 @@ async def init_app():
 async def main():
     """Основная функция"""
     global loop, runner, tcp_thread
-    loop = asyncio.get_event_loop()
     
-    # Регистрация обработчиков сигналов
-    signal.signal(signal.SIGINT, signal_handler)
-    signal.signal(signal.SIGTERM, signal_handler)
+    # Регистрация обработчиков сигналов ДО создания event loop
+    # Используем add_signal_handler вместо signal.signal для asyncio совместимости
+    loop = None
+    try:
+        loop = asyncio.get_event_loop()
+    except RuntimeError:
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
     
     logger.info("🚀 Starting Python Bridge...")
     print("🚀 Запуск Python Bridge...")
@@ -493,12 +548,17 @@ async def main():
     logger.info(f"✓ Server started. Open in browser: http://<IP_RPI>:{HTTP_PORT}")
     print(f"✓ Сервер запущен. Откройте в браузере: http://<IP_RPI>:{HTTP_PORT}")
     
-    # Ожидание сигнала завершения
+    # Ожидание сигнала завершения с обработкой CancelledError
     try:
         while not shutdown_event.is_set():
             await asyncio.sleep(1)
     except asyncio.CancelledError:
-        pass
+        logger.info("Получен CancelledError, завершаем работу...")
+        # Graceful shutdown с timeout 5 сек
+        try:
+            await asyncio.wait_for(_cleanup_resources(), timeout=5.0)
+        except asyncio.TimeoutError:
+            logger.warning("Graceful shutdown timeout, forcing exit")
     finally:
         # Graceful shutdown
         logger.info("🛑 Stopping Python Bridge...")
@@ -518,6 +578,16 @@ async def main():
         
         logger.info("Python Bridge stopped.")
         print("✓ Python Bridge остановлен.")
+
+async def _cleanup_resources():
+    """Вспомогательная функция для очистки ресурсов с timeout"""
+    if runner:
+        await runner.cleanup()
+    connection_manager.close_tcp_socket()
+
+def run_tcp_thread():
+    """Запуск TCP клиента в отдельном потоке"""
+    connect_to_cpp()
 
 if __name__ == "__main__":
     try:

@@ -223,43 +223,59 @@ void WebSocketServer::serverLoop() {
         if (activity > 0 && FD_ISSET(server_fd, &readfds)) {
             struct sockaddr_in client_addr;
             socklen_t client_len = sizeof(client_addr);
-            int client_fd = accept(server_fd, (struct sockaddr*)&client_addr, &client_len);
+            int client_fd = -1;
+            
+            try {
+                client_fd = accept(server_fd, (struct sockaddr*)&client_addr, &client_len);
+            } catch (const std::exception& e) {
+                LOG_ERROR("Ошибка accept: {}", e.what());
+                continue;
+            }
+            
             if (client_fd >= 0) {
                 LOG_INFO("Новое WebSocket подключение: " + 
                         std::string(inet_ntoa(client_addr.sin_addr)));
                 
-                if (performHandshake(client_fd)) {
-                    auto client = std::make_unique<WslayClient>();
-                    client->fd = client_fd;
-                    client->server = this;  // Устанавливаем указатель на сервер
-                    
-                    struct wslay_event_callbacks callbacks {};
-                    callbacks.recv_callback = recv_callback;
-                    callbacks.send_callback = send_callback;
-                    callbacks.genmask_callback = nullptr;
-                    callbacks.on_frame_recv_start_callback = nullptr;
-                    callbacks.on_frame_recv_chunk_callback = nullptr;
-                    callbacks.on_frame_recv_end_callback = nullptr;
-                    callbacks.on_msg_recv_callback = on_msg_recv_callback;
-                    
-                    wslay_event_context* ctx;
-                    if (wslay_event_context_server_init(&ctx, &callbacks, client.get()) == 0) {
-                        client->ctx = ctx;
+                try {
+                    if (performHandshake(client_fd)) {
+                        auto client = std::make_unique<WslayClient>();
+                        client->fd = client_fd;
+                        client->server = this;  // Устанавливаем указатель на сервер
                         
-                        std::lock_guard<std::mutex> lock(m_mutex);
-                        m_clients.push_back(std::move(client));
+                        struct wslay_event_callbacks callbacks {};
+                        callbacks.recv_callback = recv_callback;
+                        callbacks.send_callback = send_callback;
+                        callbacks.genmask_callback = nullptr;
+                        callbacks.on_frame_recv_start_callback = nullptr;
+                        callbacks.on_frame_recv_chunk_callback = nullptr;
+                        callbacks.on_frame_recv_end_callback = nullptr;
+                        callbacks.on_msg_recv_callback = on_msg_recv_callback;
                         
-                        // Запускаем поток клиента и сохраняем его для отслеживания
-                        {
-                            std::lock_guard<std::mutex> thread_lock(m_client_threads_mutex);
-                            m_client_threads.emplace_back(&WebSocketServer::handleClient, this, client_fd);
+                        wslay_event_context* ctx;
+                        if (wslay_event_context_server_init(&ctx, &callbacks, client.get()) == 0) {
+                            client->ctx = ctx;
+                            
+                            std::lock_guard<std::mutex> lock(m_mutex);
+                            m_clients.push_back(std::move(client));
+                            
+                            // Запускаем поток клиента и сохраняем его для отслеживания
+                            {
+                                std::lock_guard<std::mutex> thread_lock(m_client_threads_mutex);
+                                m_client_threads.emplace_back(&WebSocketServer::handleClient, this, client_fd);
+                            }
+                        } else {
+                            LOG_ERROR("Не удалось инициализировать wslay контекст");
+                            close(client_fd);
                         }
                     } else {
-                        LOG_ERROR("Не удалось инициализировать wslay контекст");
                         close(client_fd);
                     }
-                } else {
-                    close(client_fd);
+                } catch (const std::exception& e) {
+                    LOG_ERROR("Ошибка обработки подключения клиента: {}", e.what());
+                    if (client_fd >= 0) {
+                        shutdown(client_fd, SHUT_RDWR);
+                        close(client_fd);
+                    }
                 }
             }
         }
@@ -326,7 +342,14 @@ ssize_t WebSocketServer::recv_callback(wslay_event_context* ctx, uint8_t* data, 
         return -1;
     }
     
-    ssize_t ret = recv(client->fd, data, len, MSG_DONTWAIT);
+    ssize_t ret = -1;
+    try {
+        ret = recv(client->fd, data, len, MSG_DONTWAIT);
+    } catch (const std::exception& e) {
+        LOG_ERROR("Ошибка recv: {}", e.what());
+        return -1;
+    }
+    
     if (ret < 0) {
         if (errno == EAGAIN || errno == EWOULDBLOCK) {
             return -1;
@@ -343,7 +366,14 @@ ssize_t WebSocketServer::send_callback(wslay_event_context* ctx, const uint8_t* 
         return -1;
     }
     
-    ssize_t ret = send(client->fd, data, len, MSG_NOSIGNAL);
+    ssize_t ret = -1;
+    try {
+        ret = send(client->fd, data, len, MSG_NOSIGNAL);
+    } catch (const std::exception& e) {
+        LOG_ERROR("Ошибка send: {}", e.what());
+        return -1;
+    }
+    
     if (ret < 0) {
         if (errno == EAGAIN || errno == EWOULDBLOCK) {
             return -1;
@@ -459,7 +489,14 @@ void WebSocketServer::handleClient(int client_fd) {
     
     while (m_running.load()) {
         uint8_t buffer[4096];
-        ssize_t bytes_read = recv(client_fd, buffer, sizeof(buffer), MSG_DONTWAIT);
+        ssize_t bytes_read = -1;
+        
+        try {
+            bytes_read = recv(client_fd, buffer, sizeof(buffer), MSG_DONTWAIT);
+        } catch (const std::exception& e) {
+            LOG_ERROR("Ошибка recv в handleClient: {}", e.what());
+            break;
+        }
         
         if (bytes_read > 0) {
             if (wslay_event_recv(client->ctx) != 0) {
@@ -469,12 +506,25 @@ void WebSocketServer::handleClient(int client_fd) {
             break;
         }
         
-        if (wslay_event_send(client->ctx) != 0) {
+        try {
+            if (wslay_event_send(client->ctx) != 0) {
+                break;
+            }
+        } catch (const std::exception& e) {
+            LOG_ERROR("Ошибка send в handleClient: {}", e.what());
             break;
         }
         
         std::this_thread::sleep_for(std::chrono::milliseconds(10));
     }
+    
+    // Graceful disconnect: shutdown + close
+    try {
+        shutdown(client_fd, SHUT_RDWR);
+    } catch (const std::exception& e) {
+        LOG_WARNING("Ошибка shutdown: {}", e.what());
+    }
+    close(client_fd);
     
     {
         std::lock_guard<std::mutex> lock(m_mutex);
@@ -489,7 +539,6 @@ void WebSocketServer::handleClient(int client_fd) {
     
     cleanupClientRateLimit(client_fd);
     
-    close(client_fd);
     LOG_INFO("Клиент WebSocket отключился");
 }
 

@@ -294,25 +294,15 @@ echo "      ✓ MediaMTX запущен (порты $MEDIA_RTSP_PORT, $MEDIA_HTT
 # Логирование вывода rpicam-vid в отдельный файл
 CAMERA_LOG="$LOG_DIR/camera.log"
 echo "      Запуск видеопотока (rpicam-vid → ffmpeg → MediaMTX)..."
-{
-    rpicam-vid -t 0 \
-        --camera 0 \
-        --nopreview \
-        --codec libav \
-        --libav-format h264 \
-        --libav-video-codec h264_v4l2m2m \
-        --width 640 --height 480 \
-        --framerate 30 \
-        --bitrate 1000000 \
-        --intra 15 \
-        --inline -o - 2>>"$CAMERA_LOG" | \
-    ffmpeg -y -f h264 \
-        -i /dev/stdin \
-        -c copy \
-        -f rtsp \
-        -rtsp_transport tcp \
-        rtsp://127.0.0.1:$MEDIA_RTSP_PORT/stream 2>>"$CAMERA_LOG"
-} &
+
+# Унифицированный pipeline для запуска и перезапуска
+CAMERA_PIPELINE="rpicam-vid -t 0 --camera 0 --nopreview --codec libav --libav-format h264 --libav-video-codec h264_v4l2m2m --width 1024 --height 768 --framerate 30 --bitrate 1000000 --intra 15 --inline -o - 2>>\"$CAMERA_LOG\" | ffmpeg -y -f h264 -i /dev/stdin -c copy -f rtsp -rtsp_transport tcp rtsp://127.0.0.1:$MEDIA_RTSP_PORT/stream 2>>\"$CAMERA_LOG\""
+
+# Логируем параметры запуска камеры
+echo "$(date): Starting camera pipeline" >> "$CAMERA_LOG"
+echo "Pipeline: $CAMERA_PIPELINE" >> "$CAMERA_LOG"
+
+eval "$CAMERA_PIPELINE" &
 CAM_PID=$!
 
 # Проверка запуска камеры
@@ -436,29 +426,20 @@ while true; do
             
             if [ $camera_failures -ge $HEALTH_CHECK_MAX_FAILURES ]; then
                 echo "🔄 Перезапуск видеопотока..."
-                rpicam-vid -t 0 \
-                    --camera 0 \
-                    --nopreview \
-                    --codec libav \
-                    --libav-format h264 \
-                    --libav-video-codec h264_v4l2m2m \
-                    --width 640 --height 480 \
-                    --framerate 25 \
-                    --bitrate 500000 \
-                    --intra 25 \
-                    --inline -o - | \
-                    gst-launch-1.0 -v fdsrc ! \
-                    application/x-rtp,media=video,clock-rate=90000,encoding-name=H264,payload=96 ! \
-                    rtspsink location=rtsp://127.0.0.1:${MEDIA_RTSP_PORT}/stream latency=0 &
+                
+                # Унифицированный pipeline (тот же что и при старте)
+                eval "$CAMERA_PIPELINE" &
                 CAM_PID=$!
                 camera_failures=0
                 sleep 2
                 
-                if ! health_check $CAM_PID "Видеопоток"; then
-                    echo "❌ Не удалось перезапустить видеопоток."
+                # Проверка порта камеры после рестарта
+                if ! check_port $MEDIA_RTSP_PORT 5; then
+                    echo "❌ Не удалось перезапустить видеопоток (порт $MEDIA_RTSP_PORT не открыт)."
                     CAM_PID=""
                 else
-                    echo "✓ Видеопоток перезапущен (PID: $CAM_PID)"
+                    echo "✓ Видеопоток перезапущен (PID: $CAM_PID, порт: $MEDIA_RTSP_PORT)"
+                    echo "$(date): Camera restarted successfully, PID=$CAM_PID" >> "$CAMERA_LOG"
                 fi
             fi
         else
