@@ -3,6 +3,8 @@
 Python Bridge: TCP <-> WebSocket + HTTP Server
 Связывает C++ приложение (через TCP localhost:5555) с браузером (через WebSocket).
 Раздает HTML интерфейс через встроенный HTTP сервер.
+
+Thread-safe implementation with proper synchronization for concurrent access.
 """
 
 import asyncio
@@ -15,6 +17,8 @@ import logging
 import os
 import signal
 from aiohttp import web
+from typing import Optional, Set
+from dataclasses import dataclass, field
 
 # Конфигурация
 TCP_HOST = '127.0.0.1'
@@ -22,11 +26,6 @@ TCP_PORT = 5555
 WS_PORT = 8765
 HTTP_PORT = 8080
 CAMERA_PORT = 8889  # Порт видеопотока
-
-# Флаги для graceful shutdown
-shutdown_event = threading.Event()
-tcp_thread = None
-runner = None
 
 # Настройка логирования
 LOG_DIR = '/var/log/robo_chassis'
@@ -49,14 +48,111 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-# Глобальные переменные
-websocket_clients = set()
-tcp_socket = None
-tcp_connected = False
-tcp_reconnect_attempts = 0
-MAX_RECONNECT_ATTEMPTS = 10  # Максимальное количество попыток переподключения
-RECONNECT_DELAY_BASE = 2     # Базовая задержка между попытками (секунды)
-RECONNECT_DELAY_MAX = 30     # Максимальная задержка (секунды)
+
+@dataclass
+class ConnectionManager:
+    """
+    Thread-safe менеджер соединений для управления WebSocket клиентами и TCP подключением.
+    Использует asyncio.Lock для защиты от race conditions.
+    """
+    # WebSocket клиенты
+    websocket_clients: Set = field(default_factory=set)
+    websocket_lock: asyncio.Lock = field(default_factory=asyncio.Lock)
+    
+    # TCP соединение
+    tcp_socket: Optional[socket.socket] = None
+    tcp_connected: bool = False
+    tcp_lock: threading.Lock = field(default_factory=threading.Lock)
+    tcp_reconnect_attempts: int = 0
+    
+    # Queue для thread-safe передачи данных от TCP потока к asyncio loop
+    message_queue: asyncio.Queue = field(default_factory=asyncio.Queue)
+    
+    # Rate limiter
+    rate_limiter: Optional['RateLimiter'] = None
+    
+    MAX_RECONNECT_ATTEMPTS: int = 10
+    RECONNECT_DELAY_BASE: int = 2
+    RECONNECT_DELAY_MAX: int = 30
+    
+    async def add_websocket_client(self, client) -> None:
+        """Thread-safe добавление WebSocket клиента"""
+        async with self.websocket_lock:
+            self.websocket_clients.add(client)
+            logger.info(f"✓ Browser connected. Total clients: {len(self.websocket_clients)}")
+    
+    async def remove_websocket_client(self, client) -> None:
+        """Thread-safe удаление WebSocket клиента"""
+        async with self.websocket_lock:
+            self.websocket_clients.discard(client)
+            logger.info(f"✗ Browser disconnected. Total clients: {len(self.websocket_clients)}")
+    
+    async def get_client_count(self) -> int:
+        """Получение количества клиентов"""
+        async with self.websocket_lock:
+            return len(self.websocket_clients)
+    
+    async def broadcast_message(self, message: str) -> None:
+        """Thread-safe рассылка сообщения всем клиентам"""
+        async with self.websocket_lock:
+            clients = list(self.websocket_clients)
+        
+        if clients:
+            await asyncio.gather(
+                *[client.send_str(message) for client in clients],
+                return_exceptions=True
+            )
+    
+    def set_tcp_connected(self, connected: bool, sock: Optional[socket.socket] = None) -> None:
+        """Thread-safe установка статуса TCP подключения"""
+        with self.tcp_lock:
+            self.tcp_connected = connected
+            if sock:
+                self.tcp_socket = sock
+    
+    def is_tcp_connected(self) -> bool:
+        """Thread-safe проверка TCP подключения"""
+        with self.tcp_lock:
+            return self.tcp_connected
+    
+    def get_tcp_socket(self) -> Optional[socket.socket]:
+        """Thread-safe получение TCP сокета"""
+        with self.tcp_lock:
+            return self.tcp_socket
+    
+    def close_tcp_socket(self) -> None:
+        """Thread-safe закрытие TCP сокета"""
+        with self.tcp_lock:
+            if self.tcp_socket:
+                try:
+                    self.tcp_socket.close()
+                except:
+                    pass
+                self.tcp_socket = None
+            self.tcp_connected = False
+    
+    async def queue_message(self, message: str) -> None:
+        """Добавление сообщения в очередь для обработки в asyncio loop"""
+        await self.message_queue.put(message)
+    
+    async def process_queued_messages(self) -> None:
+        """Обработка всех сообщений из очереди"""
+        while not self.message_queue.empty():
+            try:
+                message = await self.message_queue.get_nowait()
+                await self.broadcast_message(message)
+                self.message_queue.task_done()
+            except asyncio.QueueEmpty:
+                break
+
+
+# Глобальный менеджер соединений
+connection_manager = ConnectionManager()
+
+# Флаги для graceful shutdown
+shutdown_event = threading.Event()
+tcp_thread = None
+runner = None
 loop = None
 
 def connect_to_cpp():

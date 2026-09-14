@@ -5,6 +5,7 @@
 #include <atomic>
 #include <memory>
 #include <chrono>
+#include <unistd.h>  // Для write() - async-signal-safe функции
 
 #include "config/config.hpp"
 #include "logger/logger.hpp"
@@ -24,6 +25,15 @@
 
 using json = nlohmann::json;
 
+// ============================================================================
+// Signal Handler Variables - только async-signal-safe операции
+// ============================================================================
+
+// Флаг shutdown - используется в signal handler и основном цикле
+// std::atomic является async-signal-safe для операций store/load
+static std::atomic<bool> g_signal_shutdown_requested{false};
+
+// Основной флаг работы приложения
 std::atomic<bool> g_running{true};
 std::atomic<bool> g_shutting_down{false};  // Флаг для предотвращения повторного входа
 std::atomic<int> g_shutdown_stage{0};      // Стадия завершения для отладки
@@ -35,42 +45,64 @@ static std::shared_ptr<robo_chassis::GpioController> g_gpio_controller;
 static std::shared_ptr<TcpServer> g_server;
 static std::shared_ptr<robo_chassis::WebSocketServer> g_ws_server;
 
-// Глобальный обработчик сигналов для graceful shutdown
-// ВАЖНО: Все проверки на nullptr обязательны, т.к. обработчик может быть вызван
-// в любой момент, включая время до инициализации глобальных переменных
+/**
+ * @brief Глобальный обработчик сигналов для graceful shutdown
+ * 
+ * ВАЖНО: В этом обработчике можно использовать ТОЛЬКО async-signal-safe функции!
+ * Список async-signal-safe функций: https://man7.org/linux/man-pages/man7/signal-safety.7.html
+ * 
+ * Разрешено:
+ * - std::atomic operations (store, load)
+ * - write() для вывода в stderr/fd
+ * 
+ * ЗАПРЕЩЕНО:
+ * - LOG_* макросы (используют malloc, mutex)
+ * - printf, cout, cerr (не являются async-signal-safe)
+ * - Вызов любых функций которые могут заблокироваться или выделить память
+ */
 static void signalHandler(int signum) {
     // Предотвращаем повторный вход в обработчик
-    if (g_shutting_down.exchange(true)) {
-        // Если сигнал получен повторно во время shutdown - просто форсируем остановку двигателей
-        LOG_WARNING("Повторный сигнал " + std::to_string(signum) + ". Аварийная остановка двигателей...");
-        // Проверка на nullptr обязательна - обработчик может быть вызван до инициализации
+    bool already_shutting_down = g_shutting_down.exchange(true);
+    
+    if (already_shutting_down) {
+        // Если сигнал получен повторно во время shutdown - форсируем остановку
+        // Используем только async-signal-safe операции
+        
+        // Устанавливаем флаг для основного цикла
+        g_signal_shutdown_requested.store(true, std::memory_order_release);
+        
+        // Аварийная остановка двигателей если SafetyManager доступен
         if (g_safety_mgr) {
             g_safety_mgr->activateSafeMode();
         }
-        // Не используем _exit(1), чтобы дать возможность корректной очистки
-        // Вместо этого просто выходим после остановки двигателей
-        _exit(0);  // Выходим с кодом 0 после остановки двигателей
+        
+        // Вывод сообщения через async-signal-safe write()
+        const char* msg = "\n⚠️  Повторный сигнал. Аварийная остановка.\n";
+        write(STDERR_FILENO, msg, strlen(msg));
+        
+        // Немедленный выход без дополнительной очистки
+        _exit(1);
     }
     
+    // Первый сигнал - нормальный graceful shutdown
     g_shutdown_stage.store(1);
-    LOG_INFO("Получен сигнал " + std::to_string(signum) + ". Завершение работы...");
+    g_signal_shutdown_requested.store(true, std::memory_order_release);
     g_running.store(false, std::memory_order_release);
     
+    // Вывод сообщения через async-signal-safe write()
+    const char* msg = "\n🛑 Получен сигнал. Завершение работы...\n";
+    write(STDERR_FILENO, msg, strlen(msg));
+    
     // Принудительная остановка двигателей через SafetyManager
-    // Проверка на nullptr обязательна - обработчик может быть вызван до инициализации
     if (g_safety_mgr) {
-        LOG_DEBUG("Остановка двигателей через SafetyManager");
         g_safety_mgr->activateSafeMode();
     }
     
     // Останавливаем серверы (они должны выйти из своих циклов)
-    // Проверка на nullptr обязательна - обработчик может быть вызван до инициализации
     if (g_ws_server) {
-        LOG_DEBUG("Остановка WebSocket сервера");
         g_ws_server->stop();
     }
     if (g_server) {
-        LOG_DEBUG("Остановка TCP сервера");
         g_server->stop();
     }
     
