@@ -1,6 +1,7 @@
 #include <gtest/gtest.h>
 #include "tcp_server.hpp"
 #include "robot_logic.hpp"
+#include "exchangers/i2c_master.hpp"
 #include <thread>
 #include <chrono>
 #include <sys/socket.h>
@@ -12,27 +13,34 @@
 #include <vector>
 #include <functional>
 
-// Mock RobotLogic для тестов
-class MockRobotLogic : public RobotLogic {
+// Mock IExchanger для тестов
+class MockExchanger : public robo_chassis::IExchanger {
 public:
-    MockRobotLogic() : RobotLogic(nullptr, nullptr) {}
-    
-    void executeCommand(const Command& cmd) override {
-        last_command = cmd;
+    bool send_data(const uint8_t* data, size_t len) override {
+        last_sent_data.assign(data, data + len);
+        return true;
     }
     
-    Command last_command;
+    bool open() override { return true; }
+    void close() override {}
+    bool is_open() const override { return true; }
+    void set_data_callback(DataCallback callback) override { 
+        m_callback = callback; 
+    }
+    
+    std::vector<uint8_t> last_sent_data;
+    DataCallback m_callback;
 };
 
 class TcpServerTest : public ::testing::Test {
 protected:
     std::unique_ptr<TcpServer> server;
-    std::unique_ptr<MockRobotLogic> mock_robot;
+    std::unique_ptr<RobotLogic> robot_logic;
     const int test_port = 18766; // Нестандартный порт для тестов
     
     void SetUp() override {
-        mock_robot = std::make_unique<MockRobotLogic>();
-        server = std::make_unique<TcpServer>(test_port, *mock_robot);
+        robot_logic = std::make_unique<RobotLogic>(std::make_unique<MockExchanger>(), true);
+        server = std::make_unique<TcpServer>(test_port, *robot_logic);
     }
     
     void TearDown() override {

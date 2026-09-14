@@ -53,10 +53,14 @@ void Logger::init(LogLevel level, bool enable_console, bool enable_file,
     
     auto logger = std::make_shared<spdlog::logger>("robo_chassis", sinks.begin(), sinks.end());
     logger->set_level(spdlog::level::level_enum(static_cast<int>(level)));
-    logger->flush_on(spdlog::level::info);
+    logger->flush_on(spdlog::level::debug);  // Flush on every message for tests
+    logger->set_pattern("[%Y-%m-%d %H:%M:%S.%e] [%l] [%n] %v");
     
     spdlog::register_logger(logger);
     m_logger = logger;
+    
+    // Force immediate flush after registration
+    logger->flush();
     
     LOG_INFO("Logger initialized: level={}, console={}, file={}{}", 
              levelToString(level),
@@ -100,6 +104,16 @@ void Logger::log(LogLevel level, const std::string& message, const std::string& 
     } else {
         m_logger->log(spdlog::level::level_enum(static_cast<int>(level)), message);
     }
+}
+
+void Logger::shutdown() {
+    if (m_logger) {
+        m_logger->flush();
+        spdlog::drop(m_logger->name());
+        m_logger.reset();
+    }
+    // Также сбрасываем min_level для корректной повторной инициализации
+    min_level_ = LogLevel::INFO;
 }
 
 } // namespace robo_chassis

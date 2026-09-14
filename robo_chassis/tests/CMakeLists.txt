@@ -1,4 +1,13 @@
 cmake_minimum_required(VERSION 3.10)
+
+# BUILD_TESTS option - OFF by default for production builds
+option(BUILD_TESTS "Build unit tests" OFF)
+
+if(NOT BUILD_TESTS)
+    message(STATUS "Unit tests are disabled (set BUILD_TESTS=ON to enable)")
+    return()
+endif()
+
 project(robo_chassis_tests)
 
 set(CMAKE_CXX_STANDARD 20)
@@ -10,16 +19,19 @@ enable_testing()
 # Find Google Test
 find_package(GTest REQUIRED)
 
-# Include directories
+# Include directories - removed non-existent ../src/drivers
 include_directories(
     ${PROJECT_SOURCE_DIR}/../src/core
-    ${PROJECT_SOURCE_DIR}/../src/drivers
     ${PROJECT_SOURCE_DIR}/../src/core/config
     ${PROJECT_SOURCE_DIR}/../src/core/logger
     ${PROJECT_SOURCE_DIR}/../src/core/autonomy
     ${PROJECT_SOURCE_DIR}/../src/core/sensors
     ${PROJECT_SOURCE_DIR}/../src/core/gpio
     ${PROJECT_SOURCE_DIR}/../src/core/safety
+    ${PROJECT_SOURCE_DIR}/../src/core/exchangers
+    ${PROJECT_SOURCE_DIR}/../src/core/websocket_server
+    ${PROJECT_SOURCE_DIR}/../src/core/memory
+    ${PROJECT_SOURCE_DIR}/../src/core/system_monitor
 )
 
 # Source files needed for tests

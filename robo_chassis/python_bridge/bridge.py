@@ -239,7 +239,7 @@ loop = None
 
 def connect_to_cpp():
     """Подключение к C++ приложению через TCP с автоматическим переподключением"""
-    global tcp_socket, tcp_connected, loop, tcp_reconnect_attempts
+    global loop
     
     logger.info("Starting TCP client connection...")
     
@@ -248,14 +248,14 @@ def connect_to_cpp():
             tcp_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             tcp_socket.settimeout(1.0)
             tcp_socket.connect((TCP_HOST, TCP_PORT))
-            tcp_connected = True
-            tcp_reconnect_attempts = 0  # Сброс счётчика ошибок при успешном подключении
+            connection_manager.set_tcp_connected(True, tcp_socket)
+            connection_manager.set_tcp_reconnect_attempts(0)  # Сброс счётчика ошибок при успешном подключении
             logger.info(f"✓ Connected to C++ on {TCP_HOST}:{TCP_PORT}")
             print(f"✓ Подключено к C++ на {TCP_HOST}:{TCP_PORT}")
             
             # Чтение данных от C++
             buffer = ""
-            while tcp_connected and not shutdown_event.is_set():
+            while connection_manager.is_tcp_connected() and not shutdown_event.is_set():
                 try:
                     data = tcp_socket.recv(4096).decode('utf-8')
                     if not data:
@@ -269,7 +269,10 @@ def connect_to_cpp():
                         if line:
                             logger.debug(f"Received from C++: {line[:100]}")
                             if loop and loop.is_running():
-                                asyncio.run_coroutine_threadsafe(forward_to_websockets(line), loop)
+                                # Используем очередь для thread-safe передачи
+                                asyncio.run_coroutine_threadsafe(
+                                    connection_manager.queue_message(line), loop
+                                )
                             
                 except socket.timeout:
                     continue
@@ -283,16 +286,17 @@ def connect_to_cpp():
                 break
             logger.error(f"✗ TCP connection error: {e}. Reconnecting in 2 sec...")
             print(f"✗ Ошибка подключения к C++: {e}. Повтор через 2 сек...")
-            tcp_connected = False
+            connection_manager.set_tcp_connected(False)
             
             # Экспоненциальная задержка с максимумом
-            delay = min(RECONNECT_DELAY_BASE * (2 ** tcp_reconnect_attempts), RECONNECT_DELAY_MAX)
-            tcp_reconnect_attempts += 1
+            attempts = connection_manager.increment_tcp_reconnect_attempts()
+            delay = min(connection_manager.RECONNECT_DELAY_BASE * (2 ** (attempts - 1)), 
+                       connection_manager.RECONNECT_DELAY_MAX)
             
-            if tcp_reconnect_attempts >= MAX_RECONNECT_ATTEMPTS:
-                logger.warning(f"⚠ Max reconnect attempts ({MAX_RECONNECT_ATTEMPTS}) reached. Waiting {RECONNECT_DELAY_MAX} sec...")
-                print(f"⚠ Достигнуто максимальное количество попыток ({MAX_RECONNECT_ATTEMPTS}). Ждём {RECONNECT_DELAY_MAX} сек...")
-                tcp_reconnect_attempts = MAX_RECONNECT_ATTEMPTS - 1  # Чтобы не увеличивать дальше
+            if attempts >= connection_manager.MAX_RECONNECT_ATTEMPTS:
+                logger.warning(f"⚠ Max reconnect attempts ({connection_manager.MAX_RECONNECT_ATTEMPTS}) reached. Waiting {connection_manager.RECONNECT_DELAY_MAX} sec...")
+                print(f"⚠ Достигнуто максимальное количество попыток ({connection_manager.MAX_RECONNECT_ATTEMPTS}). Ждём {connection_manager.RECONNECT_DELAY_MAX} сек...")
+                connection_manager.set_tcp_reconnect_attempts(connection_manager.MAX_RECONNECT_ATTEMPTS - 1)
             
             time.sleep(delay)
         
@@ -301,16 +305,11 @@ def connect_to_cpp():
                 tcp_socket.close()
             except:
                 pass
-        tcp_socket = None
-        tcp_connected = False
+        connection_manager.close_tcp_socket()
 
 async def forward_to_websockets(message):
-    """Отправка сообщения всем подключенным WebSocket клиентам"""
-    if websocket_clients:
-        await asyncio.gather(
-            *[client.send_str(message) for client in websocket_clients],
-            return_exceptions=True
-        )
+    """Отправка сообщения всем подключенным WebSocket клиентам через менеджер соединений"""
+    await connection_manager.broadcast_message(message)
 
 # Rate limiting для защиты от DoS атак
 class RateLimiter:
@@ -347,29 +346,35 @@ class RateLimiter:
         if client_id in self.clients:
             del self.clients[client_id]
 
-# Глобальный rate limiter
-rate_limiter = RateLimiter(max_messages_per_second=20, window_seconds=1)
+# Глобальный rate limiter - больше не используется, доступен через connection_manager.rate_limiter
+# rate_limiter = RateLimiter(max_messages_per_second=20, window_seconds=1)
+
+# Константы переподключения - доступны через connection_manager
+RECONNECT_DELAY_BASE = 2
+RECONNECT_DELAY_MAX = 30
+MAX_RECONNECT_ATTEMPTS = 10
 
 async def handle_websocket(request):
     """Обработчик WebSocket подключений с rate limiting"""
     ws = web.WebSocketResponse()
     await ws.prepare(request)
     client_id = id(ws)
-    websocket_clients.add(ws)
-    logger.info(f"✓ Browser connected (ID: {client_id}). Total clients: {len(websocket_clients)}")
-    print(f"✓ Браузер подключен (ID: {client_id}). Всего клиентов: {len(websocket_clients)}")
+    await connection_manager.add_websocket_client(ws)
+    logger.info(f"✓ Browser connected (ID: {client_id}). Total clients: {await connection_manager.get_client_count()}")
+    print(f"✓ Браузер подключен (ID: {client_id}). Всего клиентов: {await connection_manager.get_client_count()}")
     
     try:
         async for msg in ws:
             if msg.type == web.WSMsgType.TEXT:
                 # Проверка rate limit перед обработкой
-                if not rate_limiter.is_allowed(client_id):
+                if not connection_manager.rate_limiter.is_allowed(client_id):
                     logger.warning(f"⚠ Rate limit exceeded for client {client_id}")
                     print(f"⚠ Rate limit превышен для клиента {client_id}")
                     continue
                 
                 # Получение команд от браузера и отправка в C++
-                if tcp_connected and tcp_socket:
+                tcp_socket = connection_manager.get_tcp_socket()
+                if connection_manager.is_tcp_connected() and tcp_socket:
                     try:
                         # Добавляем \n для разделения строк
                         tcp_socket.sendall((msg.data + '\n').encode('utf-8'))
@@ -378,13 +383,13 @@ async def handle_websocket(request):
                         logger.error(f"✗ Send error to C++: {e}")
                         print(f"✗ Ошибка отправки в C++: {e}")
                         # Попытка переподключения при ошибке отправки
-                        tcp_connected = False
+                        connection_manager.set_tcp_connected(False)
                         if tcp_socket:
                             try:
                                 tcp_socket.close()
                             except:
                                 pass
-                        tcp_socket = None
+                        connection_manager.close_tcp_socket()
                         print("🔄 Попытка переподключения к C++...")
                 else:
                     logger.warning(f"⚠ No connection to C++, command not sent: {msg.data[:50]}...")
@@ -397,10 +402,10 @@ async def handle_websocket(request):
                 print(f"ℹ WebSocket закрыт клиентом {client_id}")
                 break
     finally:
-        websocket_clients.discard(ws)
-        rate_limiter.cleanup(client_id)
-        logger.info(f"✗ Browser disconnected (ID: {client_id}). Total clients: {len(websocket_clients)}")
-        print(f"✗ Браузер отключен (ID: {client_id}). Всего клиентов: {len(websocket_clients)}")
+        await connection_manager.remove_websocket_client(ws)
+        connection_manager.rate_limiter.cleanup(client_id)
+        logger.info(f"✗ Browser disconnected (ID: {client_id}). Total clients: {await connection_manager.get_client_count()}")
+        print(f"✗ Браузер отключен (ID: {client_id}). Всего клиентов: {await connection_manager.get_client_count()}")
     
     return ws
 
@@ -427,9 +432,7 @@ async def handle_http(request):
 async def on_shutdown(app):
     """Очистка при остановке сервера"""
     logger.info("Shutting down WebSocket connections...")
-    for ws in list(websocket_clients):
-        await ws.close()
-    websocket_clients.clear()
+    await connection_manager.cleanup()
 
 def signal_handler(signum, frame):
     """Обработчик сигналов для graceful shutdown"""
@@ -437,13 +440,8 @@ def signal_handler(signum, frame):
     print(f"\n🛑 Получен сигнал {signum}, завершение работы...")
     shutdown_event.set()
     
-    # Закрытие TCP соединения
-    global tcp_socket
-    if tcp_socket:
-        try:
-            tcp_socket.close()
-        except:
-            pass
+    # Закрытие TCP соединения через менеджер
+    connection_manager.close_tcp_socket()
     
     # Остановка asyncio event loop
     global loop
@@ -515,12 +513,8 @@ async def main():
             logger.info("Waiting for TCP thread to finish...")
             tcp_thread.join(timeout=5)
         
-        # Закрытие TCP соединения
-        if tcp_socket:
-            try:
-                tcp_socket.close()
-            except:
-                pass
+        # Закрытие TCP соединения через менеджер
+        connection_manager.close_tcp_socket()
         
         logger.info("Python Bridge stopped.")
         print("✓ Python Bridge остановлен.")

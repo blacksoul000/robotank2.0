@@ -24,17 +24,57 @@ MEDIA_HTTP_PORT=8889
 MEDIA_RTSP_PORT=8554
 TELEMETRY_RATE_HZ=2  # Частота обновления телеметрии (Гц)
 
-# Функция проверки существования порта
+# Функция проверки существования порта (использует lsof и ss)
 check_port() {
     local port=$1
     local max_attempts=${2:-10}
     local attempt=0
     
     while [ $attempt -lt $max_attempts ]; do
-        if netstat -tuln 2>/dev/null | grep -q ":$port " || \
-           ss -tuln 2>/dev/null | grep -q ":$port "; then
+        # Используем lsof или ss для проверки порта (более надежно чем netstat)
+        if command -v lsof &> /dev/null; then
+            if lsof -i :"$port" -t &> /dev/null; then
+                return 0
+            fi
+        elif ss -tlnp 2>/dev/null | grep -q ":$port "; then
+            return 0
+        elif netstat -tuln 2>/dev/null | grep -q ":$port "; then
             return 0
         fi
+        attempt=$((attempt + 1))
+        sleep 0.5
+    done
+    return 1
+}
+
+# Функция проверки что mediamtx слушает порты
+check_mediamtx_ports() {
+    local http_port=8889
+    local rtsp_port=8554
+    local max_attempts=10
+    local attempt=0
+    
+    while [ $attempt -lt $max_attempts ]; do
+        local ports_ok=true
+        
+        if command -v lsof &> /dev/null; then
+            if ! lsof -i :"$http_port" -t &> /dev/null; then
+                ports_ok=false
+            fi
+            if ! lsof -i :"$rtsp_port" -t &> /dev/null; then
+                ports_ok=false
+            fi
+        elif ss -tlnp 2>/dev/null | grep -q ":$http_port " && \
+             ss -tlnp 2>/dev/null | grep -q ":$rtsp_port "; then
+            ports_ok=true
+        else
+            ports_ok=false
+        fi
+        
+        if [ "$ports_ok" = true ]; then
+            return 0
+        fi
+        
         attempt=$((attempt + 1))
         sleep 0.5
     done
@@ -239,43 +279,47 @@ else
     mediamtx > "$LOG_DIR/mediamtx.log" 2>&1 &
 fi
 MEDIAMTX_PID=$!
-sleep 2
 
-if ! health_check $MEDIAMTX_PID "MediaMTX"; then
-    echo "❌ Ошибка: не удалось запустить MediaMTX!"
+# Проверка что MediaMTX слушает порты (8554 RTSP и 8889 HTTP)
+sleep 2
+if ! check_mediamtx_ports; then
+    echo "❌ Ошибка: MediaMTX не слушает порты $MEDIA_RTSP_PORT/$MEDIA_HTTP_PORT!"
     tail -20 "$LOG_DIR/mediamtx.log" 2>/dev/null
     kill $CPP_PID $PYTHON_PID 2>/dev/null
     exit 1
 fi
-echo "      ✓ MediaMTX запущен (PID: $MEDIAMTX_PID)"
+echo "      ✓ MediaMTX запущен (порты $MEDIA_RTSP_PORT, $MEDIA_HTTP_PORT)"
 
 # Запуск камеры с оптимизированными параметрами для RPi 2B
-# Прямая отправка в MediaMTX без ffmpeg (аппаратное кодирование)
-echo "      Запуск видеопотока (rpicam-vid → MediaMTX)..."
-rpicam-vid -t 0 \
-    --camera 0 \
-    --nopreview \
-    --codec libav \
-    --libav-format h264 \
-    --libav-video-codec h264_v4l2m2m \
-    --width 640 --height 480 \
-    --framerate 30 \
-    --bitrate 1000000 \
-    --intra 15 \
-    --inline -o - | \
-    ffmpeg -f h264 \
-    -i /dev/stdin \
-    -c copy \
-    -f rtsp \
-    -rtsp_transport tcp \
-    rtsp://127.0.0.1:8554/stream &
+# Логирование вывода rpicam-vid в отдельный файл
+CAMERA_LOG="$LOG_DIR/camera.log"
+echo "      Запуск видеопотока (rpicam-vid → ffmpeg → MediaMTX)..."
+{
+    rpicam-vid -t 0 \
+        --camera 0 \
+        --nopreview \
+        --codec libav \
+        --libav-format h264 \
+        --libav-video-codec h264_v4l2m2m \
+        --width 640 --height 480 \
+        --framerate 30 \
+        --bitrate 1000000 \
+        --intra 15 \
+        --inline -o - 2>>"$CAMERA_LOG" | \
+    ffmpeg -y -f h264 \
+        -i /dev/stdin \
+        -c copy \
+        -f rtsp \
+        -rtsp_transport tcp \
+        rtsp://127.0.0.1:$MEDIA_RTSP_PORT/stream 2>>"$CAMERA_LOG"
+} &
 CAM_PID=$!
 
 # Проверка запуска камеры
 sleep 2
 if ! health_check $CAM_PID "Видеопоток"; then
     echo "❌ Ошибка: не удалось запустить видеопоток!"
-    echo "   Проверьте логи: $LOG_DIR/mediamtx.log"
+    echo "   Проверьте логи: $CAMERA_LOG"
     kill $CPP_PID $PYTHON_PID $MEDIAMTX_PID 2>/dev/null
     exit 1
 fi

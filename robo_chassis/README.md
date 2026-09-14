@@ -16,6 +16,19 @@ Arduino → Моторы, сервы, датчики
 
 **Видеопоток:** Отдельный процесс `rpicam-vid` + `mediamtx` передаёт видео с камеры через RTSP напрямую в браузер через HTTP-поток.
 
+## Security Considerations
+
+⚠️ **ВАЖНО**: По умолчанию система НЕ включает аутентификацию. Для безопасного развертывания ознакомьтесь с [SECURITY.md](SECURITY.md).
+
+Краткий чеклист безопасности:
+- [ ] Настройте firewall (ufw)
+- [ ] Добавьте токены/пароли для WebSocket и веб-интерфейса
+- [ ] Используйте HTTPS/WSS через reverse proxy (nginx)
+- [ ] Регулярно обновляйте систему
+- [ ] Изолируйте сеть робота от публичного интернета
+
+Подробные инструкции см. в [SECURITY.md](SECURITY.md).
+
 ## Компоненты
 
 ### 1. C++ Ядро (`src/core/`)
@@ -135,14 +148,21 @@ rpicam-vid -t 0 --codec libav --libav-format h264 \
 ```
 
 ### Телеметрия (C++ → Python → Browser)
+
+Частота обновления: **2 Гц (500 мс)**
+
 ```json
 {
   "type": "TELEMETRY",
   "battery": 12.4,
   "roll": 2.5,
   "pitch": -1.3,
+  "yaw": 180.0,
   "turret_angle": 45,
-  "signal_quality": 100
+  "signal_quality": 100,
+  "cpu_temp": 45.2,
+  "memory_usage": 65.0,
+  "distance_cm": 25.5
 }
 ```
 

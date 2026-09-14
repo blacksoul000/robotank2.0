@@ -100,6 +100,11 @@ public:
      */
     static LogLevel stringToLevel(const std::string& str);
     
+    /**
+     * @brief Очистить зарегистрированный логгер (для тестов)
+     */
+    void shutdown();
+    
 private:
     Logger() = default;
     ~Logger() = default;

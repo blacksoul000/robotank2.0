@@ -17,6 +17,8 @@ protected:
         if (std::filesystem::exists("config.json")) {
             std::filesystem::rename("config.json", "config.json.bak");
         }
+        // Сбрасываем конфигурацию к значениям по умолчанию перед каждым тестом
+        robo_chassis::Config::resetToDefaults();
     }
     
     void TearDown() override {

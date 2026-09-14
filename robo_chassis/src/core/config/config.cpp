@@ -23,10 +23,19 @@ bool Config::load(const std::string& config_path) {
         file >> j;
         file.close();
         
-        // Парсинг секции tcp_server
+        // Парсинг секции tcp_server с валидацией диапазонов
         if (j.contains("tcp_server")) {
             auto& tcp = j["tcp_server"];
-            if (tcp.contains("port")) instance_.tcp_server_.port = tcp["port"].get<int>();
+            if (tcp.contains("port")) {
+                int port = tcp["port"].get<int>();
+                // Валидация: порт должен быть в диапазоне 1-65535
+                if (port < 1 || port > 65535) {
+                    LOG_WARNING("TCP port %d out of range [1,65535], using default 5555", port);
+                    instance_.tcp_server_.port = 5555;
+                } else {
+                    instance_.tcp_server_.port = port;
+                }
+            }
             if (tcp.contains("bind_address")) instance_.tcp_server_.bind_address = tcp["bind_address"].get<std::string>();
         }
         
@@ -36,6 +45,14 @@ bool Config::load(const std::string& config_path) {
             if (i2c.contains("device")) instance_.i2c_.device = i2c["device"].get<std::string>();
             if (i2c.contains("imu_enabled")) instance_.i2c_.imu_enabled = i2c["imu_enabled"].get<bool>();
             if (i2c.contains("simulation_mode")) instance_.i2c_.simulation_mode = i2c["simulation_mode"].get<bool>();
+        }
+        
+        // Парсинг секции serial
+        if (j.contains("serial")) {
+            auto& serial = j["serial"];
+            if (serial.contains("device")) instance_.serial_.device = serial["device"].get<std::string>();
+            if (serial.contains("baudrate")) instance_.serial_.baudrate = serial["baudrate"].get<int>();
+            if (serial.contains("max_retries")) instance_.serial_.max_retries = serial["max_retries"].get<int>();
         }
         
         // Парсинг секции logging
@@ -53,11 +70,19 @@ bool Config::load(const std::string& config_path) {
                 instance_.logging_.memory_critical_threshold = logging["memory_critical_threshold"].get<float>();
         }
         
-        // Парсинг секции telemetry
+        // Парсинг секции telemetry с валидацией диапазонов
         if (j.contains("telemetry")) {
             auto& telemetry = j["telemetry"];
-            if (telemetry.contains("update_interval_ms")) 
-                instance_.telemetry_.update_interval_ms = telemetry["update_interval_ms"].get<int>();
+            if (telemetry.contains("update_interval_ms")) {
+                int interval = telemetry["update_interval_ms"].get<int>();
+                // Валидация: интервал должен быть в разумных пределах (50-5000 мс)
+                if (interval < 50 || interval > 5000) {
+                    LOG_WARNING("Telemetry update_interval_ms=%d out of range [50,5000], using default 500", interval);
+                    instance_.telemetry_.update_interval_ms = 500;
+                } else {
+                    instance_.telemetry_.update_interval_ms = interval;
+                }
+            }
             if (telemetry.contains("connection_timeout_attempts")) 
                 instance_.telemetry_.connection_timeout_attempts = telemetry["connection_timeout_attempts"].get<int>();
         }
@@ -128,12 +153,30 @@ bool Config::load(const std::string& config_path) {
                 instance_.sensors_.ultrasonic_max_distance_cm = sensors["ultrasonic_max_distance_cm"].get<float>();
         }
         
-        // Парсинг секции websocket
+        // Парсинг секции websocket с валидацией
         if (j.contains("websocket")) {
             auto& websocket = j["websocket"];
-            if (websocket.contains("port")) instance_.websocket_.port = websocket["port"].get<int>();
+            if (websocket.contains("port")) {
+                int port = websocket["port"].get<int>();
+                // Валидация: порт должен быть в диапазоне 1-65535
+                if (port < 1 || port > 65535) {
+                    LOG_WARNING("WebSocket port %d out of range [1,65535], using default 8765", port);
+                    instance_.websocket_.port = 8765;
+                } else {
+                    instance_.websocket_.port = port;
+                }
+            }
             if (websocket.contains("bind_address")) instance_.websocket_.bind_address = websocket["bind_address"].get<std::string>();
-            if (websocket.contains("max_clients")) instance_.websocket_.max_clients = websocket["max_clients"].get<int>();
+            if (websocket.contains("max_clients")) {
+                int max_clients = websocket["max_clients"].get<int>();
+                // Валидация: max_clients должен быть >= 1
+                if (max_clients < 1) {
+                    LOG_WARNING("WebSocket max_clients=%d invalid, using default 5", max_clients);
+                    instance_.websocket_.max_clients = 5;
+                } else {
+                    instance_.websocket_.max_clients = max_clients;
+                }
+            }
             if (websocket.contains("rate_limit_messages_per_sec")) 
                 instance_.websocket_.rate_limit_messages_per_sec = websocket["rate_limit_messages_per_sec"].get<int>();
             if (websocket.contains("compression_enabled")) 
@@ -156,6 +199,8 @@ bool Config::load(const std::string& config_path) {
         LOG_INFO("Configuration successfully loaded from %s", config_path.c_str());
         LOG_INFO("  TCP Server: port %d on %s", 
                  instance_.tcp_server_.port, instance_.tcp_server_.bind_address.c_str());
+        LOG_INFO("  WebSocket Server: port %d on %s",
+                 instance_.websocket_.port, instance_.websocket_.bind_address.c_str());
         LOG_INFO("  I2C: device %s%s", 
                  instance_.i2c_.device.c_str(),
                  instance_.i2c_.simulation_mode ? " (simulation mode)" : "");
@@ -163,6 +208,9 @@ bool Config::load(const std::string& config_path) {
                  instance_.logging_.level.c_str(),
                  instance_.logging_.file ? ", file: " : "",
                  instance_.logging_.file ? instance_.logging_.file_path.c_str() : "");
+        LOG_INFO("  Telemetry: update interval %d ms (%.1f Hz)",
+                 instance_.telemetry_.update_interval_ms,
+                 1000.0f / instance_.telemetry_.update_interval_ms);
         
         return true;
         
@@ -170,6 +218,14 @@ bool Config::load(const std::string& config_path) {
         LOG_ERROR("Configuration parsing error: %s. Using defaults.", e.what());
         return false;
     }
+}
+
+} // namespace robo_chassis
+
+namespace robo_chassis {
+
+void Config::resetToDefaults() {
+    instance_ = Config();
 }
 
 } // namespace robo_chassis

@@ -146,6 +146,12 @@ public:
      */
     static bool load(const std::string& config_path = "./config.json");
     
+    /**
+     * @brief Сброс конфигурации к значениям по умолчанию
+     * Используется в тестах для изоляции тестовых случаев
+     */
+    static void resetToDefaults();
+    
     // Геттеры для всех секций конфигурации
     static const SerialConfig& getSerial() { return instance_.serial_; }
     static const TcpServerConfig& getTcpServer() { return instance_.tcp_server_; }
