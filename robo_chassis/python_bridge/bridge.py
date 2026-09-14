@@ -5,6 +5,8 @@ Python Bridge: TCP <-> WebSocket + HTTP Server
 Раздает HTML интерфейс через встроенный HTTP сервер.
 
 Thread-safe implementation with proper synchronization for concurrent access.
+All operations with shared state are protected by asyncio.Lock or threading.Lock.
+Uses asyncio.Queue for thread-safe data transfer between TCP thread and asyncio loop.
 """
 
 import asyncio
@@ -17,7 +19,7 @@ import logging
 import os
 import signal
 from aiohttp import web
-from typing import Optional, Set
+from typing import Optional, Set, Dict, Any
 from dataclasses import dataclass, field
 
 # Конфигурация
@@ -53,49 +55,91 @@ logger = logging.getLogger(__name__)
 class ConnectionManager:
     """
     Thread-safe менеджер соединений для управления WebSocket клиентами и TCP подключением.
-    Использует asyncio.Lock для защиты от race conditions.
-    """
-    # WebSocket клиенты
-    websocket_clients: Set = field(default_factory=set)
-    websocket_lock: asyncio.Lock = field(default_factory=asyncio.Lock)
+    Использует asyncio.Lock для защиты от race conditions при доступе к websocket_clients.
+    Все операции с общим состоянием обернуты в lock.
     
-    # TCP соединение
-    tcp_socket: Optional[socket.socket] = None
-    tcp_connected: bool = False
-    tcp_lock: threading.Lock = field(default_factory=threading.Lock)
-    tcp_reconnect_attempts: int = 0
+    Uses asyncio.Queue for thread-safe data transfer from TCP thread to asyncio loop.
+    Replaces global variables with a proper manager class.
+    """
+    # WebSocket клиенты - защищены asyncio.Lock
+    _websocket_clients: Set = field(default_factory=set, repr=False)
+    _websocket_lock: asyncio.Lock = field(default=None, repr=False)
+    
+    # TCP соединение - защищено threading.Lock
+    _tcp_socket: Optional[socket.socket] = field(default=None, repr=False)
+    _tcp_connected: bool = field(default=False, repr=False)
+    _tcp_lock: threading.Lock = field(default_factory=threading.Lock, repr=False)
+    _tcp_reconnect_attempts: int = field(default=0, repr=False)
     
     # Queue для thread-safe передачи данных от TCP потока к asyncio loop
-    message_queue: asyncio.Queue = field(default_factory=asyncio.Queue)
+    _message_queue: asyncio.Queue = field(default=None, repr=False)
     
     # Rate limiter
-    rate_limiter: Optional['RateLimiter'] = None
+    _rate_limiter: Optional['RateLimiter'] = field(default=None, repr=False)
     
-    MAX_RECONNECT_ATTEMPTS: int = 10
-    RECONNECT_DELAY_BASE: int = 2
-    RECONNECT_DELAY_MAX: int = 30
+    # Константы переподключения
+    MAX_RECONNECT_ATTEMPTS: int = field(default=10, init=False)
+    RECONNECT_DELAY_BASE: int = field(default=2, init=False)
+    RECONNECT_DELAY_MAX: int = field(default=30, init=False)
+    
+    def __post_init__(self):
+        """Инициализация полей после создания объекта"""
+        if self._websocket_lock is None:
+            object.__setattr__(self, '_websocket_lock', asyncio.Lock())
+        if self._message_queue is None:
+            object.__setattr__(self, '_message_queue', asyncio.Queue())
+        if self._rate_limiter is None:
+            object.__setattr__(self, '_rate_limiter', RateLimiter(max_messages_per_second=20, window_seconds=1))
+        object.__setattr__(self, 'MAX_RECONNECT_ATTEMPTS', 10)
+        object.__setattr__(self, 'RECONNECT_DELAY_BASE', 2)
+        object.__setattr__(self, 'RECONNECT_DELAY_MAX', 30)
+    
+    @property
+    def websocket_clients(self) -> Set:
+        """Прямой доступ к клиентам только для чтения (для совместимости)"""
+        return self._websocket_clients
+    
+    @property
+    def websocket_lock(self) -> asyncio.Lock:
+        """Lock для операций с websocket клиентами"""
+        return self._websocket_lock
+    
+    @property
+    def tcp_lock(self) -> threading.Lock:
+        """Lock для операций с TCP соединением"""
+        return self._tcp_lock
+    
+    @property
+    def message_queue(self) -> asyncio.Queue:
+        """Queue для thread-safe передачи сообщений"""
+        return self._message_queue
+    
+    @property
+    def rate_limiter(self) -> 'RateLimiter':
+        """Rate limiter для защиты от DoS"""
+        return self._rate_limiter
     
     async def add_websocket_client(self, client) -> None:
         """Thread-safe добавление WebSocket клиента"""
-        async with self.websocket_lock:
-            self.websocket_clients.add(client)
-            logger.info(f"✓ Browser connected. Total clients: {len(self.websocket_clients)}")
+        async with self._websocket_lock:
+            self._websocket_clients.add(client)
+            logger.info(f"✓ Browser connected. Total clients: {len(self._websocket_clients)}")
     
     async def remove_websocket_client(self, client) -> None:
         """Thread-safe удаление WebSocket клиента"""
-        async with self.websocket_lock:
-            self.websocket_clients.discard(client)
-            logger.info(f"✗ Browser disconnected. Total clients: {len(self.websocket_clients)}")
+        async with self._websocket_lock:
+            self._websocket_clients.discard(client)
+            logger.info(f"✗ Browser disconnected. Total clients: {len(self._websocket_clients)}")
     
     async def get_client_count(self) -> int:
         """Получение количества клиентов"""
-        async with self.websocket_lock:
-            return len(self.websocket_clients)
+        async with self._websocket_lock:
+            return len(self._websocket_clients)
     
     async def broadcast_message(self, message: str) -> None:
         """Thread-safe рассылка сообщения всем клиентам"""
-        async with self.websocket_lock:
-            clients = list(self.websocket_clients)
+        async with self._websocket_lock:
+            clients = list(self._websocket_clients)
         
         if clients:
             await asyncio.gather(
@@ -105,53 +149,91 @@ class ConnectionManager:
     
     def set_tcp_connected(self, connected: bool, sock: Optional[socket.socket] = None) -> None:
         """Thread-safe установка статуса TCP подключения"""
-        with self.tcp_lock:
-            self.tcp_connected = connected
+        with self._tcp_lock:
+            self._tcp_connected = connected
             if sock:
-                self.tcp_socket = sock
+                self._tcp_socket = sock
     
     def is_tcp_connected(self) -> bool:
         """Thread-safe проверка TCP подключения"""
-        with self.tcp_lock:
-            return self.tcp_connected
+        with self._tcp_lock:
+            return self._tcp_connected
     
     def get_tcp_socket(self) -> Optional[socket.socket]:
         """Thread-safe получение TCP сокета"""
-        with self.tcp_lock:
-            return self.tcp_socket
+        with self._tcp_lock:
+            return self._tcp_socket
     
     def close_tcp_socket(self) -> None:
         """Thread-safe закрытие TCP сокета"""
-        with self.tcp_lock:
-            if self.tcp_socket:
+        with self._tcp_lock:
+            if self._tcp_socket:
                 try:
-                    self.tcp_socket.close()
+                    self._tcp_socket.close()
                 except:
                     pass
-                self.tcp_socket = None
-            self.tcp_connected = False
+                self._tcp_socket = None
+            self._tcp_connected = False
+    
+    def get_tcp_reconnect_attempts(self) -> int:
+        """Thread-safe получение счётчика попыток переподключения"""
+        with self._tcp_lock:
+            return self._tcp_reconnect_attempts
+    
+    def set_tcp_reconnect_attempts(self, attempts: int) -> None:
+        """Thread-safe установка счётчика попыток переподключения"""
+        with self._tcp_lock:
+            self._tcp_reconnect_attempts = attempts
+    
+    def increment_tcp_reconnect_attempts(self) -> int:
+        """Thread-safe инкремент счётчика попыток, возвращает новое значение"""
+        with self._tcp_lock:
+            self._tcp_reconnect_attempts += 1
+            return self._tcp_reconnect_attempts
     
     async def queue_message(self, message: str) -> None:
         """Добавление сообщения в очередь для обработки в asyncio loop"""
-        await self.message_queue.put(message)
+        await self._message_queue.put(message)
     
     async def process_queued_messages(self) -> None:
         """Обработка всех сообщений из очереди"""
-        while not self.message_queue.empty():
+        while not self._message_queue.empty():
             try:
-                message = await self.message_queue.get_nowait()
+                message = await self._message_queue.get_nowait()
                 await self.broadcast_message(message)
-                self.message_queue.task_done()
+                self._message_queue.task_done()
+            except asyncio.QueueEmpty:
+                break
+    
+    async def cleanup(self) -> None:
+        """Очистка всех соединений при shutdown"""
+        # Закрываем все WebSocket подключения
+        async with self._websocket_lock:
+            for client in list(self._websocket_clients):
+                try:
+                    await client.close()
+                except:
+                    pass
+            self._websocket_clients.clear()
+        
+        # Закрываем TCP соединение
+        self.close_tcp_socket()
+        
+        # Очищаем очередь сообщений
+        while not self._message_queue.empty():
+            try:
+                self._message_queue.get_nowait()
+                self._message_queue.task_done()
             except asyncio.QueueEmpty:
                 break
 
 
-# Глобальный менеджер соединений
+# Глобальный менеджер соединений - заменяет все глобальные переменные
 connection_manager = ConnectionManager()
 
 # Флаги для graceful shutdown
 shutdown_event = threading.Event()
-tcp_thread = None
+tcp_thread: Optional[threading.Thread] = None
 runner = None
 loop = None
 
